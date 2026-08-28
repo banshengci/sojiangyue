@@ -151,6 +151,10 @@ dependency_overrides:
       url: https://github.com/Anxcye/langchain_dart.git
       ref: 310fb6b3
       path: packages/langchain_anthropic
+  # 上游 langchain_google:0.7.1+2 调用 googleai_dart 的 ApiException.code，
+  # 而 googleai_dart 从 3.1.0 起将其重命名为 statusCode，导致内核编译失败。
+  # 钉到仍带 code 字段的 3.0.0（即 langchain_google 0.7.1+2 约束的下限版本）以恢复兼容。
+  googleai_dart: 3.0.0
 #  analyzer: ^8.0.0
 
 

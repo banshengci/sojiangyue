@@ -976,13 +976,13 @@ packages:
     source: hosted
     version: "0.3.3+1"
   googleai_dart:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: googleai_dart
-      sha256: "350c0323420dcd69873ed25cc7191bbb4ca8139ba0d7d9e4ac50c23061ada9ba"
+      sha256: "22f8bb5e621067f4c9cd2f88db240bbd7f1ea54b960c55c348104c74794a97a7"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "3.6.0"
+    version: "3.0.0"
   googleapis:
     dependency: transitive
     description:
