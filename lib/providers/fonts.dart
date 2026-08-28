@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/providers/font_list.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
 import 'package:songjiang_reader/utils/get_path/get_temp_dir.dart';
@@ -13,9 +14,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'fonts.g.dart';
 part 'fonts.freezed.dart';
 
-// TODO(松江阅): 字体市场依赖上游作者服务，请替换为自有服务或移除该功能。
-const String fontBaseUrl = 'https://fonts.anxcye.com/';
-const String fontManifestUrl = '${fontBaseUrl}fonts-manifest.json';
+/// 字体下载基础 URL，来源于 [RemoteConfig.fontBaseUrl]，由构建时 dart-define 注入。
+String get fontBaseUrl => RemoteConfig.fontBaseUrl;
+String get fontManifestUrl => RemoteConfig.fontManifestUrl;
 
 @freezed
 abstract class LicenseModel with _$LicenseModel {
@@ -71,12 +72,17 @@ class Fonts extends _$Fonts {
 
   @override
   Future<List<RemoteFontModel>> build() async {
-    final response = await http.get(Uri.parse(fontManifestUrl));
+    final url = fontManifestUrl;
+    if (url.isEmpty) {
+      // 未配置字体市场
+      return [];
+    }
+    final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
       final List<dynamic> jsonList = jsonDecode(response.body);
       return jsonList.map((json) => RemoteFontModel.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load fonts manifest');
+      throw Exception('Failed to load fonts manifest (HTTP ${response.statusCode})');
     }
   }
 }
@@ -133,12 +139,11 @@ class FontDownloads extends _$FontDownloads {
             if (total == -1) {
               total = knownFileSize;
             }
-
             if (total != -1) {
               final progress = received / total;
               state = {
                 ...state,
-                fontId: state[fontId]!.copyWith(progress: progress)
+                fontId: state[fontId]!.copyWith(progress: progress),
               };
             }
           },

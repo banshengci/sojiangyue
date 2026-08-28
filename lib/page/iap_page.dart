@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/iap_state.dart';
 import 'package:songjiang_reader/service/iap/iap_service.dart';
@@ -133,24 +134,26 @@ class IAPPage extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      TextButton(
-                        child: Text(L10n.of(context).aboutPrivacyPolicy),
-                        onPressed: () async {
-                          launchUrl(
-                            Uri.parse('https://anx.anxcye.com/privacy.html'),
-                            mode: LaunchMode.externalApplication,
-                          );
-                        },
-                      ),
-                      TextButton(
-                        child: Text(L10n.of(context).aboutTermsOfUse),
-                        onPressed: () async {
-                          launchUrl(
-                            Uri.parse('https://anx.anxcye.com/terms.html'),
-                            mode: LaunchMode.externalApplication,
-                          );
-                        },
-                      ),
+                      if (RemoteConfig.enablePrivacyLink)
+                        TextButton(
+                          child: Text(L10n.of(context).aboutPrivacyPolicy),
+                          onPressed: () async {
+                            launchUrl(
+                              Uri.parse(RemoteConfig.privacyUrl),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                        ),
+                      if (RemoteConfig.enableTermsLink)
+                        TextButton(
+                          child: Text(L10n.of(context).aboutTermsOfUse),
+                          onPressed: () async {
+                            launchUrl(
+                              Uri.parse(RemoteConfig.termsUrl),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                        ),
                     ],
                   ),
                 ],

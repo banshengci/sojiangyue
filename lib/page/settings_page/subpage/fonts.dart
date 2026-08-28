@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,8 +21,16 @@ class FontsSettingPage extends ConsumerWidget {
       body: fontList.when(
         data: (fonts) {
           if (fonts.isEmpty) {
-            return const Center(
-              child: CircularProgressIndicator(),
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Text(
+                  RemoteConfig.enableFontMarket
+                      ? L10n.of(context).fontFailedToLoadFonts
+                      : '字体服务未配置。请在构建时设置 --dart-define=FONT_BASE_URL=https://your-host/fonts/ 后重新构建。',
+                  textAlign: TextAlign.center,
+                ),
+              ),
             );
           }
 
@@ -37,7 +46,7 @@ class FontsSettingPage extends ConsumerWidget {
                     if (font.preview.isNotEmpty)
                       CachedNetworkImage(
                         color: Theme.of(context).colorScheme.onSurface,
-                        imageUrl: 'https://fonts.anxcye.com/${font.preview}',
+                        imageUrl: '${RemoteConfig.fontBaseUrl}${font.preview}',
                         width: MediaQuery.of(context).size.width,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => const Center(

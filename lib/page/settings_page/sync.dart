@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:songjiang_reader/dao/database.dart';
@@ -64,8 +65,10 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
                 padding: const EdgeInsets.fromLTRB(40, 0, 20, 10),
                 child: GestureDetector(
                   onTap: () async {
+                    final helpUrl = RemoteConfig.webdavHelpUrl;
+                    if (helpUrl.isEmpty) return;
                     if (!await launchUrl(
-                        Uri.parse('https://anx.anxcye.com/docs/sync/webdav'),
+                        Uri.parse(helpUrl),
                         mode: LaunchMode.externalApplication)) {
                       AnxToast.show(L10n.of(context).commonFailed);
                     }
