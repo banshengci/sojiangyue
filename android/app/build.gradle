@@ -71,10 +71,22 @@ android {
             }
         }
         release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
+            // 正常路径：android/key.properties 里配置了 release 密钥。
+            // 未配置时回退到 debug 密钥，保证 `flutter build apk --release` 仍能跑通
+            // （仅供本地/CI 冒烟验证；上架前必须配置真实 release 密钥）。
+            def localDebugKeystore = file('debug.keystore')
+            if (keystoreProperties['storeFile']) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            } else if (localDebugKeystore.exists()) {
+                logger.lifecycle('release: 未找到 key.properties，回退 debug 签名（不可上架）')
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+                storeFile localDebugKeystore
+                storePassword 'android'
+            }
         }
     }
 

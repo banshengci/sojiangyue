@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -12,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 分析 + 单元测试 (Linux, 最快)
+  # ============ 分析 + 单元测试 (Linux, 最快) ============
   analyze-and-test:
     name: Analyze & test (ubuntu)
     runs-on: ubuntu-latest
@@ -46,9 +47,10 @@ jobs:
       - name: Run tests
         run: flutter test --no-pub --reporter expanded
 
-  # Windows 构建（windows-latest 自带完整 Visual Studio，含 ATL 等组件）
+  # ============ Windows ============
+  # windows-latest 自带完整 Visual Studio 2022（含 ATL，flutter_tts 需要）
   build-windows:
-    name: Build Windows (debug)
+    name: Build Windows
     runs-on: windows-latest
     timeout-minutes: 60
     needs: analyze-and-test
@@ -72,21 +74,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
+      - name: Enable git long paths
+        run: git config --system core.longpaths true
+
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Windows (debug)
-        run: flutter build windows --debug --no-pub
+      - name: Build Windows (release)
+        run: flutter build windows --release --no-pub
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: songjiang_reader-windows-debug
-          path: build/windows/x64/runner/Debug
+          name: songjiang_reader-windows-release
+          path: build/windows/x64/runner/Release
           if-no-files-found: warn
           retention-days: 7
 
-  # Android 构建（windows-latest，自带 JDK 17 + Android SDK 预装）
+  # ============ Android ============
   build-android:
     name: Build Android (debug APK)
     runs-on: windows-latest
@@ -140,8 +145,9 @@ jobs:
       - name: Install Android CMake & NDK
         shell: bash
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "cmake;3.22.1" "ndk;27.0.12077973" || \
-          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "cmake;3.22.1" "ndk;27.0.12077973"
+          SM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SM" ] || SM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SM" --install "cmake;3.22.1" "ndk;27.0.12077973" || true
 
       - name: Install dependencies
         run: flutter pub get
@@ -154,5 +160,179 @@ jobs:
         with:
           name: songjiang_reader-android-debug
           path: build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ============ Android release（打 tag 时才跑） ============
+  # 需要在仓库 Settings → Secrets 里配置：
+  #   KEYSTORE_BASE64      = base64 -w0 android/app/release.jks
+  #   KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD
+  build-android-release:
+    name: Build Android (release AAB + APK)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    needs: analyze-and-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Flutter 3.35.3
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.3
+          channel: stable
+
+      - name: Enable git long paths
+        run: git config --system core.longpaths true
+
+      - name: Ensure Gradle wrapper
+        shell: bash
+        run: |
+          SDK="$(dirname "$(dirname "$(command -v flutter)")")"
+          cp "$SDK/bin/cache/artifacts/gradle_wrapper/gradlew" android/gradlew
+          cp "$SDK/bin/cache/artifacts/gradle_wrapper/gradlew.bat" android/gradlew.bat
+          mkdir -p android/gradle/wrapper
+          cp "$SDK/bin/cache/artifacts/gradle_wrapper/gradle/wrapper/gradle-wrapper.jar" android/gradle/wrapper/gradle-wrapper.jar
+
+      - name: Install Android CMake & NDK
+        shell: bash
+        run: |
+          SM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SM" ] || SM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SM" --install "cmake;3.22.1" "ndk;27.0.12077973" || true
+
+      - name: Restore signing keystore
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "未配置签名密钥，跳过（release 构建将使用 debug 签名）"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.jks
+          cat > android/key.properties <<EOF
+          storeFile=release.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK & AAB
+        run: |
+          flutter build apk --release --no-pub
+          flutter build appbundle --release --no-pub
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: songjiang_reader-android-release-${{ github.ref_name }}
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aab
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ============ macOS / iOS ============
+  build-apple:
+    name: Build macOS & iOS
+    runs-on: macos-latest
+    timeout-minutes: 60
+    needs: analyze-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter 3.35.3
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.3
+          channel: stable
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool/package_config.json
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS (debug)
+        run: flutter build macos --debug --no-pub
+
+      # 无签名构建（CI 没有开发者证书）；上架前需本地配好签名后再归档
+      - name: Build iOS (debug, no codesign)
+        run: flutter build ios --debug --no-codesign --no-pub
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: songjiang_reader-macos-debug
+          path: build/macos/Build/Products/Debug/*.app
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ============ Linux ============
+  build-linux:
+    name: Build Linux (debug)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: analyze-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev
+
+      - name: Setup Flutter 3.35.3
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.3
+          channel: stable
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool/package_config.json
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Linux (debug)
+        run: flutter build linux --debug --no-pub
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: songjiang_reader-linux-debug
+          path: build/linux/x64/debug/bundle
           if-no-files-found: warn
           retention-days: 7
