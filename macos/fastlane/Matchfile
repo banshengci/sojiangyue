@@ -1,4 +1,7 @@
-git_url("https://github.com/Anxcye/anx-secret.git")
+# 松江阅签名证书仓库：请替换为你自己的私有仓库，例如
+#   git_url("git@github.com:<your-org>/<your-certs>.git")
+# 指向 Anxcye/anx-secret 会导致证书下载失败，且存在安全风险。
+git_url("")
 storage_mode("git")
 type("appstore") # For macOS: developer_id for direct distribution, appstore for Mac App Store
 
