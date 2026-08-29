@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/tts/models/tts_voice.dart';
@@ -37,7 +38,7 @@ class OpenAiTtsProvider extends TtsServiceProvider {
         label: L10n.of(context).translateTip,
         type: ConfigItemType.tip,
         defaultValue: L10n.of(context).settingsNarrateOpenAiHelpText,
-        link: 'https://anx.anxcye.com/docs/tts/openai',
+        link: RemoteConfig.enableDocsLink ? RemoteConfig.docsPage('tts/openai') : null,
       ),
       ConfigItem(
         key: 'url',

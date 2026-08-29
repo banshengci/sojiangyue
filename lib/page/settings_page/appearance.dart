@@ -1,6 +1,6 @@
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/utils/env_var.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/widgets/common/anx_segmented_button.dart';
 import 'package:songjiang_reader/widgets/settings/settings_title.dart';
 import 'package:songjiang_reader/widgets/settings/simple_dialog.dart';
@@ -238,16 +238,6 @@ class _AppearanceSettingState extends State<AppearanceSetting> {
         SettingsSection(
           title: Text(L10n.of(context).settingsAppearanceBottomNavigatorShow),
           tiles: [
-            if (EnvVar.enableAIFeature)
-              SettingsTile.switchTile(
-                title: Text(L10n.of(context).navBarAI),
-                initialValue: Prefs().bottomNavigatorShowAI,
-                onToggle: (bool value) {
-                  setState(() {
-                    Prefs().bottomNavigatorShowAI = value;
-                  });
-                },
-              ),
             SettingsTile.switchTile(
               title: Text(L10n.of(context).navBarStatistics),
               initialValue: Prefs().bottomNavigatorShowStatistics,
@@ -296,16 +286,61 @@ Future<void> showColorPickerDialog(BuildContext context) async {
     builder: (BuildContext context) {
       return AlertDialog(
         title: Text(L10n.of(context).settingsAppearanceThemeColor),
-        content: SingleChildScrollView(
-          child: ColorPicker(
-            pickerColor: pickedColor,
-            onColorChanged: (color) {
-              pickedColor = color;
-            },
-            enableAlpha: false,
-            displayThumbColor: true,
-            pickerAreaHeightPercent: 0.8,
-          ),
+        content: StatefulBuilder(
+          builder: (BuildContext contentContext, StateSetter setDialogState) {
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 品牌色板快捷选择，优先呈现松江阅自己的调性
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: SongJiangColors.themePalette.map((color) {
+                      final selected = pickedColor.value == color.value;
+                      return GestureDetector(
+                        onTap: () => setDialogState(() => pickedColor = color),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: selected
+                                  ? Theme.of(contentContext).colorScheme.primary
+                                  : Colors.transparent,
+                              width: 2.5,
+                            ),
+                          ),
+                          child: selected
+                              ? Icon(Icons.check,
+                                  size: 20,
+                                  color: color.computeLuminance() > 0.5
+                                      ? Colors.black
+                                      : Colors.white)
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 18),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  ColorPicker(
+                    pickerColor: pickedColor,
+                    onColorChanged: (color) {
+                      pickedColor = color;
+                    },
+                    enableAlpha: false,
+                    displayThumbColor: true,
+                    pickerAreaHeightPercent: 0.8,
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         actions: <Widget>[
           TextButton(

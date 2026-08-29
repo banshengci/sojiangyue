@@ -115,6 +115,16 @@ class RemoteConfig {
     return '${base}sync/webdav';
   }
 
+  /// 文档站子页面链接（设置 [docsUrl] 后可用）。
+  ///
+  /// [path] 传相对路径，如 `translate/deepl`。未配置文档站时返回空字符串，
+  /// 调用方应据此隐藏入口，避免把用户指到上游站点。
+  static String docsPage(String path) {
+    if (_docsUrl.isEmpty) return '';
+    final base = _docsUrl.endsWith('/') ? _docsUrl : '$_docsUrl/';
+    return '$base${path.startsWith('/') ? path.substring(1) : path}';
+  }
+
   // === 启用判定 ===
 
   static bool get enableUpdateCheck => updateApiUrl != null;

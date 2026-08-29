@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/enums/lang_list.dart';
@@ -119,7 +120,7 @@ class DeepLTranslateProvider extends TranslateServiceProvider {
         label: L10n.of(context).translateTip,
         type: ConfigItemType.tip,
         defaultValue: L10n.of(context).translateDeepLHelpText,
-        link: 'https://anx.anxcye.com/docs/translate/deepl',
+        link: RemoteConfig.enableDocsLink ? RemoteConfig.docsPage('translate/deepl') : null,
       ),
       ConfigItem(
         key: 'api_url',

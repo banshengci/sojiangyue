@@ -36,6 +36,7 @@ import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_til
 import 'package:songjiang_reader/models/window_info.dart';
 import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
 import 'package:songjiang_reader/service/translate/index.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/utils/get_current_language_code.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/widgets/reading_page/style_widget.dart';
@@ -169,7 +170,8 @@ class Prefs extends ChangeNotifier {
   }
 
   Color get themeColor {
-    int colorValue = prefs.getInt('themeColor') ?? Colors.blue.value;
+    // 默认取品牌松绿，未手动改过主题色的用户直接得到松江阅自己的调性
+    int colorValue = prefs.getInt('themeColor') ?? SongJiangColors.pine.value;
     return Color(colorValue);
   }
 

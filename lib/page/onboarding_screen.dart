@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:introduction_screen/introduction_screen.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:provider/provider.dart';
 
 /// Onboarding screen for first-time users
@@ -247,20 +248,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
 
     Widget buildThemeColorSelector() {
-      final List<Color> themeColors = [
-        Colors.purple,
-        Colors.indigo,
-        Colors.blue,
-        Colors.cyan,
-        Colors.teal,
-        Colors.green,
-        Colors.lime,
-        Colors.amber,
-        Colors.orange,
-        Colors.deepOrange,
-        Colors.pink,
-        Colors.red,
-      ]..reversed.toList();
+      // 松江阅自有色板：松绿为默认，其余取自水墨 / 江南意象的邻近色
+      final List<Color> themeColors =
+          List<Color>.of(SongJiangColors.themePalette);
 
       final currentThemeColor = Prefs().themeColor;
 

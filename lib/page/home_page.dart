@@ -4,7 +4,6 @@ import 'package:songjiang_reader/dao/database.dart';
 import 'package:songjiang_reader/enums/sync_direction.dart';
 import 'package:songjiang_reader/enums/sync_trigger.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/page/home_page/ai_page.dart';
 import 'package:songjiang_reader/service/initialization_check.dart';
 import 'package:songjiang_reader/page/home_page/bookshelf_page.dart';
 import 'package:songjiang_reader/page/home_page/notes_page.dart';
@@ -21,11 +20,10 @@ import 'package:songjiang_reader/utils/platform_utils.dart';
 import 'package:songjiang_reader/providers/sync.dart';
 import 'package:songjiang_reader/providers/iap.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
-import 'package:songjiang_reader/widgets/ai/ai_chat_stream.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/settings/about.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_floating_bottom_bar/flutter_floating_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -130,6 +128,8 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // 松江阅底部导航固定为四个：书架 / 统计 / 笔记 / 设置。
+    // AI 不占用底栏入口，改由「更多设置 → AI 对话」与阅读页侧栏进入。
     List<Map<String, dynamic>> navBarItems = [
       {
         'icon': EvaIcons.book_open,
@@ -141,12 +141,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           'icon': Icons.show_chart,
           'label': L10n.of(context).navBarStatistics,
           'identifier': 'statistics'
-        },
-      if (Prefs().bottomNavigatorShowAI && EnvVar.enableAIFeature)
-        {
-          'icon': Icons.auto_awesome,
-          'label': L10n.of(context).navBarAI,
-          'identifier': 'ai'
         },
       if (Prefs().bottomNavigatorShowNote)
         {
@@ -177,8 +171,6 @@ class _HomePageState extends ConsumerState<HomePage> {
         BookshelfPage(controller: controller),
         if (Prefs().bottomNavigatorShowStatistics)
           StatisticPage(controller: controller),
-        if (Prefs().bottomNavigatorShowAI && EnvVar.enableAIFeature)
-          AiChatStream(),
         if (Prefs().bottomNavigatorShowNote) NotesPage(controller: controller),
         SettingsPage(controller: controller),
       ];
@@ -187,11 +179,6 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     void onBottomTap(int index, bool fromRail) {
       VibrationService.heavy();
-      if (navBarItems[index]['identifier'] == 'ai' && !fromRail) {
-        showCupertinoSheet(
-            context: context, builder: (context) => const AiPage());
-        return;
-      }
       setState(() {
         _currentTab = navBarItems[index]['identifier'];
       });
@@ -234,12 +221,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                         leading: InkWell(
                           onTap: () => openAboutDialog(),
                           child: Padding(
-                            padding: const EdgeInsets.only(right: 2.0),
-                            child: Image.asset(
-                              width: 32,
-                              height: 32,
-                              'assets/icon/Anx-logo-tined.png',
-                              color: Theme.of(context).colorScheme.secondary,
+                            padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.asset(
+                                width: 34,
+                                height: 34,
+                                SongJiangBrand.logoAsset,
+                              ),
                             ),
                           ),
                         ),
@@ -261,9 +250,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
           );
         } else {
-          if (navBarItems[currentIndex]['identifier'] == 'ai') {
-            currentIndex = 0;
-          }
           return Scaffold(
             extendBody: true,
             body: BottomBar(

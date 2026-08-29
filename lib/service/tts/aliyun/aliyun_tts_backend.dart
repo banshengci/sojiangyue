@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/tts/aliyun/aliyun_voices.dart';
@@ -48,7 +49,7 @@ class AliyunTtsProvider extends TtsServiceProvider {
         label: L10n.of(context).translateTip,
         type: ConfigItemType.tip,
         defaultValue: L10n.of(context).settingsNarrateAliyunHelpText,
-        link: 'https://anx.anxcye.com/docs/tts/aliyun',
+        link: RemoteConfig.enableDocsLink ? RemoteConfig.docsPage('tts/aliyun') : null,
       ),
       ConfigItem(
         key: 'appkey',

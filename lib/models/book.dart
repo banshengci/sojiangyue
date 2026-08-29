@@ -40,7 +40,7 @@ class Book {
       filePath: '',
       lastReadPosition: '',
       readingPercentage: 0.78,
-      author: 'Anx',
+      author: '松江阅',
       isDeleted: false,
       rating: 0,
       createTime: DateTime.now(),
