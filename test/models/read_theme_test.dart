@@ -1,12 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
 
 void main() {
   group('ReadTheme 序列化', () {
     test('toJson / fromJson 往返保留主题名', () {
-      const theme = ReadTheme(
+      final theme = ReadTheme(
         id: 3,
         name: '竹月',
         backgroundColor: 'ffe9efe6',
@@ -55,7 +56,7 @@ void main() {
     });
 
     test('copyWith 可以只改名字', () {
-      const theme = ReadTheme(
+      final theme = ReadTheme(
         id: 5,
         name: '',
         backgroundColor: 'fffaf0dc',

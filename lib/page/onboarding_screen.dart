@@ -102,8 +102,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return PageViewModel(
       title: L10n.of(context).onboardingWelcomeTitle,
       body: L10n.of(context).onboardingWelcomeBody,
-      image: _buildIconPage(Icons.book_outlined),
-      decoration: _getPageDecoration(),
+      image: _buildBrandHero(),
+      decoration: _getPageDecoration(
+        imagePadding: const EdgeInsets.fromLTRB(0, 28, 0, 8),
+      ),
     );
   }
 
@@ -148,35 +150,124 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  /// 品牌开场：大号松江阅 Logo + 标语
+  Widget _buildBrandHero() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 148,
+          height: 148,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(38),
+            color: isDark
+                ? SongJiangColors.inkCard
+                : SongJiangColors.paperCard,
+            border: Border.all(
+              color: SongJiangColors.pine.withAlpha(isDark ? 90 : 45),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: (isDark ? Colors.black : SongJiangColors.pineDeep)
+                    .withAlpha(isDark ? 90 : 45),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Image.asset(
+            SongJiangBrand.logoAsset,
+            fit: BoxFit.contain,
+          ),
+        ),
+        const SizedBox(height: 22),
+        Text(
+          SongJiangBrand.name,
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 4,
+            color: SongJiangColors.pine,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          SongJiangBrand.tagline,
+          style: TextStyle(
+            fontSize: 15,
+            letterSpacing: 1.2,
+            color: onSurface.withAlpha(190),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 功能页图标：松绿渐变的圆角书页块，取代原来的浅色圆形
   Widget _buildIconPage(IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
+      width: 186,
+      height: 186,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer.withAlpha(50),
-        shape: BoxShape.circle,
+        gradient: isDark
+            ? SongJiangColors.pineGradientDark
+            : SongJiangColors.pineGradient,
+        borderRadius: BorderRadius.circular(44),
+        boxShadow: [
+          BoxShadow(
+            color: (isDark ? Colors.black : SongJiangColors.pineDeep)
+                .withAlpha(isDark ? 90 : 55),
+            blurRadius: 26,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(40),
-      child: Icon(
-        icon,
-        size: 120,
-        color: Theme.of(context).colorScheme.primary,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 内嵌描边，做出书页的层次感
+          Container(
+            margin: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: Colors.white.withAlpha(isDark ? 30 : 45),
+                width: 1.5,
+              ),
+            ),
+          ),
+          Icon(icon, size: 84, color: Colors.white),
+        ],
       ),
     );
   }
 
-  PageDecoration _getPageDecoration() {
+  PageDecoration _getPageDecoration({
+    EdgeInsets? imagePadding,
+  }) {
     return PageDecoration(
       titleTextStyle: TextStyle(
-        fontSize: 28.0,
+        fontSize: 27.0,
         fontWeight: FontWeight.w700,
+        letterSpacing: 0.6,
         color: Theme.of(context).colorScheme.onSurface,
       ),
       bodyTextStyle: TextStyle(
-        fontSize: 19.0,
+        fontSize: 17.0,
+        height: 1.55,
+        letterSpacing: 0.2,
         color: Theme.of(context).colorScheme.onSurface.withAlpha(200),
       ),
       bodyPadding: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 16.0),
       pageColor: Theme.of(context).scaffoldBackgroundColor,
-      imagePadding: const EdgeInsets.symmetric(vertical: 40.0),
+      imagePadding: imagePadding ?? const EdgeInsets.symmetric(vertical: 40.0),
     );
   }
 
