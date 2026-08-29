@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/models/book.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:flutter/material.dart';
 
 class BookCover extends StatelessWidget {
@@ -54,22 +54,66 @@ class BookCover extends StatelessWidget {
           final iconSize = coverWidth * 0.8;
           final padding = coverWidth * 0.08;
 
-          final backgroundColor = Colors
-              .primaries[book.title.hashCode % Colors.primaries.length]
-              .shade200;
+          // 松江阅：用品牌色板（水墨 / 江南意象）取代 Material 彩虹色，
+          // 同一本书稳定映射到同一色，书架整体调性统一。
+          final palette = SongJiangColors.themePalette;
+          final baseColor = palette[
+              (book.title.hashCode & 0x7FFFFFFF) % palette.length];
+          final backgroundColor = baseColor;
           final textColor = _getContrastColor(backgroundColor);
 
           final showTitle = Prefs().showBookTitleOnDefaultCover;
           final showAuthor = Prefs().showAuthorOnDefaultCover;
 
           return Container(
-            color: backgroundColor,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.lerp(backgroundColor, Colors.white, 0.12)!,
+                  backgroundColor,
+                  Color.lerp(backgroundColor, Colors.black, 0.18)!,
+                ],
+              ),
+            ),
             child: Stack(
+              fit: StackFit.expand,
               children: [
+                // 书脊：左侧一条深色竖带，强化「书」的隐喻
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: coverWidth * 0.055,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.16),
+                    ),
+                  ),
+                ),
+                // 水印「阅」，与设置页品牌头图呼应
+                Positioned(
+                  right: -coverWidth * 0.12,
+                  bottom: -coverWidth * 0.12,
+                  child: Text(
+                    '阅',
+                    style: TextStyle(
+                      fontSize: iconSize * 0.72,
+                      fontWeight: FontWeight.w700,
+                      color: textColor.withValues(alpha: 0.13),
+                    ),
+                  ),
+                ),
                 // Text content (title at top, author at bottom)
                 if (showTitle || showAuthor)
                   Padding(
-                    padding: EdgeInsets.all(padding),
+                    padding: EdgeInsets.only(
+                      left: padding + coverWidth * 0.055,
+                      right: padding,
+                      top: padding,
+                      bottom: padding,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -82,11 +126,19 @@ class BookCover extends StatelessWidget {
                             style: TextStyle(
                               fontSize: titleFontSize,
                               fontWeight: FontWeight.bold,
+                              fontFamily: 'SourceHanSerif',
                               color: textColor,
-                              height: 1.2,
+                              height: 1.25,
                             ),
                           ),
                         const Spacer(),
+                        // 分隔细线，让书名与作者之间有呼吸
+                        Container(
+                          width: coverWidth * 0.22,
+                          height: 1.2,
+                          margin: EdgeInsets.only(bottom: padding * 0.5),
+                          color: textColor.withValues(alpha: 0.45),
+                        ),
                         // Author at bottom
                         if (showAuthor)
                           Text(
@@ -96,25 +148,12 @@ class BookCover extends StatelessWidget {
                             style: TextStyle(
                               fontSize: authorFontSize,
                               fontWeight: FontWeight.w300,
-                              color: textColor,
+                              color: textColor.withValues(alpha: 0.9),
                             ),
                           ),
                       ],
                     ),
                   ),
-                // Icon at bottom right corner with rotation
-                Positioned(
-                  right: -padding * 0.8,
-                  bottom: -padding * 0.5,
-                  child: Transform.rotate(
-                    angle: 15 * math.pi / 180, // 15 degrees in radians
-                    child: Icon(
-                      Icons.book,
-                      size: iconSize,
-                      color: textColor.withValues(alpha: 0.1),
-                    ),
-                  ),
-                ),
               ],
             ),
           );
@@ -124,9 +163,9 @@ class BookCover extends StatelessWidget {
 
     final RoundedSuperellipseBorder borderShape = RoundedSuperellipseBorder(
       borderRadius: borderRadius,
-      side: const BorderSide(
-        width: 0.3,
-        color: Colors.grey,
+      side: BorderSide(
+        width: 0.6,
+        color: SongJiangColors.pine.withValues(alpha: 0.35),
       ),
     );
 
