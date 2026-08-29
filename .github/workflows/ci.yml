@@ -118,6 +118,31 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
+      # 项目有多个 git 依赖（flutter_inappwebview 等），其源码路径很深。
+      # Windows 默认 260 字符路径限制会让 pub 克隆时静默漏掉部分源文件，
+      # 表现为编译期莫名其妙的“找不到符号”。必须先开启 long paths。
+      - name: Enable git long paths
+        run: git config --system core.longpaths true
+
+      # android/.gitignore 会忽略 gradlew / gradlew.bat / gradle-wrapper.jar
+      # （Flutter 模板默认如此），checkout 后项目里没有 wrapper。
+      # 首次 `flutter build apk` 生成 wrapper 时容易卡住，这里显式补齐。
+      - name: Ensure Gradle wrapper
+        shell: bash
+        run: |
+          SDK="$(dirname "$(dirname "$(command -v flutter)")")"
+          cp "$SDK/bin/cache/artifacts/gradle_wrapper/gradlew" android/gradlew
+          cp "$SDK/bin/cache/artifacts/gradle_wrapper/gradlew.bat" android/gradlew.bat
+          mkdir -p android/gradle/wrapper
+          cp "$SDK/bin/cache/artifacts/gradle_wrapper/gradle/wrapper/gradle-wrapper.jar" android/gradle/wrapper/gradle-wrapper.jar
+
+      # sqlite3_flutter_libs 等插件需要 CMake 编译 native 代码
+      - name: Install Android CMake & NDK
+        shell: bash
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "cmake;3.22.1" "ndk;27.0.12077973" || \
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "cmake;3.22.1" "ndk;27.0.12077973"
+
       - name: Install dependencies
         run: flutter pub get
 
