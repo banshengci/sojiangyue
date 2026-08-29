@@ -236,9 +236,11 @@ class Prefs extends ChangeNotifier {
   ReadTheme get readTheme {
     String? readThemeJson = prefs.getString('readTheme');
     if (readThemeJson == null) {
+      // 品牌默认：宣纸（暖白纸面 + 墨褐字）
       return ReadTheme(
-          backgroundColor: 'FFFBFBF3',
-          textColor: 'FF343434',
+          name: '宣纸',
+          backgroundColor: 'FFFBF7EE',
+          textColor: 'FF2E2A24',
           backgroundImagePath: '');
     }
     return ReadTheme.fromJson(readThemeJson);

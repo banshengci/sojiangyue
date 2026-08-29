@@ -13,7 +13,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // Current app database version
-const int currentDbVersion = 7;
+const int currentDbVersion = 8;
 
 const createBookSQL = '''
 CREATE TABLE tb_books (
@@ -34,6 +34,7 @@ CREATE TABLE tb_books (
 const createThemeSQL = '''
 CREATE TABLE tb_themes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT,
   background_color TEXT,
   text_color TEXT,
   background_image_path TEXT
@@ -55,11 +56,37 @@ CREATE TABLE tb_styles (
 )
 ''';
 
+// 松江阅预置阅读主题。
+// 命名取江南 / 水墨意象，配色与品牌松绿体系呼应；
+// 深色主题刻意避开纯黑 + 纯白，减轻夜间阅读的眩光。
 const primaryTheme1 = '''
-INSERT INTO tb_themes (background_color, text_color, background_image_path) VALUES ('fffbfbf3', 'ff343434', '')
+INSERT INTO tb_themes (name, background_color, text_color, background_image_path) VALUES ('宣纸', 'fffbf7ee', 'ff2e2a24', '')
 ''';
 const primaryTheme2 = '''
-INSERT INTO tb_themes (background_color, text_color, background_image_path) VALUES ('ff040404', 'fffeffeb', '')
+INSERT INTO tb_themes (name, background_color, text_color, background_image_path) VALUES ('松烟', 'ff121815', 'ffe6ede4', '')
+''';
+const primaryTheme3 = '''
+INSERT INTO tb_themes (name, background_color, text_color, background_image_path) VALUES ('竹月', 'ffe9efe6', 'ff26412f', '')
+''';
+const primaryTheme4 = '''
+INSERT INTO tb_themes (name, background_color, text_color, background_image_path) VALUES ('藕荷', 'fff6ebe7', 'ff4a3a36', '')
+''';
+const primaryTheme5 = '''
+INSERT INTO tb_themes (name, background_color, text_color, background_image_path) VALUES ('秋杏', 'fffaf0dc', 'ff3b2f22', '')
+''';
+const primaryTheme6 = '''
+INSERT INTO tb_themes (name, background_color, text_color, background_image_path) VALUES ('苍黛', 'ff0b0f0d', 'ffc6d0c8', '')
+''';
+
+/// 老用户升级用：把上游遗留的两个预置配色换成松江阅品牌配色。
+/// 按原始配色精确匹配，避免误伤用户自建主题。
+const upgradeTheme1 = '''
+UPDATE tb_themes SET name = '宣纸', background_color = 'fffbf7ee', text_color = 'ff2e2a24'
+  WHERE background_color = 'fffbfbf3' AND text_color = 'ff343434'
+''';
+const upgradeTheme2 = '''
+UPDATE tb_themes SET name = '松烟', background_color = 'ff121815', text_color = 'ffe6ede4'
+  WHERE background_color = 'ff040404' AND text_color = 'fffeffeb'
 ''';
 
 const createNoteSQL = '''
@@ -325,6 +352,10 @@ class DBHelper {
         await db.execute(createReadingTimeSQL);
         await db.execute(primaryTheme1);
         await db.execute(primaryTheme2);
+        await db.execute(primaryTheme3);
+        await db.execute(primaryTheme4);
+        await db.execute(primaryTheme5);
+        await db.execute(primaryTheme6);
         continue case1;
       case1:
       case 1:
@@ -424,6 +455,23 @@ class DBHelper {
             INSERT INTO tb_groups (id, name, parent_id, create_time, update_time)
             VALUES (?, '...', 0, datetime('now'), datetime('now'))
           ''', [groupId]);
+        }
+        continue case7;
+      case7:
+      case 7:
+        // 松江阅阅读主题：为主题表增加名字列，并把预置配色换成品牌色系。
+        // 新建库在 createThemeSQL 里已带 name 列，这里检测后跳过，只对老库迁移。
+        final themeColumns = await db.rawQuery('PRAGMA table_info(tb_themes)');
+        final hasThemeName =
+            themeColumns.any((column) => column['name'] == 'name');
+        if (!hasThemeName) {
+          await db.execute('ALTER TABLE tb_themes ADD COLUMN name TEXT');
+          await db.execute(upgradeTheme1);
+          await db.execute(upgradeTheme2);
+          await db.execute(primaryTheme3);
+          await db.execute(primaryTheme4);
+          await db.execute(primaryTheme5);
+          await db.execute(primaryTheme6);
         }
     }
 

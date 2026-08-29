@@ -317,12 +317,24 @@ class StyleWidgetState extends State<StyleWidget> {
     );
   }
 
+  /// 用户自建主题没有名字时的回退显示。
+  static const String _customThemeName = '自定义';
+
+  /// 新建主题的初始配色：取品牌「松烟」，而不是原来的中性灰黑。
+  static ReadTheme _newThemeDraft() => ReadTheme(
+      name: _customThemeName,
+      backgroundColor: 'ff121815',
+      textColor: 'ffe6ede4',
+      backgroundImagePath: '');
+
   SizedBox themeSelector() {
-    const size = 40.0;
+    const size = 44.0;
     const paddingSize = 5.0;
+    const labelHeight = 18.0;
     EdgeInsetsGeometry padding = const EdgeInsets.all(paddingSize);
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
-      height: size + paddingSize * 2,
+      height: size + paddingSize * 2 + labelHeight,
       child: ListView.builder(
         itemCount: widget.themes.length + 1,
         scrollDirection: Axis.horizontal,
@@ -331,91 +343,120 @@ class StyleWidgetState extends State<StyleWidget> {
             // add a new theme
             return Padding(
               padding: padding,
-              child: Container(
-                  padding: padding,
-                  width: size,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(50),
-                    border: Border.all(
-                      color: Colors.black45,
-                      width: 1,
-                    ),
-                  ),
-                  child: InkWell(
-                    onTap: () async {
-                      int currId = await themeDao.insertTheme(ReadTheme(
-                          backgroundColor: 'ff121212',
-                          textColor: 'ffcccccc',
-                          backgroundImagePath: ''));
-                      widget.setCurrentPage(ThemeChangeWidget(
-                        readTheme: ReadTheme(
-                            id: currId,
-                            backgroundColor: 'ff121212',
-                            textColor: 'ffcccccc',
-                            backgroundImagePath: ''),
-                        setCurrentPage: widget.setCurrentPage,
-                      ));
-                    },
-                    child: Icon(Icons.add,
-                        size: size / 2,
-                        color: Color(int.parse('0x${'ffcccccc'}'))),
-                  )),
+              child: SizedBox(
+                width: size + paddingSize * 2,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                        padding: padding,
+                        width: size,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(50),
+                          border: Border.all(
+                            color: scheme.outlineVariant,
+                            width: 1,
+                          ),
+                        ),
+                        child: InkWell(
+                          onTap: () async {
+                            final draft = _newThemeDraft();
+                            int currId = await themeDao.insertTheme(draft);
+                            widget.setCurrentPage(ThemeChangeWidget(
+                              readTheme: draft.copyWith(id: currId),
+                              setCurrentPage: widget.setCurrentPage,
+                            ));
+                          },
+                          child: Icon(Icons.add,
+                              size: size / 2, color: scheme.onSurfaceVariant),
+                        )),
+                    const SizedBox(height: labelHeight),
+                  ],
+                ),
+              ),
             );
           }
           // theme list
+          final theme = widget.themes[index];
+          final selected = index + 1 == currentThemeId;
+          final bg = Color(int.parse('0x${theme.backgroundColor}'));
+          final fg = Color(int.parse('0x${theme.textColor}'));
+
+          void openEditor() {
+            setState(() {
+              widget.setCurrentPage(ThemeChangeWidget(
+                readTheme: theme,
+                setCurrentPage: widget.setCurrentPage,
+              ));
+            });
+          }
+
           return Padding(
             padding: padding,
-            child: Container(
-              padding: padding,
-              decoration: BoxDecoration(
-                color: Color(
-                    int.parse('0x${widget.themes[index].backgroundColor}')),
-                borderRadius: BorderRadius.circular(50),
-                border: Border.all(
-                  color: index + 1 == currentThemeId
-                      ? Theme.of(context).primaryColor
-                      : Colors.black45,
-                  width: index + 1 == currentThemeId ? 3 : 1,
-                ),
-              ),
-              height: size,
-              width: size,
-              child: InkWell(
-                onTap: () {
-                  Prefs().saveReadThemeToPrefs(widget.themes[index]);
-                  widget.epubPlayerKey.currentState!
-                      .changeTheme(widget.themes[index]);
-                  setState(() {
-                    currentThemeId = widget.themes[index].id;
-                  });
-                },
-                onSecondaryTap: () {
-                  setState(() {
-                    widget.setCurrentPage(ThemeChangeWidget(
-                      readTheme: widget.themes[index],
-                      setCurrentPage: widget.setCurrentPage,
-                    ));
-                  });
-                },
-                onLongPress: () {
-                  setState(() {
-                    widget.setCurrentPage(ThemeChangeWidget(
-                      readTheme: widget.themes[index],
-                      setCurrentPage: widget.setCurrentPage,
-                    ));
-                  });
-                },
-                child: Center(
-                  child: Text(
-                    "A",
-                    style: TextStyle(
-                      color: Color(
-                          int.parse('0x${widget.themes[index].textColor}')),
-                      fontSize: size / 3,
-                      fontWeight: FontWeight.bold,
+            child: SizedBox(
+              width: size + paddingSize * 2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: padding,
+                    decoration: BoxDecoration(
+                      color: bg,
+                      borderRadius: BorderRadius.circular(50),
+                      border: Border.all(
+                        color: selected ? scheme.primary : scheme.outlineVariant,
+                        width: selected ? 3 : 1,
+                      ),
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: scheme.primary.withAlpha(70),
+                                blurRadius: 8,
+                              )
+                            ]
+                          : null,
+                    ),
+                    height: size,
+                    width: size,
+                    child: InkWell(
+                      onTap: () {
+                        Prefs().saveReadThemeToPrefs(theme);
+                        widget.epubPlayerKey.currentState!.changeTheme(theme);
+                        setState(() {
+                          currentThemeId = theme.id;
+                        });
+                      },
+                      onSecondaryTap: openEditor,
+                      onLongPress: openEditor,
+                      child: Center(
+                        // 用「阅」字做主题预览，比原来的 "A" 更贴合中文阅读器
+                        child: Text(
+                          "阅",
+                          style: TextStyle(
+                            color: fg,
+                            fontSize: size / 2.4,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 2),
+                  SizedBox(
+                    height: labelHeight - 2,
+                    child: Text(
+                      theme.name.isNotEmpty ? theme.name : _customThemeName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -479,8 +520,16 @@ class _ThemeChangeWidgetState extends State<ThemeChangeWidget> {
           },
           icon: Icon(Icons.text_fields,
               size: 60, color: Color(int.parse('0x${readTheme.textColor}')))),
-      const Expanded(
-        child: SizedBox(),
+      Expanded(
+        child: TextButton.icon(
+          onPressed: _promptRename,
+          icon: const Icon(Icons.edit_outlined, size: 16),
+          label: Text(
+            readTheme.name.isNotEmpty ? readTheme.name : '自定义',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ),
       IconButton(
         onPressed: () {
@@ -494,6 +543,42 @@ class _ThemeChangeWidgetState extends State<ThemeChangeWidget> {
         ),
       ),
     ]);
+  }
+
+  /// 给主题起个名字（预置主题为宣纸 / 松烟 / 竹月…，自建主题可自行命名）
+  Future<void> _promptRename() async {
+    final controller = TextEditingController(text: readTheme.name);
+    final name = await showDialog<String>(
+      context: navigatorKey.currentState!.overlay!.context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('主题名称'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 8,
+            decoration: const InputDecoration(hintText: '例如：夜读、竹月'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (name == null || name.isEmpty) return;
+    setState(() {
+      readTheme = readTheme.copyWith(name: name);
+    });
+    await themeDao.updateTheme(readTheme);
   }
 
   Future<String?> showColorPickerDialog(String currColor) async {
