@@ -10,6 +10,7 @@ import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/reading_time.dart';
 import 'package:songjiang_reader/models/tag.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/providers/sync.dart';
 import 'package:songjiang_reader/providers/book_list.dart';
 import 'package:songjiang_reader/providers/tags.dart';
@@ -249,7 +250,8 @@ class _BookDetailState extends ConsumerState<BookDetail> {
                 itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
                 itemBuilder: (context, _) => const Icon(
                   Icons.star,
-                  color: Colors.amber,
+                  // 标准琥珀色仍是"黄色星星"的通用观感，换成松花黄更贴品牌
+                  color: SongJiangColors.pollen,
                 ),
                 onRatingUpdate: (rating) {
                   setState(() {
@@ -452,8 +454,8 @@ class _BookDetailState extends ConsumerState<BookDetail> {
         );
       }
 
-      VerticalDivider verticalDivider = const VerticalDivider(
-        color: Colors.black12,
+      VerticalDivider verticalDivider = VerticalDivider(
+        color: SongJiangColors.pine.withAlpha(60),
         thickness: 1,
         indent: 15,
         endIndent: 15,
