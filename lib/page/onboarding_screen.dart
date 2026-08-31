@@ -217,12 +217,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       height: 186,
       decoration: BoxDecoration(
         gradient: isDark
-            ? SongJiangColors.pineGradientDark
-            : SongJiangColors.pineGradient,
+            ? SongJiangColors.bambooGradientDark
+            : SongJiangColors.bambooGradient,
         borderRadius: BorderRadius.circular(44),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? Colors.black : SongJiangColors.pineDeep)
+            color: (isDark ? Colors.black : SongJiangColors.bambooDeep)
                 .withAlpha(isDark ? 90 : 55),
             blurRadius: 26,
             offset: const Offset(0, 10),

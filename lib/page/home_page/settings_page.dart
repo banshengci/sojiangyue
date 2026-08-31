@@ -117,12 +117,12 @@ class _BrandHero extends StatelessWidget {
             child: Ink(
               decoration: BoxDecoration(
                 gradient: isDark
-                    ? SongJiangColors.pineGradientDark
-                    : SongJiangColors.pineGradient,
+                    ? SongJiangColors.bambooGradientDark
+                    : SongJiangColors.bambooGradient,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: (isDark ? Colors.black : SongJiangColors.pineDeep)
+                    color: (isDark ? Colors.black : SongJiangColors.bambooDeep)
                         .withAlpha(isDark ? 90 : 60),
                     blurRadius: 22,
                     offset: const Offset(0, 8),

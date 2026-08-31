@@ -102,12 +102,12 @@ Widget _buildAboutHeader(BuildContext context, String version) {
     margin: const EdgeInsets.only(bottom: 4),
     decoration: BoxDecoration(
       gradient: isDark
-          ? SongJiangColors.pineGradientDark
-          : SongJiangColors.pineGradient,
+          ? SongJiangColors.bambooGradientDark
+          : SongJiangColors.bambooGradient,
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
-          color: (isDark ? Colors.black : SongJiangColors.pineDeep)
+          color: (isDark ? Colors.black : SongJiangColors.bambooDeep)
               .withAlpha(isDark ? 80 : 45),
           blurRadius: 18,
           offset: const Offset(0, 6),

@@ -20,6 +20,12 @@ class SongJiangColors {
   /// 竹青 —— 次强调色
   static const Color bamboo = Color(0xFF4F9E75);
 
+  /// 竹青（浅）—— 清新明亮的青绿，用于品牌头图渐变起点
+  static const Color bambooLight = Color(0xFF7DD8A8);
+
+  /// 竹青（深）—— 青绿渐变终点，保持竹意同时不过于暗沉
+  static const Color bambooDeep = Color(0xFF2A8F70);
+
   /// 松花黄 —— 点缀色（徽标、特殊标签）
   static const Color pollen = Color(0xFFC88C2E);
 
@@ -38,18 +44,18 @@ class SongJiangColors {
   /// 深色模式下的次级容器（比 [inkCard] 略亮一档）
   static const Color inkCardHigh = Color(0xFF263029);
 
-  /// 松绿渐变（用于品牌头图、强调块）
-  static const LinearGradient pineGradient = LinearGradient(
+  /// 竹青渐变（品牌头图、引导页）—— 比松绿更清新明亮
+  static const LinearGradient bambooGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: <Color>[pineLight, pine, pineDeep],
+    colors: <Color>[bambooLight, bamboo, bambooDeep],
   );
 
-  /// 深色模式下的松绿渐变（降低明度，避免刺眼）
-  static const LinearGradient pineGradientDark = LinearGradient(
+  /// 深色模式下的竹青渐变（降低明度，保持可读性）
+  static const LinearGradient bambooGradientDark = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: <Color>[Color(0xFF2E7D54), Color(0xFF17563A), Color(0xFF0A2A1D)],
+    colors: <Color>[Color(0xFF6BBF9A), Color(0xFF3B8C70), Color(0xFF235A4A)],
   );
 
   /// 应用向用户提供的主题色候选。
