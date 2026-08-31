@@ -5,6 +5,7 @@ import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/page/settings_page/developer/developer_options_page.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/settings/link_icon.dart';
@@ -92,6 +93,120 @@ void _openDeveloperOptionsPage() {
   );
 }
 
+/// 关于对话框的品牌头部：松绿渐变 + Logo + 中英文名 + 版本 + 标语 + 水印
+Widget _buildAboutHeader(BuildContext context, String version) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+  return Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 4),
+    decoration: BoxDecoration(
+      gradient: isDark
+          ? SongJiangColors.pineGradientDark
+          : SongJiangColors.pineGradient,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: (isDark ? Colors.black : SongJiangColors.pineDeep)
+              .withAlpha(isDark ? 80 : 45),
+          blurRadius: 18,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Stack(
+        children: [
+          // 水印「阅」
+          Positioned(
+            right: -14,
+            bottom: -32,
+            child: Text(
+              '阅',
+              style: TextStyle(
+                fontSize: 110,
+                fontWeight: FontWeight.w700,
+                color: Colors.white.withAlpha(isDark ? 16 : 26),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withAlpha(26)
+                        : Colors.white.withAlpha(220),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withAlpha(isDark ? 40 : 0),
+                      width: 1,
+                    ),
+                  ),
+                  child: Image.asset(
+                    SongJiangBrand.logoAsset,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  SongJiangBrand.name,
+                  style: const TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 3,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  SongJiangBrand.nameEn,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    letterSpacing: 1.4,
+                    color: Colors.white.withAlpha(180),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(40),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'v$version${kDebugMode ? ' · debug' : ''}',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.white.withAlpha(225),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  SongJiangBrand.tagline,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withAlpha(205),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 Future<void> openAboutDialog() async {
   final pubspecContent = await rootBundle.loadString('pubspec.yaml');
   final pubspec = Pubspec.parse(pubspecContent);
@@ -112,19 +227,8 @@ Future<void> openAboutDialog() async {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 5),
-                  child: Center(
-                    child: Text(
-                      '松江阅',
-                      style: TextStyle(
-                        fontSize: 50,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
+                _buildAboutHeader(context, version),
+                const SizedBox(height: 4),
                 const Divider(),
                 ListTile(
                   title: Text(L10n.of(context).appVersion),
@@ -197,13 +301,14 @@ Future<void> openAboutDialog() async {
                     },
                   ),
                 const Divider(),
-                if (EnvVar.showBeian) ...[
+                // 备案号由 BEIAN_TEXT 注入；上游那份是别人的主体信息，不能沿用
+                if (EnvVar.showBeian && RemoteConfig.enableBeian) ...[
                   GestureDetector(
                     onTap: () {
                       launchUrl(Uri.parse('https://beian.miit.gov.cn/'),
                           mode: LaunchMode.externalApplication);
                     },
-                    child: const Text('闽ICP备2025091402号-1A'),
+                    child: Text(RemoteConfig.beianText),
                   ),
                   const Divider(),
                 ],

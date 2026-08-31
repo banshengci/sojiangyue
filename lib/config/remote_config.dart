@@ -59,6 +59,13 @@ class RemoteConfig {
   static const String _donateUrl =
       String.fromEnvironment('DONATE_URL', defaultValue: '');
 
+  /// 自有 ICP 备案号（如 "京ICP备12345678号-1"）。
+  ///
+  /// **不要沿用上游的备案号**——那是别人的主体信息，用在自己的应用里属于冒用。
+  /// 未注入时关于页自动隐藏备案条目。
+  static const String _beianText =
+      String.fromEnvironment('BEIAN_TEXT', defaultValue: '');
+
   // === 派生 getter：更新检查 ===
 
   /// 有效的更新检查 API URL。优先自定义，其次 GitHub Releases，未配置返回 `null`。
@@ -97,6 +104,7 @@ class RemoteConfig {
   static String get telegramUrl => _telegramUrl;
   static String get donateUrl => _donateUrl;
   static String get projectRepo => _projectRepo;
+  static String get beianText => _beianText;
 
   /// Contributors 链接（设置 [projectRepo] 后可用）。
   static String get contributorsUrl => _projectRepo.isNotEmpty
@@ -135,4 +143,5 @@ class RemoteConfig {
   static bool get enableTermsLink => _termsUrl.isNotEmpty;
   static bool get enableDocsLink => _docsUrl.isNotEmpty;
   static bool get enableContributorsUrl => _projectRepo.isNotEmpty;
+  static bool get enableBeian => _beianText.isNotEmpty;
 }
