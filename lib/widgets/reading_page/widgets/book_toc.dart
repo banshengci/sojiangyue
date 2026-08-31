@@ -1,9 +1,9 @@
-import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/models/search_result_model.dart';
 import 'package:songjiang_reader/models/toc_item.dart';
 import 'package:songjiang_reader/page/book_player/epub_player.dart';
 import 'package:songjiang_reader/providers/book_toc.dart';
 import 'package:songjiang_reader/providers/toc_search.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -352,9 +352,13 @@ class _BookTocState extends ConsumerState<BookToc> {
             value: progressValue,
           ),
         Expanded(
-          child: searchResults.isEmpty
-              ? const SizedBox()
-              : ListView.builder(
+          // 原来搜不到时是空白，用户会以为搜索卡住了；补一个空状态，
+          // 但搜索进行中不显示（避免每敲一个字闪一下）
+          child: (searchResults.isEmpty && !showSearchProgress && isSearchActive)
+              ? _buildSearchEmptyState(context)
+              : searchResults.isEmpty
+                  ? const SizedBox()
+                  : ListView.builder(
                   controller: searchResultsScrollController,
                   itemCount: searchResults.length,
                   itemBuilder: (context, index) {
@@ -418,6 +422,41 @@ class _BookTocState extends ConsumerState<BookToc> {
   }
 }
 
+/// 书内搜索没有命中时的空状态（与书架空状态同一套品牌语言）
+Widget _buildSearchEmptyState(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final pine = SongJiangColors.pine;
+
+  return Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 96,
+          height: 96,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: pine.withAlpha(isDark ? 26 : 18),
+          ),
+          child: Icon(
+            Icons.search_off_outlined,
+            size: 40,
+            color: pine.withAlpha(isDark ? 190 : 200),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          '没有找到相关内容',
+          style: TextStyle(
+            fontSize: 15,
+            color: Theme.of(context).colorScheme.onSurface.withAlpha(180),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 Widget searchResultWidget({
   required SearchResultModel searchResult,
   required Function hideAppBarAndBottomBar,
@@ -425,15 +464,18 @@ Widget searchResultWidget({
   required VoidCallback closeDrawer,
 }) {
   bool isExpanded = true;
-  TextStyle matchStyle = TextStyle(
-    color: Theme.of(navigatorKey.currentContext!).colorScheme.primary,
-    fontWeight: FontWeight.bold,
-  );
-  TextStyle prePostStyle = const TextStyle(
-    color: Colors.grey,
-  );
   return StatefulBuilder(
     builder: (context, setState) {
+      // 用 StatefulBuilder 给的 context 取主题，不再依赖 navigatorKey
+      // （后者在页面未挂载时 currentContext 为 null，`!` 会直接抛异常）
+      final scheme = Theme.of(context).colorScheme;
+      final matchStyle = TextStyle(
+        color: scheme.primary,
+        fontWeight: FontWeight.bold,
+      );
+      final prePostStyle = TextStyle(
+        color: scheme.onSurface.withAlpha(160),
+      );
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -452,7 +494,7 @@ Widget searchResultWidget({
                 // const Spacer(),
                 Text(
                   searchResult.subitems.length.toString(),
-                  style: const TextStyle(color: Colors.grey),
+                  style: prePostStyle,
                 ),
               ],
             ),
@@ -522,85 +564,103 @@ class TocItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final labelStyle =
         isSelected ? _selectedStyle(context) : _baseStyle(context);
     final percentageStyle =
         (isSelected ? _selectedStyle(context) : _baseStyle(context))
             .copyWith(fontSize: 14, fontWeight: FontWeight.w300);
 
-    return Column(
-      children: [
-        ConstrainedBox(
-          constraints: BoxConstraints(minHeight: showProgress ? 60 : 40),
-          child: Padding(
-            padding: EdgeInsets.only(left: depth == 0 ? 0 : depth * 40.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (tocItem.subitems.isNotEmpty)
-                  IconButton(
-                    padding: const EdgeInsets.all(0),
-                    icon: Icon(
-                      isExpanded ? Icons.expand_less : Icons.expand_more,
-                      size: 32,
-                    ),
-                    onPressed: onToggle,
-                  ),
-                Expanded(
-                  child: TextButton(
-                    onPressed: onTap,
-                    style: const ButtonStyle(
-                      alignment: Alignment.centerLeft,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                tocItem.label.trim(),
-                                style: labelStyle,
-                              ),
-                              if (showProgress)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10.0),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                          Icons.keyboard_arrow_right_rounded),
-                                      const SizedBox(width: 10),
-                                      Text(progressText),
-                                    ],
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          tocItem.percentage,
-                          style: percentageStyle,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    return Container(
+      // 当前章节原来只靠"文字变色 + 加粗"标识，长目录里一滚就找不到位置；
+      // 补一条松绿指示条和淡色底，扫一眼就能定位
+      decoration: BoxDecoration(
+        color: isSelected
+            ? SongJiangColors.pine.withAlpha(isDark ? 34 : 26)
+            : Colors.transparent,
+        border: Border(
+          left: BorderSide(
+            color: isSelected ? SongJiangColors.pine : Colors.transparent,
+            width: 3,
           ),
         ),
-        Divider(
-          indent: 10,
-          endIndent: 20,
-          thickness: 1,
-          color: Colors.grey.withAlpha(110),
-        ),
-      ],
+      ),
+      child: Column(
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(minHeight: showProgress ? 60 : 40),
+            child: Padding(
+              // 原缩进 40px，三级目录就要吃掉 80px 横向空间，标题几乎没地方显示；
+              // 收到 26px，配合左侧指示条仍能看出层级
+              padding: EdgeInsets.only(left: depth == 0 ? 0 : depth * 26.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (tocItem.subitems.isNotEmpty)
+                    IconButton(
+                      padding: const EdgeInsets.all(0),
+                      icon: Icon(
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
+                        size: 32,
+                      ),
+                      onPressed: onToggle,
+                    ),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: onTap,
+                      style: const ButtonStyle(
+                        alignment: Alignment.centerLeft,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tocItem.label.trim(),
+                                  style: labelStyle,
+                                ),
+                                if (showProgress)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10.0),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                            Icons.keyboard_arrow_right_rounded),
+                                        const SizedBox(width: 10),
+                                        Text(progressText),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            tocItem.percentage,
+                            style: percentageStyle,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Divider(
+            indent: 10,
+            endIndent: 20,
+            thickness: 1,
+            color: SongJiangColors.pine.withAlpha(isDark ? 40 : 55),
+          ),
+        ],
+      ),
     );
   }
 }
