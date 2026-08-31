@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/widgets/common/container/outlined_container.dart';
 import 'package:flutter/material.dart';
 
@@ -26,7 +27,7 @@ class ToolTileBase extends StatefulWidget {
       case 'failed':
         return Colors.red;
       default:
-        return Colors.orange;
+        return SongJiangColors.pollen;
     }
   }
 

@@ -6,6 +6,7 @@ import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/models/ai_provider.dart';
 import 'package:songjiang_reader/providers/ai_chat.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/providers/ai_history.dart';
 import 'package:songjiang_reader/providers/ai_providers.dart';
 import 'package:songjiang_reader/service/ai/ai_services.dart';
@@ -214,8 +215,9 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
   Widget _buildHistoryTile(BuildContext context, AiChatHistoryEntry entry) {
     final allProviders = ref.watch(aiProvidersProvider);
     final provider = _providerById(allProviders, entry.serviceId);
-    final statusColor =
-        entry.completed ? Colors.green : Theme.of(context).colorScheme.tertiary;
+    final statusColor = entry.completed
+        ? SongJiangColors.bamboo
+        : Theme.of(context).colorScheme.tertiary;
     final title = _deriveTitle(entry);
     final subtitle = _buildHistorySubtitle(provider, entry);
 
