@@ -1,4 +1,3 @@
-import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/providers/statistic_data.dart';
 import 'package:songjiang_reader/utils/date/convert_seconds.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -18,13 +17,21 @@ class StatisticChart extends ConsumerStatefulWidget {
 
 class _StatisticChartState extends ConsumerState<StatisticChart> {
   int? touchedIndex;
-  final Color bottomColor =
-      Theme.of(navigatorKey.currentState!.context).colorScheme.primary;
+  // 通过 context 取色（跟随用户在外观里选的主题色），
+  // 不再依赖 navigatorKey —— 后者在页面未挂载时取色会抛异常。
+  Color get bottomColor => Theme.of(context).colorScheme.primary;
 
-  final Color topColor = Theme.of(navigatorKey.currentState!.context)
-      .colorScheme
-      .primary
-      .withOpacity(0.5);
+  Color get topColor => Theme.of(context).colorScheme.primary.withAlpha(120);
+
+  /// 纵轴上限。原实现直接对列表 reduce，**空列表会抛 Bad state: No element**，
+  /// 无阅读记录时统计页会崩，这里补上空判断。
+  double get maxY {
+    if (widget.readingTime.isEmpty) return 1;
+    final peak =
+        widget.readingTime.reduce((value, element) => value > element ? value : element);
+    // 全 0 时给个最小刻度，避免柱子高度全部塌成 0
+    return peak <= 0 ? 1 : peak * 1.2;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +43,7 @@ class _StatisticChartState extends ConsumerState<StatisticChart> {
         barGroups: barGroups,
         gridData: const FlGridData(show: false),
         alignment: BarChartAlignment.spaceAround,
-        maxY: widget.readingTime
-                .reduce((value, element) => value > element ? value : element) *
-            1.2,
+        maxY: maxY,
       ),
     );
   }
@@ -119,6 +124,7 @@ class _StatisticChartState extends ConsumerState<StatisticChart> {
 
   List<BarChartGroupData> get barGroups {
     List<BarChartGroupData> barGroups = [];
+    final trackColor = bottomColor.withAlpha(30);
     for (int i = 0; i < widget.readingTime.length; i++) {
       barGroups.add(
         BarChartGroupData(
@@ -127,6 +133,14 @@ class _StatisticChartState extends ConsumerState<StatisticChart> {
             BarChartRodData(
               toY: widget.readingTime[i].toDouble(),
               gradient: _barsGradient,
+              width: 16,
+              borderRadius: BorderRadius.circular(5),
+              // 背景轨道：让"读了多少"有参照，空档期也有存在感
+              backDrawRodData: BackgroundBarChartRodData(
+                show: true,
+                toY: maxY,
+                color: trackColor,
+              ),
             ),
           ],
           showingTooltipIndicators: [0],

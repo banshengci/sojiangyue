@@ -7,6 +7,23 @@ version: 1.0.0+1
 environment:
   sdk: '>=3.5.2 <4.0.0'
 
+# ⚠️ 关于 git 依赖的注意事项
+#
+# 本项目有一批依赖指向上游作者 Anxcye 的**个人 fork 仓库**，而不是 pub.dev 官方包：
+#   flutter_inappwebview / webdav_client / contentsize_tabbarview / flutter_tts /
+#   flutter_heatmap_calendar / share_handler / staggered_reorderable /
+#   langchain_dart 系列（langchain / langchain_core / langchain_openai / langchain_anthropic）
+#
+# 这些依赖的具体 commit 已记录在 **pubspec.lock 的 resolved-ref** 里，构建因此是可复现的。
+# 但要注意：
+#   1. 不要运行 `flutter pub upgrade`——它会忽略 lock 去拉上游最新代码，可能直接编不过；
+#      需要更新依赖时请单独评估，并确认 lock 的 diff。
+#   2. git 依赖解析需要访问 GitHub。网络不通时用 `flutter pub get --offline`，
+#      依赖本机已缓存的包完成解析（已验证可用）。
+#   3. 不要在 pubspec 里给这些依赖新增 ref 字段：写 ref 会让 pub 每次都去上游
+#      fetch 校验该 commit，离线环境下反而解析失败（实测踩过）。
+#   4. 长期方向：逐步迁回 pub.dev 官方版本，彻底摆脱对上游个人仓库的依赖。
+
 dependencies:
   flutter:
     sdk: flutter
