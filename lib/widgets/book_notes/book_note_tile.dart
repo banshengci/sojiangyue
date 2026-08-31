@@ -1,4 +1,5 @@
 import 'package:songjiang_reader/constants/note_annotations.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/models/book_note.dart';
 import 'package:songjiang_reader/utils/time_to_human.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
@@ -32,10 +33,12 @@ class BookNoteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final brandColor = isDark ? SongJiangColors.pineLight : SongJiangColors.pine;
     final iconColor = Color(int.tryParse('0xaa${note.color}') ?? 0xaa555555);
-    final infoStyle = const TextStyle(
+    final infoStyle = TextStyle(
       fontSize: 14,
-      color: Colors.grey,
+      color: brandColor.withAlpha(165),
     );
 
     return GestureDetector(
@@ -73,14 +76,15 @@ class BookNoteTile extends StatelessWidget {
                         IntrinsicHeight(
                           child: Row(
                             children: [
-                              const VerticalDivider(
+                              VerticalDivider(
                                 thickness: 3,
+                                color: brandColor.withAlpha(160),
                               ),
                               Expanded(
                                 child: Text(
                                   note.readerNote!,
                                   style: infoStyle.copyWith(
-                                    color: Colors.grey.shade600,
+                                    color: brandColor.withAlpha(200),
                                   ),
                                 ),
                               ),
@@ -93,7 +97,7 @@ class BookNoteTile extends StatelessWidget {
                   Divider(
                     indent: 4,
                     height: 3,
-                    color: Colors.grey.shade300,
+                    color: brandColor.withAlpha(90),
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

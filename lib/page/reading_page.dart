@@ -10,6 +10,7 @@ import 'package:songjiang_reader/enums/sync_direction.dart';
 import 'package:songjiang_reader/enums/sync_trigger.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/models/ai_quick_prompt_chip.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
@@ -635,6 +636,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
   Widget build(BuildContext context) {
     var aiButton = IconButton(
       tooltip: L10n.of(context).aiChat,
+      color: SongJiangColors.pollen,
       icon: const Icon(Icons.auto_awesome),
       onPressed: () async {
         // Determine if should show as split based on display mode
@@ -685,6 +687,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
             Column(
               children: [
                 AppBar(
+                  backgroundColor: SongJiangColors.pine,
+                  foregroundColor: Colors.white,
                   title: Text(_book.title, overflow: TextOverflow.ellipsis),
                   leading: IconButton(
                     icon: const Icon(Icons.arrow_back),
@@ -754,6 +758,11 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                       child: StatefulBuilder(
                         builder: (BuildContext context, StateSetter setState) {
                           final hasContent = !identical(_currentPage, empty);
+                          final isDark =
+                              Theme.of(context).brightness == Brightness.dark;
+                          final toolbarIconColor = isDark
+                              ? SongJiangColors.pineLight
+                              : SongJiangColors.pine;
                           return IntrinsicHeight(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -762,33 +771,48 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                                   Expanded(
                                     child: _currentPage,
                                   ),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceAround,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.toc),
-                                      onPressed: tocHandler,
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surface,
+                                    border: Border(
+                                      top: BorderSide(
+                                        color: SongJiangColors.pine
+                                            .withAlpha(isDark ? 150 : 120),
+                                        width: 1.2,
+                                      ),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(EvaIcons.edit),
-                                      onPressed: noteHandler,
+                                  ),
+                                  child: IconTheme(
+                                    data: IconThemeData(color: toolbarIconColor),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceAround,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.toc),
+                                          onPressed: tocHandler,
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(EvaIcons.edit),
+                                          onPressed: noteHandler,
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.data_usage),
+                                          onPressed: progressHandler,
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.color_lens),
+                                          onPressed: () {
+                                            styleHandler(setState);
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(EvaIcons.headphones),
+                                          onPressed: ttsHandler,
+                                        ),
+                                      ],
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.data_usage),
-                                      onPressed: progressHandler,
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.color_lens),
-                                      onPressed: () {
-                                        styleHandler(setState);
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(EvaIcons.headphones),
-                                      onPressed: ttsHandler,
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),

@@ -1,5 +1,6 @@
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/book.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/page/book_notes_page.dart';
 import 'package:songjiang_reader/providers/notes_page_current_book.dart';
 import 'package:songjiang_reader/providers/notes_statistics.dart';
@@ -43,7 +44,11 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                     ],
                   ),
                 ),
-                const VerticalDivider(thickness: 1, width: 1),
+                VerticalDivider(
+                  thickness: 1,
+                  width: 1,
+                  color: SongJiangColors.pine.withAlpha(120),
+                ),
                 const Expanded(
                   flex: 2,
                   child: NotesDetail(),
@@ -67,9 +72,10 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   Widget notesStatistic() {
     final notesStats = ref.watch(notesStatisticsProvider);
 
-    TextStyle digitStyle = const TextStyle(
+    TextStyle digitStyle = TextStyle(
       fontSize: 24,
       fontWeight: FontWeight.bold,
+      color: SongJiangColors.pine,
     );
     TextStyle textStyle =
         const TextStyle(fontSize: 18, fontFamily: 'SourceHanSerif');
@@ -136,9 +142,12 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     required bool isMobile,
     required int readingTime,
   }) {
-    TextStyle digitStyle = const TextStyle(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final brandColor = isDark ? SongJiangColors.pineLight : SongJiangColors.pine;
+    TextStyle digitStyle = TextStyle(
       fontSize: 28,
       fontWeight: FontWeight.bold,
+      color: brandColor,
     );
     TextStyle textStyle = const TextStyle(
       fontSize: 20,
@@ -149,9 +158,9 @@ class _NotesPageState extends ConsumerState<NotesPage> {
       fontFamily: 'SourceHanSerif',
       fontWeight: FontWeight.bold,
     );
-    TextStyle readingTimeStyle = const TextStyle(
+    TextStyle readingTimeStyle = TextStyle(
       fontSize: 14,
-      color: Colors.grey,
+      color: brandColor.withAlpha(170),
     );
     return GestureDetector(
       onTap: () {
@@ -196,14 +205,16 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        Icon(Icons.access_time, size: 16, color: Colors.grey),
+                        Icon(Icons.access_time, size: 16,
+                            color: brandColor.withAlpha(190)),
                         const SizedBox(width: 4),
                         Text(
                           convertSeconds(readingTime),
                           style: readingTimeStyle,
                         ),
                         Text(" | ", style: readingTimeStyle),
-                        Icon(Icons.bar_chart, size: 16, color: Colors.grey),
+                        Icon(Icons.bar_chart, size: 16,
+                            color: brandColor.withAlpha(190)),
                         const SizedBox(width: 4),
                         Text(
                           '${(book.readingPercentage * 100).toStringAsFixed(1)}%',
