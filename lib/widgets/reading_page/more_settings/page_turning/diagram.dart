@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 
 enum PageTurningType {
   none,
@@ -33,12 +34,15 @@ Widget getPageTurningDiagram(
         ),
         itemBuilder: (context, index) {
           return Container(
+            // 图例色原本是 Material 红/蓝/绿，与品牌调性无关；
+            // 换成品牌色系内可区分的三色（松绿 / 竹青 / 松花黄），
+            // 既保留"哪个色块管什么"的辨识度，也看得出是松江阅的界面。
             color: types[index] == PageTurningType.next
-                ? Colors.red.withAlpha(100)
+                ? SongJiangColors.pine.withAlpha(110)
                 : types[index] == PageTurningType.prev
-                    ? Colors.blue.withAlpha(100)
+                    ? SongJiangColors.bamboo.withAlpha(110)
                     : types[index] == PageTurningType.menu
-                        ? Colors.green.withAlpha(100)
+                        ? SongJiangColors.pollen.withAlpha(110)
                         : types[index] == PageTurningType.none
                             ? Colors.grey.withAlpha(100)
                             : Colors.white,

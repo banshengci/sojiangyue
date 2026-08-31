@@ -2,6 +2,7 @@ import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/enums/lang_list.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/translate/index.dart';
+import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/settings/service_config_form.dart';
@@ -53,7 +54,7 @@ class _TranslateSettingState extends State<TranslateSetting> {
                       ),
                       Row(
                         children: [
-                          Icon(Icons.info_outline, color: Colors.blue),
+                          Icon(Icons.info_outline, color: SongJiangColors.pine),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -96,7 +97,7 @@ class _TranslateSettingState extends State<TranslateSetting> {
                       ),
                       Row(
                         children: [
-                          Icon(Icons.info_outline, color: Colors.orange),
+                          Icon(Icons.info_outline, color: SongJiangColors.pollen),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
