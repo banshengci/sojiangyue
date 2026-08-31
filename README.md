@@ -3,7 +3,7 @@
 <br>
 
 <p align="center">
-  <img src="./docs/images/Anx-logo.jpg" alt="Anx-logo" width="100" />
+  <img src="./assets/icon/songjiang-logo.png" alt="SongJiang Reader logo" width="100" />
 </p>
 <h1 align="center">松江阅 · SongJiang Reader</h1>
 <p align="center"><em>Forked from <a href="https://github.com/Anxcye/anx-reader">Anxcye/anx-reader</a></em></p>
