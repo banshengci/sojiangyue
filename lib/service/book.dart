@@ -18,6 +18,7 @@ import 'package:songjiang_reader/providers/iap.dart';
 import 'package:songjiang_reader/providers/book_list.dart';
 import 'package:songjiang_reader/providers/toc_search.dart';
 import 'package:songjiang_reader/service/convert_to_epub/txt/convert_from_txt.dart';
+import 'package:songjiang_reader/service/convert_to_epub/document/convert_document.dart';
 import 'package:songjiang_reader/service/md5_service.dart';
 import 'package:songjiang_reader/utils/webView/anx_headless_webview.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
@@ -37,7 +38,35 @@ import 'package:path/path.dart' as path;
 import 'book_player/book_player_server.dart';
 
 AnxHeadlessWebView? headlessInAppWebView;
-final allowBookExtensions = ["epub", "mobi", "azw3", "fb2", "txt", "pdf"];
+// 导入白名单：这些扩展名会被导入流程接受。
+// - epub/mobi/azw3/fb2/txt/pdf 由 foliate-js 引擎原生渲染；
+// - cbz/fbz 由 foliate-js 的 comic-book 加载器原生渲染（漫画/连环画）；
+// - html/htm/md/docx/odt 在导入时先转为 EPUB（见 convert_document.dart），
+//   再交给引擎渲染。
+final allowBookExtensions = [
+  "epub",
+  "mobi",
+  "azw3",
+  "fb2",
+  "fbz",
+  "txt",
+  "pdf",
+  "cbz",
+  "html",
+  "htm",
+  "md",
+  "docx",
+  "odt",
+];
+
+/// 导入时需要在导入前转换为 EPUB 的文档格式。
+const documentConvertibleExtensions = {
+  "html",
+  "htm",
+  "md",
+  "docx",
+  "odt",
+};
 
 /// import book list and **delete file**
 void importBookList(List<File> fileList, BuildContext context, WidgetRef ref) {
@@ -409,8 +438,15 @@ void _showImportDialog(
 Future<void> importBook(File file, WidgetRef ref) async {
   String? md5 = await MD5Service.calculateFileMd5(file.path);
 
-  if (file.path.split('.').last == 'txt') {
+  final ext = file.path.split('.').last.toLowerCase();
+  if (ext == 'txt') {
     final tempFile = await convertFromTxt(file);
+    file.deleteSync();
+    file = tempFile;
+  } else if (documentConvertibleExtensions.contains(ext)) {
+    // html / htm / md / docx / odt 在导入前转换为 EPUB，
+    // 其余流程（元数据提取、入库）与 EPUB 完全一致。
+    final tempFile = await convertDocumentToEpub(file);
     file.deleteSync();
     file = tempFile;
   }

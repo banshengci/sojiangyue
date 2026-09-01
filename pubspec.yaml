@@ -1,5 +1,5 @@
 name: songjiang_reader
-description: "松江阅 (SongJiang Reader) —— 一款支持 EPUB/TXT/PDF 等格式的本地电子书阅读器，主打清爽竹青视觉与 AI 辅助阅读。"
+description: "松江阅 (SongJiang Reader) —— 一款支持 EPUB/MOBI/AZW3/FB2/PDF/TXT/CBZ 漫画，以及 HTML/Markdown/DOCX/ODT 文档（导入时转 EPUB）的本地电子书阅读器，主打清爽竹青视觉与 AI 辅助阅读。"
 publish_to: 'none'
 
 version: 1.0.0+1
