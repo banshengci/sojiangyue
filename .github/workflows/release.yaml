@@ -130,7 +130,7 @@ jobs:
             **What's New:**
             ${{ steps.format_changelog.outputs.formatted_notes }}
             
-            📥 **Download:** https://github.com/Anxcye/anx-reader/releases/tag/${{ inputs.tag }}
+            📥 **Download:** https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag }}
 
       - name: Send release message
         if: ${{ inputs.is_beta != 'true' && inputs.is_alpha != 'true' }}
@@ -147,7 +147,7 @@ jobs:
             **What's New:**
             ${{ steps.format_changelog.outputs.formatted_notes }}
             
-            📥 **Download:** https://github.com/Anxcye/anx-reader/releases/tag/${{ inputs.tag }}
+            📥 **Download:** https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag }}
 
       - name: Send build completion notification
         shell: bash
