@@ -1,17 +1,10 @@
 [English](README.md) | **简体中文** | [Türkçe](README_tr.md)
 
 <p align="center">
-  <img src="./docs/images/Anx-logo.jpg" alt="Anx-logo" width="100" />
+  <img src="./assets/icon/songjiang-logo.png" alt="SongJiang Reader logo" width="100" />
 </p>
 <h1 align="center">松江阅 · SongJiang Reader - 让阅读更专注</h1>
 <p align="center"><em>基于 <a href="https://github.com/Anxcye/anx-reader">Anxcye/anx-reader</a> 二次开发</em></p>
-
-<p align="center">
-  <a href="https://github.com/Anxcye/anx-reader/blob/main/LICENSE"><img src="https://img.shields.io/github/license/anxcye/anx-reader" alt="License" ></a>
-  <a href="https://github.com/Anxcye/anx-reader/releases"><img src="https://img.shields.io/github/downloads/anxcye/anx-reader/total" alt="Downloads"></a>
-  <a href="https://hellogithub.com/repository/819a2b3050204451bed552a8812114e5" target="_blank"><img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=819a2b3050204451bed552a8812114e5&claim_uid=WBA1XOQirm2GRqs&theme=small" alt="Featured｜HelloGitHub"/></a>
-  <a href="https://github.com/anxcye/anx-reader/stargazers"><img src="https://img.shields.io/github/stars/anxcye/anx-reader" alt="stars"></a>
-</p>
 
 
 松江阅，一款为热爱阅读的你精心打造的电子书阅读器。集成多种 AI 能力，支持丰富的电子书格式，让阅读更智能、更专注。现代化界面设计，只为提供纯粹的阅读体验。
@@ -31,61 +24,11 @@
 | 其他 | 听书功能：支持多模型、语速、音色与定时<br>书籍全文翻译：原文、译文对照阅读<br>节省空间：云端上传节省本地存储，随用随下<br>简繁转换：中文简繁体一键转换 | ✅ |
 | OPDS 书源 | 支持 OPDS 书源，支持自定义添加  |  🛠️  |
 
-<table border="1">
-  <tr>
-    <th>OS</th>
-    <th>Source</th>
-  </tr>
-  <tr>
-    <td>iOS</td>
-    <td>
-      <a href="https://apps.apple.com/app/anx-reader/id6743196413" target="_blank">
-        <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="App Store" height="45"/>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td>macOS</td>
-    <td>
-      <a href="https://apps.apple.com/app/anx-reader/id6743196413" target="_blank">
-        <img src="https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-mac-app-store.svg" alt="Mac App Store" height="45"/>
-      </a>
-      <a href="https://github.com/Anxcye/anx-reader/releases/latest" target="_blank">
-        <img src="https://github.com/user-attachments/assets/cf61e197-d756-4606-a8ad-fb591f79fdfc" alt="GitHub" height="45"/>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td>Windows</td>
-    <td>
-      <a href="https://github.com/Anxcye/anx-reader/releases/latest" target="_blank">
-        <img src="https://github.com/user-attachments/assets/cf61e197-d756-4606-a8ad-fb591f79fdfc" alt="GitHub" height="45"/>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td>Android</td>
-    <td>
-      <a href="https://github.com/Anxcye/anx-reader/releases/latest" target="_blank">
-        <img src="https://github.com/user-attachments/assets/cf61e197-d756-4606-a8ad-fb591f79fdfc" alt="GitHub" height="45"/>
-      </a>
-      <a href="https://f-droid.org/packages/com.anxcye.anx_reader" target="_blank">
-        <img src="./docs/get-it-on.png" alt="Get it on F-Droid" height="45" />
-      </a>
-    </td>
-  </tr>
-</table>
-
+## 获取方式
+松江阅从源码构建，请参考下方[构建](#构建)章节为你的平台编译。
 
 ### 我遇到了问题，怎么办？
 查看[故障排除](./docs/troubleshooting.md#简体中文)
-
-提出一个[issue](https://github.com/Anxcye/anx-reader/issues/new/choose)，将会尽快回复。
-
-Telegram 群组：[https://t.me/AnxReader](https://t.me/AnxReader)
-
-QQ群：1042905699
-
 
 ### 截图
 | ![](./docs/images/zh/wide1.png) | ![](./docs/images/zh/wide2.png) |
@@ -100,15 +43,8 @@ QQ群：1042905699
 | ![](./docs/images/zh/mobile4.png) | ![](./docs/images/zh/mobile5.png) | ![](./docs/images/zh/mobile6.png) |
 | ![](./docs/images/zh/mobile7.png) | ![](./docs/images/zh/mobile8.png) | ![](./docs/images/zh/mobile9.png) |
 
-## 捐赠
-如果你喜欢安读，请考虑捐赠支持项目。您的支持将帮助我优化功能、修复问题，并为您带来更好的阅读体验！感谢您的慷慨支持！
-
-❤️ [捐赠](https://anxcye.com/home/7)
-
-
-
 ## 构建
-希望从源码构建安读？请参考以下步骤：
+希望从源码构建松江阅？请参考以下步骤：
 - 安装 [Flutter](https://flutter.dev)。
 - 克隆并进入项目目录。
 - 运行 `flutter pub get` 。
