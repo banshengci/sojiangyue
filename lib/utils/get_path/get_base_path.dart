@@ -15,7 +15,7 @@ Future<bool> _isPathAccessible(String path) async {
     if (!dir.existsSync()) return false;
 
     // Try to create and delete a test file to verify write permission
-    final testFile = File('$path${Platform.pathSeparator}.anx_permission_test');
+    final testFile = File('$path${Platform.pathSeparator}.songjiang_permission_test');
     await testFile.writeAsString('test');
     await testFile.delete();
     return true;

@@ -79,7 +79,7 @@ class _StorageSettingsState extends ConsumerState<StorageSettings>
     // Check write permission by creating a test file
     try {
       final testFile =
-          File('$result${Platform.pathSeparator}.anx_permission_test');
+          File('$result${Platform.pathSeparator}.songjiang_permission_test');
       await testFile.writeAsString('test');
       await testFile.delete();
     } catch (e) {
