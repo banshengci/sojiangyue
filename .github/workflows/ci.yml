@@ -53,18 +53,19 @@ jobs:
         run: flutter test --no-pub --reporter expanded
 
   # ============ Windows ============
-  # windows-latest 自带完整 Visual Studio 2022（含 ATL，flutter_tts 需要）
+  # Flutter 3.35.3 的 CMake 生成器硬编码 "Visual Studio 16 2019"，
+  # 必须用 windows-2019 runner（自带 VS 2019），windows-latest 只有 VS 2022 不匹配。
   build-windows:
     name: Build Windows
-    runs-on: windows-latest
+    runs-on: windows-2019
     timeout-minutes: 60
     needs: analyze-and-test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup MSBuild (Visual Studio 2022)
-        uses: microsoft/setup-msbuild@v2
+      - name: Enable git long paths
+        run: git config --system core.longpaths true
 
       - name: Setup Flutter 3.35.3
         uses: subosito/flutter-action@v2
@@ -94,7 +95,7 @@ jobs:
           dart run build_runner build --delete-conflicting-outputs
 
       - name: Build Windows (release)
-        run: flutter build windows --release --no-pub
+        run: flutter build windows --release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -310,18 +311,12 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
-      - name: Install CocoaPods dependencies
-        run: |
-          cd ios
-          pod install --repo-update || pod update sqlite3
-          cd ..
-
       - name: Build macOS (debug)
-        run: flutter build macos --debug --no-pub
+        run: flutter build macos --debug
 
       # 无签名构建（CI 没有开发者证书）；上架前需本地配好签名后再归档
       - name: Build iOS (debug, no codesign)
-        run: flutter build ios --debug --no-codesign --no-pub
+        run: flutter build ios --debug --no-codesign
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
