@@ -63,6 +63,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Setup Flutter 3.35.3
         uses: subosito/flutter-action@v2
         with:
@@ -300,6 +305,10 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios && pod install --repo-update && cd ..
+
       - name: Build macOS (debug)
         run: flutter build macos --debug --no-pub
 
@@ -330,7 +339,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libstdc++-12-dev
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libasound2-dev
 
       - name: Setup Flutter 3.35.3
         uses: subosito/flutter-action@v2
