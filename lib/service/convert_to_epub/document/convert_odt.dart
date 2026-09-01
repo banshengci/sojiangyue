@@ -4,6 +4,7 @@ import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:songjiang_reader/service/convert_to_epub/build_epub_from_html.dart';
+import 'package:songjiang_reader/service/convert_to_epub/document/chapter_draft.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/xml_utils.dart';
 import 'package:songjiang_reader/service/convert_to_epub/html_chapter.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -41,13 +42,15 @@ Future<File> convertOdtToEpub(File file, {Directory? tempDir}) async {
       : '';
   _collectStyles('$xml\n$stylesXml', styleMap);
 
-  final body = _buildHtml(xml, styleMap);
+  final parts = _buildParts(xml, styleMap);
+  final chapters = _splitChapters(parts);
+  final htmlChapters = chapters.toHtmlChapters(decodeXmlEntities(title));
 
-  AnxLog.info('Convert: ODT 转换完成，书名=$title');
+  AnxLog.info('Convert: ODT 转换完成，书名=$title，章节数=${htmlChapters.length}');
   return buildEpubFromHtml(
     title: decodeXmlEntities(title),
     author: decodeXmlEntities(author),
-    chapters: [HtmlChapter(decodeXmlEntities(title), body)],
+    chapters: htmlChapters,
     tempDir: tempDir,
   );
 }
@@ -65,7 +68,7 @@ void _collectStyles(String xml, Map<String, _StyleFmt> styleMap) {
   }
 }
 
-String _buildHtml(String xml, Map<String, _StyleFmt> styleMap) {
+List<_Para> _buildParts(String xml, Map<String, _StyleFmt> styleMap) {
   // 仅取 <office:text> 内的段落
   final textMatch =
       RegExp(r'<office:text\b.*?(</office:text>|$)', dotAll: true)
@@ -87,25 +90,41 @@ String _buildHtml(String xml, Map<String, _StyleFmt> styleMap) {
           1;
       final html =
           '<h$level>${_processInline(inner, styleMap)}</h$level>';
-      parts.add(_Para('h', html));
+      parts.add(_Para('h', html, level));
     } else {
       final html = '<p>${_processInline(inner, styleMap)}</p>';
-      parts.add(_Para('p', html));
+      parts.add(_Para('p', html, null));
     }
   }
+  return parts;
+}
 
-  final out = StringBuffer();
-  var inList = false; // ODT 列表此处统一不展开为 <ul>，按段落呈现
+/// 把段落列表按标题切分为多个章节（标题作为章节名并保留于正文）。
+List<ChapterDraft> _splitChapters(List<_Para> parts) {
+  final chapters = <ChapterDraft>[];
+  var current = ChapterDraft(level: 1);
+  var hasContent = false;
+
   for (final part in parts) {
-    if (inList) {
-      out.write('</ul>');
-      inList = false;
+    if (part.kind == 'h') {
+      if (hasContent || current.title.isNotEmpty) chapters.add(current);
+      current = ChapterDraft(
+        title: _stripTags(part.html),
+        level: part.level ?? 1,
+        html: part.html,
+      );
+      hasContent = false;
+    } else {
+      current.html += part.html;
+      hasContent = true;
     }
-    out.write(part.html);
   }
-
-  final result = out.toString().trim();
-  return result.isEmpty ? '<p></p>' : result;
+  if (current.html.trim().isNotEmpty ||
+      current.title.isNotEmpty ||
+      chapters.isEmpty) {
+    chapters.add(current);
+  }
+  return chapters;
 }
 
 /// 处理段落内部 XML：行分隔、span 样式、去除其余 ODT 标签。
@@ -154,7 +173,11 @@ class _StyleFmt {
 }
 
 class _Para {
-  _Para(this.kind, this.html);
+  _Para(this.kind, this.html, this.level);
   final String kind; // 'h' | 'p'
   final String html;
+  final int? level;
 }
+
+String _stripTags(String html) =>
+    html.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll('&[a-zA-Z]+;', ' ').trim();

@@ -41,7 +41,7 @@ AnxHeadlessWebView? headlessInAppWebView;
 // 导入白名单：这些扩展名会被导入流程接受。
 // - epub/mobi/azw3/fb2/txt/pdf 由 foliate-js 引擎原生渲染；
 // - cbz/fbz 由 foliate-js 的 comic-book 加载器原生渲染（漫画/连环画）；
-// - html/htm/md/docx/odt 在导入时先转为 EPUB（见 convert_document.dart），
+// - html/htm/md/docx/odt/rtf 在导入时先转为 EPUB（见 convert_document.dart），
 //   再交给引擎渲染。
 final allowBookExtensions = [
   "epub",
@@ -57,6 +57,7 @@ final allowBookExtensions = [
   "md",
   "docx",
   "odt",
+  "rtf",
 ];
 
 /// 导入时需要在导入前转换为 EPUB 的文档格式。
@@ -66,6 +67,7 @@ const documentConvertibleExtensions = {
   "md",
   "docx",
   "odt",
+  "rtf",
 };
 
 /// import book list and **delete file**

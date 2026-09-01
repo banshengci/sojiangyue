@@ -3,18 +3,20 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 
 import 'package:songjiang_reader/service/convert_to_epub/build_epub_from_html.dart';
-import 'package:songjiang_reader/service/convert_to_epub/html_chapter.dart';
+import 'package:songjiang_reader/service/convert_to_epub/document/chapter_draft.dart';
 import 'package:songjiang_reader/service/convert_to_epub/encoding_utils.dart';
+import 'package:songjiang_reader/service/convert_to_epub/html_chapter.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
 /// 把 Markdown 文件转换为 EPUB。
 ///
 /// 支持标题、粗体、斜体、行内代码、代码块、有序/无序列表、引用、分割线、链接。
-/// 编码探测复用 TXT 导入的 [readFileWithEncoding]（兼容 UTF-8 / GBK 等）。
+/// 按 # / ## 标题切分为多个章节（生成目录）。编码探测复用 TXT 导入的
+/// [readFileWithEncoding]（兼容 UTF-8 / GBK 等）。
 Future<File> convertMarkdownToEpub(File file, {Directory? tempDir}) async {
   final filename = path.basenameWithoutExtension(file.path);
   final raw = readFileWithEncoding(file);
-  final html = _markdownToHtml(raw, fallbackTitle: filename);
+  final chapters = _markdownToChapters(raw, fallbackTitle: filename);
 
   // 第一章标题作为书名（若有 H1）
   final firstH1 = RegExp(r'^#\s+(.*)$', multiLine: true).firstMatch(raw);
@@ -22,22 +24,26 @@ Future<File> convertMarkdownToEpub(File file, {Directory? tempDir}) async {
       ? _stripInline(firstH1.group(1)!.trim())
       : filename;
 
-  AnxLog.info('Convert: Markdown 转换完成，书名=$title');
+  AnxLog.info('Convert: Markdown 转换完成，书名=$title，章节数=${chapters.length}');
   return buildEpubFromHtml(
     title: title,
     author: 'Unknown',
-    chapters: [HtmlChapter(title, html)],
+    chapters: chapters.toHtmlChapters(title),
     tempDir: tempDir,
   );
 }
 
-String _markdownToHtml(String md, {required String fallbackTitle}) {
+/// 把 Markdown 解析为「标题 + HTML 正文」章节列表。
+///
+/// 以 `#`(H1) / `##`(H2) 作为章节切分点；`###` 及以下层级保留在章节正文内。
+List<ChapterDraft> _markdownToChapters(String md,
+    {required String fallbackTitle}) {
   final lines = md
       .replaceAll('\r\n', '\n')
       .replaceAll('\r', '\n')
       .split('\n');
 
-  final blocks = <String>[];
+  final blocks = <_MdBlock>[];
   int i = 0;
 
   while (i < lines.length) {
@@ -52,7 +58,8 @@ String _markdownToHtml(String md, {required String fallbackTitle}) {
         i++;
       }
       i++; // 跳过结束的 ```
-      blocks.add('<pre><code>${_escapeHtml(buf.join('\n'))}</code></pre>');
+      blocks.add(_MdBlock('pre', '',
+          '<pre><code>${_escapeHtml(buf.join('\n'))}</code></pre>'));
       continue;
     }
 
@@ -60,14 +67,16 @@ String _markdownToHtml(String md, {required String fallbackTitle}) {
     final h = RegExp(r'^(#{1,6})\s+(.*)$').firstMatch(line);
     if (h != null) {
       final level = h.group(1)!.length;
-      blocks.add('<h$level>${_inline(h.group(2)!.trim())}</h$level>');
+      final text = h.group(2)!.trim();
+      blocks.add(_MdBlock('h$level', text,
+          '<h$level>${_inline(text)}</h$level>'));
       i++;
       continue;
     }
 
     // 分割线
     if (RegExp(r'^\s*([-*_])\1{2,}\s*$').hasMatch(line)) {
-      blocks.add('<hr/>');
+      blocks.add(_MdBlock('hr', '', '<hr/>'));
       i++;
       continue;
     }
@@ -79,7 +88,8 @@ String _markdownToHtml(String md, {required String fallbackTitle}) {
         buf.add(lines[i].replaceFirst(RegExp(r'^\s*>\s?'), ''));
         i++;
       }
-      blocks.add('<blockquote>${_inline(buf.join(' ').trim())}</blockquote>');
+      blocks.add(_MdBlock('blockquote', '',
+          '<blockquote>${_inline(buf.join(' ').trim())}</blockquote>'));
       continue;
     }
 
@@ -91,8 +101,8 @@ String _markdownToHtml(String md, {required String fallbackTitle}) {
         buf.add(lines[i].replaceFirst(RegExp(r'^\s*[-*+]\s+'), ''));
         i++;
       }
-      blocks.add(
-          '<ul>${buf.map((e) => '<li>${_inline(e.trim())}</li>').join('')}</ul>');
+      blocks.add(_MdBlock('ul', '',
+          '<ul>${buf.map((e) => '<li>${_inline(e.trim())}</li>').join('')}</ul>'));
       continue;
     }
 
@@ -104,8 +114,8 @@ String _markdownToHtml(String md, {required String fallbackTitle}) {
         buf.add(lines[i].replaceFirst(RegExp(r'^\s*\d+\.\s+'), ''));
         i++;
       }
-      blocks.add(
-          '<ol>${buf.map((e) => '<li>${_inline(e.trim())}</li>').join('')}</ol>');
+      blocks.add(_MdBlock('ol', '',
+          '<ol>${buf.map((e) => '<li>${_inline(e.trim())}</li>').join('')}</ol>'));
       continue;
     }
 
@@ -128,10 +138,33 @@ String _markdownToHtml(String md, {required String fallbackTitle}) {
       buf.add(lines[i]);
       i++;
     }
-    blocks.add('<p>${_inline(buf.join(' ').trim())}</p>');
+    blocks.add(_MdBlock('p', '', '<p>${_inline(buf.join(' ').trim())}</p>'));
   }
 
-  return blocks.join('\n');
+  // 按 H1 / H2 切分章节
+  final chapters = <ChapterDraft>[];
+  var current = ChapterDraft(level: 1);
+  var hasContent = false;
+  for (final b in blocks) {
+    if (b.tag == 'h1' || b.tag == 'h2') {
+      if (hasContent || current.title.isNotEmpty) chapters.add(current);
+      current = ChapterDraft(
+        title: b.text,
+        level: b.tag == 'h1' ? 1 : 2,
+        html: b.html,
+      );
+      hasContent = false;
+    } else {
+      current.html += '\n${b.html}';
+      hasContent = true;
+    }
+  }
+  if (current.html.trim().isNotEmpty ||
+      current.title.isNotEmpty ||
+      chapters.isEmpty) {
+    chapters.add(current);
+  }
+  return chapters;
 }
 
 String _inline(String text) {
@@ -154,3 +187,10 @@ String _escapeHtml(String v) =>
 
 String _stripInline(String t) =>
     t.replaceAll(RegExp(r'[*`_#]'), '').trim();
+
+class _MdBlock {
+  _MdBlock(this.tag, this.text, this.html);
+  final String tag; // h1..h6 | p | ul | ol | blockquote | pre | hr
+  final String text; // 标题原始文本（用于章节名）
+  final String html;
+}

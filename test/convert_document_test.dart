@@ -9,6 +9,7 @@ import 'package:songjiang_reader/service/convert_to_epub/document/convert_docx.d
 import 'package:songjiang_reader/service/convert_to_epub/document/convert_html.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/convert_markdown.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/convert_odt.dart';
+import 'package:songjiang_reader/service/convert_to_epub/document/convert_rtf.dart';
 
 /// 判断 EPUB（ZIP）任意条目是否包含指定文本。
 bool _epubContains(File epub, String needle) {
@@ -40,6 +41,15 @@ File _writeTemp(String name, List<int> bytes) {
   final file = File('${dir.path}/$name');
   file.writeAsBytesSync(bytes);
   return file;
+}
+
+/// 统计 EPUB 内 xhtml 章节文件数量（用于验证多章节切分）。
+int _chapterCount(File epub) {
+  final bytes = epub.readAsBytesSync();
+  final archive = ZipDecoder().decodeBytes(bytes);
+  return archive.files
+      .where((f) => f.isFile && RegExp(r'xhtml/\d+\.xhtml$').hasMatch(f.name))
+      .length;
 }
 
 void main() {
@@ -115,6 +125,45 @@ void main() {
       expect(_epubContains(epub, 'Hello'), isTrue);
       expect(_epubContains(epub, '<strong>Markdown</strong>'), isTrue);
       expect(_epubContains(epub, '<ul>'), isTrue);
+    });
+
+    test('DOCX 多标题切分为多个章节', () async {
+      final docx = _buildZip({
+        'word/document.xml': '''
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Chapter A</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Body A</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Chapter B</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Body B</w:t></w:r></w:p>
+  </w:body>
+</w:document>''',
+      });
+      final file = _writeTemp('multi.docx', docx);
+      final epub = await convertDocxToEpub(file);
+      expect(_chapterCount(epub), greaterThanOrEqualTo(2));
+      expect(_epubContains(epub, 'Chapter A'), isTrue);
+      expect(_epubContains(epub, 'Chapter B'), isTrue);
+      expect(_epubContains(epub, 'Body A'), isTrue);
+    });
+
+    test('RTF -> EPUB 支持粗体/斜体/Unicode/多章节', () async {
+      final rtf = utf8.encode('''{\\rtf1\\ansi\\ansicpg1252
+{\\stylesheet{\\s1 Heading 1;}{\\s2 Heading 2;}}
+\\pard\\s1\\b Hello\\b0 World\\par
+\\pard\\s2 This is \\i italic\\i0 text.\\par
+\\pard Plain with \\u23383\\par
+}''');
+      final file = _writeTemp('sample.rtf', rtf);
+      final epub = await convertRtfToEpub(file);
+      expect(epub.existsSync(), isTrue);
+      expect(epub.path.endsWith('.epub'), isTrue);
+      expect(_epubContains(epub, '<strong>Hello</strong>'), isTrue);
+      expect(_epubContains(epub, 'World'), isTrue);
+      expect(_epubContains(epub, '<em>italic</em>'), isTrue);
+      expect(_epubContains(epub, '字'), isTrue); // \\u23383 = U+5B57
+      // 两个标题切分为多个章节（末尾无标题正文归入最后一章）
+      expect(_chapterCount(epub), greaterThanOrEqualTo(2));
     });
   });
 }
