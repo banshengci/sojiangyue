@@ -63,10 +63,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
+      - name: Setup MSBuild (Visual Studio 2022)
+        uses: microsoft/setup-msbuild@v2
 
       - name: Setup Flutter 3.35.3
         uses: subosito/flutter-action@v2
@@ -173,7 +171,14 @@ jobs:
           dart run build_runner build --delete-conflicting-outputs
 
       - name: Build Android (debug APK)
-        run: flutter build apk --debug --no-pub
+        shell: bash
+        run: |
+          for i in 1 2 3; do
+            echo "=== Attempt $i ==="
+            flutter build apk --debug --no-pub && break
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -307,7 +312,9 @@ jobs:
 
       - name: Install CocoaPods dependencies
         run: |
-          cd ios && pod install --repo-update && cd ..
+          cd ios
+          pod install --repo-update || pod update sqlite3
+          cd ..
 
       - name: Build macOS (debug)
         run: flutter build macos --debug --no-pub
