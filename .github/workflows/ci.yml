@@ -311,8 +311,16 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
-      - name: Update CocoaPods specs repo
-        run: pod repo update
+      # macOS/iOS 构建需要 pod install，runner 上的 CocoaPods specs 可能过期。
+      # 比 pod repo update 更可靠的方式：清理后重建。
+      - name: Prepare CocoaPods specs
+        run: |
+          echo "=== CocoaPods version ==="
+          pod --version
+          echo "=== Reset specs repo ==="
+          pod repo remove trunk 2>/dev/null || true
+          pod repo add-cdn trunk https://cdn.cocoapods.org/
+          echo "=== Done ==="
 
       - name: Build macOS (debug)
         run: flutter build macos --debug
