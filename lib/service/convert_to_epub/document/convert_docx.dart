@@ -121,7 +121,7 @@ String? _firstGroup(String src, RegExp reg) {
   return m?.group(1)?.trim();
 }
 
-/// 解析 <w:body> 内的段落与表格，按标题切分为多个章节。
+/// 解析 w:body 内的段落与表格，按标题切分为多个章节。
 List<ChapterDraft> _buildChapters(
   String xml, {
   required Map<String, String> rels,

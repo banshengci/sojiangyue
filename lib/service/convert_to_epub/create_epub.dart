@@ -19,8 +19,12 @@ String _escapeXml(String value) {
 /// 去掉行首行尾的半角与全角空格（中文 TXT 常用全角空格缩进）。
 String _trimLine(String s) {
   var t = s.trim();
-  while (t.startsWith('　')) t = t.substring(1);
-  while (t.endsWith('　')) t = t.substring(0, t.length - 1);
+  while (t.startsWith('　')) {
+    t = t.substring(1);
+  }
+  while (t.endsWith('　')) {
+    t = t.substring(0, t.length - 1);
+  }
   return t;
 }
 

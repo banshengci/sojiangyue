@@ -1,8 +1,8 @@
-/// 文档转换过程中累积的一个章节草稿：标题 + 层级 + 原始 XHTML 片段。
-///
-/// 各文档转换器（DOCX/ODT/Markdown/RTF）先产出 [ChapterDraft] 列表，
-/// 再经 [toHtmlChapters] 统一转换成 [HtmlChapter]，从而复用同一套
-/// EPUB 构建与嵌套目录逻辑，并保证「无内容时也有占位章节」等边界一致。
+// 文档转换过程中累积的一个章节草稿：标题 + 层级 + 原始 XHTML 片段。
+//
+// 各文档转换器（DOCX/ODT/Markdown/RTF）先产出 [ChapterDraft] 列表，
+// 再经 [toHtmlChapters] 统一转换成 [HtmlChapter]，从而复用同一套
+// EPUB 构建与嵌套目录逻辑，并保证「无内容时也有占位章节」等边界一致。
 import 'package:songjiang_reader/service/convert_to_epub/html_chapter.dart';
 
 class ChapterDraft {

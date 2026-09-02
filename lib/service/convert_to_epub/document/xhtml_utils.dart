@@ -248,7 +248,7 @@ String normalizeXhtmlFragment(String html) {
   s = s.replaceAllMapped(_voidTagPattern, (m) {
     final attrs = m.group(2) ?? '';
     if (attrs.trimRight().endsWith('/')) return m.group(0)!;
-    return '<${m.group(1)}${attrs}/>';
+    return '<${m.group(1)}$attrs/>';
   });
 
   // 2. 命名实体 → 数字字符引用（XML 预定义的五个保持原样）
