@@ -325,8 +325,9 @@ jobs:
           rm -f ios/Podfile.lock macos/Podfile.lock
           echo "=== Done ==="
 
-      - name: Build macOS (debug)
-        run: flutter build macos --debug
+      # CI 没有开发者证书，必须 --no-codesign
+      - name: Build macOS (debug, no codesign)
+        run: flutter build macos --debug --no-codesign
 
       # 无签名构建（CI 没有开发者证书）；上架前需本地配好签名后再归档
       - name: Build iOS (debug, no codesign)
