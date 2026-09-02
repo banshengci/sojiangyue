@@ -311,6 +311,9 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
+      - name: Update CocoaPods specs repo
+        run: pod repo update
+
       - name: Build macOS (debug)
         run: flutter build macos --debug
 
