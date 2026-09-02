@@ -311,15 +311,18 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
-      # macOS/iOS 构建需要 pod install，runner 上的 CocoaPods specs 可能过期。
-      # 比 pod repo update 更可靠的方式：清理后重建。
-      - name: Prepare CocoaPods specs
+      # macOS/iOS 构建需要 pod install，runner 上的 CocoaPods specs 可能过期，
+      # 或 Podfile.lock 锁定版本与新 specs 不兼容（resolve_dependencies 失败）。
+      # 两步解决：1) 重建 specs 仓库；2) 删 Podfile.lock 让 pod 重新解析依赖。
+      - name: Prepare CocoaPods
         run: |
           echo "=== CocoaPods version ==="
           pod --version
           echo "=== Reset specs repo ==="
           pod repo remove trunk 2>/dev/null || true
           pod repo add-cdn trunk https://cdn.cocoapods.org/
+          echo "=== Remove stale Podfile.lock ==="
+          rm -f ios/Podfile.lock macos/Podfile.lock
           echo "=== Done ==="
 
       - name: Build macOS (debug)
