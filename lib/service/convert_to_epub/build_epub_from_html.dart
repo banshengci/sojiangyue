@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:archive/archive_io.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:songjiang_reader/service/convert_to_epub/document/xhtml_utils.dart';
 import 'package:songjiang_reader/service/convert_to_epub/html_chapter.dart';
 import 'package:songjiang_reader/utils/get_path/get_temp_dir.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -25,6 +26,28 @@ String _escapeXml(String value) {
 /// 把文件名/目录名中的非法字符替换掉，避免路径出错。
 String _safeForPath(String value) =>
     value.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').replaceAll('\n', '').trim();
+
+/// 按 MIME 类型推导封面图片的文件扩展名；未知类型返回 null（不写封面）。
+String? _coverFileExt(String mime) {
+  switch (mime.toLowerCase()) {
+    case 'image/png':
+      return 'png';
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/gif':
+      return 'gif';
+    case 'image/webp':
+      return 'webp';
+    case 'image/bmp':
+      return 'bmp';
+    case 'image/svg+xml':
+      return 'svg';
+    case 'image/tiff':
+      return 'tiff';
+    default:
+      return null;
+  }
+}
 
 /// 为 [HtmlChapter] 列表生成 EPUB navMap（与 TXT 转换保持相同结构）。
 String _generateNestedToc(List<HtmlChapter> chapters) {
@@ -85,6 +108,8 @@ Future<File> buildEpubFromHtml({
   required String author,
   required List<HtmlChapter> chapters,
   Directory? tempDir,
+  List<int>? coverBytes,
+  String? coverMime,
 }) async {
   final safeTitle = _safeForPath(title.isEmpty ? 'document' : title);
   final cacheDir = await _resolveTempDir(tempDir);
@@ -117,9 +142,24 @@ Future<File> buildEpubFromHtml({
 
   final safeAuthor = author.isEmpty ? 'Unknown' : author;
 
+  // 封面：把首图写入 OEBPS 并在 OPF 声明 cover-image，供引擎识别。
+  String? coverHref;
+  if (coverBytes != null && coverBytes.isNotEmpty && coverMime != null) {
+    final ext = _coverFileExt(coverMime);
+    if (ext != null) {
+      final coverFile = File('${oebpsDir.path}/cover.$ext');
+      coverFile.createSync();
+      coverFile.writeAsBytesSync(coverBytes);
+      coverHref = 'cover.$ext';
+    }
+  }
+
   // content.opf
   final contentFile = File('${oebpsDir.path}/content.opf');
   contentFile.createSync();
+  final coverManifest = coverHref != null
+      ? '    <item id="cover-image" href="$coverHref" media-type="$coverMime" properties="cover-image"/>\n'
+      : '';
   final manifestItems = List.generate(
     chapters.length,
     (index) =>
@@ -136,12 +176,13 @@ Future<File> buildEpubFromHtml({
     <dc:title>${_escapeXml(safeTitle)}</dc:title>
     <dc:creator>${_escapeXml(safeAuthor)}</dc:creator>
     <dc:identifier id="pub-id">urn:uuid:${const Uuid().v4()}</dc:identifier>
+${coverHref != null ? '    <meta name="cover" content="cover-image"/>' : ''}
   </metadata>
 
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
     <item id="css" href="style.css" media-type="text/css"/>
-    $manifestItems
+$coverManifest$manifestItems
   </manifest>
 
   <spine toc="ncx">
@@ -187,7 +228,8 @@ img {
     xhtmlFile.createSync();
 
     final rawTitle = chapters[i].title.trim();
-    final bodyContent = chapters[i].html.trim();
+    // 章节以 XHTML 解析：统一修正 void 元素闭合、命名实体与裸 &
+    final bodyContent = normalizeXhtmlFragment(chapters[i].html.trim());
 
     xhtmlFile.writeAsStringSync('''<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">

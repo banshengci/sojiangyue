@@ -6,7 +6,6 @@ import 'package:path/path.dart' as path;
 
 import 'package:songjiang_reader/service/convert_to_epub/build_epub_from_html.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/chapter_draft.dart';
-import 'package:songjiang_reader/service/convert_to_epub/html_chapter.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
 /// 把 RTF（富文本格式）文件转换为 EPUB。
@@ -14,7 +13,8 @@ import 'package:songjiang_reader/utils/log/common.dart';
 /// RTF 是基于转义控制字的纯文本格式。这里实现一个够用的解析器：
 /// - 处理 `\b`/`\i`/`\ul` 粗体/斜体/下划线（含 `\b0` 等关闭指令）；
 /// - 处理 `\uNNNN` Unicode 转义与 `\'xx` 按代码页（默认 CP1252，GBK 做字节对最佳还原）的转义；
-/// - 通过 `\stylesheet` 中的样式名（Heading / Überschrift / 标题 + 数字）识别标题并切分章节；
+/// - 通过 `\stylesheet` 中的样式名（Heading / Überschrift / 标题 / Titre / Título /
+///   Titolo / Title / Subtitle 等，可带数字层级）识别标题并切分章节；
 /// - 段落 `\par` / `\pard`、对齐 `\qc` 等。
 ///
 /// 仅依赖项目已有的 `charset`（GBK 解码），不引入新依赖。
@@ -81,10 +81,19 @@ List<ChapterDraft> _parseRtf(String src) {
   int? _headingLevelFromStyle(int index) {
     final name = styleNames[index];
     if (name == null) return null;
-    final m =
-        RegExp(r'(?:Heading|Überschrift|标题)\s*(\d)').firstMatch(name);
-    if (m != null) return int.tryParse(m.group(1)!);
-    return null;
+    final m = RegExp(
+            r'(?:Heading|Überschrift|标题|Titre|Título|Titolo|Title|Subtitle|'
+            r'Kopfzeile|Untertitel|En-tête|Заголовок)\s*(\d)?')
+        .firstMatch(name);
+    if (m == null) return null;
+    if (m.group(1) != null) return int.tryParse(m.group(1)!);
+    // 无数字的通用标题样式：副标题降一级，其余视为 1 级
+    if (RegExp(r'Subtitle|Untertitel|Sous-titre|Sottotitolo',
+            caseSensitive: false)
+        .hasMatch(name)) {
+      return 2;
+    }
+    return 1;
   }
 
   void appendText(String s) {

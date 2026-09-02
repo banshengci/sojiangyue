@@ -16,14 +16,51 @@ String _escapeXml(String value) {
       .replaceAll("'", '&apos;');
 }
 
+/// 去掉行首行尾的半角与全角空格（中文 TXT 常用全角空格缩进）。
+String _trimLine(String s) {
+  var t = s.trim();
+  while (t.startsWith('　')) t = t.substring(1);
+  while (t.endsWith('　')) t = t.substring(0, t.length - 1);
+  return t;
+}
+
+/// 把章节纯文本切分为 `<p>` 段落。
+///
+/// 优先按空行分段：若正文里存在空行间隔，则相邻的连续行视为同一段的回行，
+/// 合并成一个 `<p>`（段内以空格连接），更符合小说阅读习惯；
+/// 若不存在空行（连续排版的 TXT 小说），则每行作为一个独立段落。
+List<String> _buildParagraphs(String content) {
+  final hasBlankLineSep = content.contains(RegExp(r'\n[ \t　]*\n'));
+  if (hasBlankLineSep) {
+    final paragraphs = <String>[];
+    for (final block in content.split(RegExp(r'\n[ \t　]*\n'))) {
+      final lines = block
+          .split('\n')
+          .map(_trimLine)
+          .where((l) => l.isNotEmpty)
+          .toList();
+      if (lines.isEmpty) continue;
+      paragraphs.add('    <p>${_escapeXml(lines.join(' '))}</p>');
+    }
+    return paragraphs;
+  }
+  return content
+      .split('\n')
+      .map(_trimLine)
+      .where((line) => line.isNotEmpty)
+      .map((line) => '    <p>${_escapeXml(line)}</p>')
+      .toList();
+}
+
 Future<File> createEpub(
   String titleString,
   String authorString,
   // List<String> chapters,
-  List<Section> sections,
-) async {
+  List<Section> sections, {
+  Directory? tempDir,
+}) async {
   // create epub
-  final cacheDir = await getAnxTempDir();
+  final cacheDir = tempDir ?? await getAnxTempDir();
   final epubDir = Directory('${cacheDir.path}/$titleString');
   if (epubDir.existsSync()) {
     epubDir.deleteSync(recursive: true);
@@ -122,12 +159,7 @@ Future<File> createEpub(
         ? ''
         : '    <h$level>${_escapeXml(rawTitle)}</h$level>';
 
-    final paragraphLines = content
-        .split('\n')
-        .map((e) => e.trim())
-        .where((line) => line.isNotEmpty)
-        .map((line) => '    <p>${_escapeXml(line)}</p>')
-        .toList();
+    final paragraphLines = _buildParagraphs(content);
 
     final bodyBuffer = StringBuffer();
     if (heading.isNotEmpty) {

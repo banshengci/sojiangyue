@@ -14,6 +14,10 @@ class HtmlChapter {
 
   HtmlChapter(this.title, this.html, [this.level = 1]);
 
+  /// 返回替换了部分字段的副本（例如图片内嵌后替换正文）。
+  HtmlChapter copyWith({String? title, String? html, int? level}) =>
+      HtmlChapter(title ?? this.title, html ?? this.html, level ?? this.level);
+
   @override
   String toString() => '${'#' * level} $title';
 }

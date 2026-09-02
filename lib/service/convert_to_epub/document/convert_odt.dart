@@ -5,8 +5,8 @@ import 'package:path/path.dart' as path;
 
 import 'package:songjiang_reader/service/convert_to_epub/build_epub_from_html.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/chapter_draft.dart';
+import 'package:songjiang_reader/service/convert_to_epub/document/image_embed.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/xml_utils.dart';
-import 'package:songjiang_reader/service/convert_to_epub/html_chapter.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
 /// 把 OpenDocument Text (.odt) 文件转换为 EPUB。
@@ -44,7 +44,15 @@ Future<File> convertOdtToEpub(File file, {Directory? tempDir}) async {
 
   final parts = _buildParts(xml, styleMap);
   final chapters = _splitChapters(parts);
-  final htmlChapters = chapters.toHtmlChapters(decodeXmlEntities(title));
+  final htmlChapters = chapters
+      .toHtmlChapters(decodeXmlEntities(title))
+      // 图片以相对路径存在于 ODT 包内（Pictures/*），内嵌为 data URI
+      .map((c) => c.copyWith(html: embedArchiveImages(c.html, archive)))
+      .toList();
+
+  // 抽取首张图片作为封面（Pictures/*），提升书架观感
+  final cover = archiveImageCover(
+      firstImageInArchive(archive, prefixes: const ['Pictures/']));
 
   AnxLog.info('Convert: ODT 转换完成，书名=$title，章节数=${htmlChapters.length}');
   return buildEpubFromHtml(
@@ -52,6 +60,8 @@ Future<File> convertOdtToEpub(File file, {Directory? tempDir}) async {
     author: decodeXmlEntities(author),
     chapters: htmlChapters,
     tempDir: tempDir,
+    coverBytes: cover?.bytes,
+    coverMime: cover?.mime,
   );
 }
 
@@ -134,6 +144,11 @@ String _processInline(String xml, Map<String, _StyleFmt> styleMap) {
   s = s.replaceAll(RegExp(r'<text:tab\s*/?>'), ' ');
   s = s.replaceAll(RegExp(r'<text:s\s*/?>'), ' ');
 
+  // 图片：<draw:image xlink:href="Pictures/xxx.png"/>
+  s = s.replaceAllMapped(
+      RegExp(r'<draw:image\b[^>]*\bxlink:href="([^"]+)"[^>]*>'),
+      (m) => '<img src="${m.group(1)}" alt=""/>');
+
   // 由内向外处理 span
   final spanRe =
       RegExp(r'<text:span\b([^>]*)>(.*?)</text:span>', dotAll: true);
@@ -153,6 +168,10 @@ String _processInline(String xml, Map<String, _StyleFmt> styleMap) {
   // 去掉剩余 ODT 标签，保留文本与已注入的 HTML 标签
   s = s.replaceAll(RegExp(r'</?text:[^>]*>'), '');
   s = s.replaceAll(RegExp(r'</?office:[^>]*>'), '');
+  // 图形框架/表格/SVG 等非文本命名空间：去掉标签但保留其中的文字与 <img>
+  s = s.replaceAll(
+      RegExp(r'</?(?:draw|svg|xlink|presentation|fo|style|table|form):[^>]*>'),
+      '');
   return s;
 }
 

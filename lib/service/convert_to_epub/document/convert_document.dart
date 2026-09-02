@@ -9,8 +9,8 @@ import 'package:songjiang_reader/service/convert_to_epub/document/convert_rtf.da
 /// 根据扩展名把文档转换为 EPUB，返回转换后的临时 .epub 文件。
 ///
 /// 支持的格式：
-/// - html / htm：直接解析 HTML（按 h1~h3 切分章节）
-/// - md：Markdown 轻量转换（按 #/## 切分章节）
+/// - html / htm / xhtml：直接解析 HTML（按 h1~h3 切分章节）
+/// - md / markdown / mdown / mkd：Markdown 转换（按 #/## 切分章节）
 /// - docx：Word OOXML（按 Heading 样式切分章节）
 /// - odt：OpenDocument Text（按标题样式切分章节）
 /// - rtf：富文本格式（按样式表中的标题样式切分章节）
@@ -22,8 +22,12 @@ Future<File> convertDocumentToEpub(File file, {Directory? tempDir}) async {
   switch (ext) {
     case 'html':
     case 'htm':
+    case 'xhtml':
       return convertHtmlToEpub(file, tempDir: tempDir);
     case 'md':
+    case 'markdown':
+    case 'mdown':
+    case 'mkd':
       return convertMarkdownToEpub(file, tempDir: tempDir);
     case 'docx':
       return convertDocxToEpub(file, tempDir: tempDir);
