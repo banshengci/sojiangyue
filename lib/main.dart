@@ -60,7 +60,10 @@ Future<void> main() async {
     await DBHelper().initDB();
   }
 
-  Server().start();
+  // 必须 await：本地 Server 需在导入书籍前完成端口绑定，
+  // 否则 getBookMetadata 取 Server().port 时 _server 尚为 null 会抛空指针，
+  // 导入流程在 30s 超时里静默失败，表现为「导入了但书架不显示」。
+  await Server().start();
 
   audioHandler = await AudioService.init(
     builder: () => TtsHandler(),
