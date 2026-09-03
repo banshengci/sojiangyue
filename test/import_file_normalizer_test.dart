@@ -74,6 +74,15 @@ void main() {
       expect(sniffExtension(f.path), 'cbz');
     });
 
+    test('识别 CBR（RAR 魔数）', () {
+      final dir = _makeTempDir();
+      addTearDown(() => dir.deleteSync(recursive: true));
+      // RAR4 魔数：R a r ! \x1a \x07 \x00（RAR5 为 \x01\x00，前 7 字节相同）
+      final rarMagic = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00, 0x00];
+      final f = _writeFile(dir, 'comic.cbr', rarMagic);
+      expect(sniffExtension(f.path), 'cbr');
+    });
+
     test('识别 PDF（%PDF 魔数）', () {
       final dir = _makeTempDir();
       addTearDown(() => dir.deleteSync(recursive: true));
@@ -154,6 +163,21 @@ void main() {
       final missing = File('${dir.path}${Platform.pathSeparator}ghost.epub');
 
       final result = await normalizeImportFiles([missing], tempDir: dir);
+      expect(result, isEmpty);
+    });
+
+    test('非法 CBR（仅魔数、非合法 RAR）转换失败时优雅跳过，不崩溃', () async {
+      final dir = _makeTempDir();
+      addTearDown(() => dir.deleteSync(recursive: true));
+      // 只有 RAR 魔数、后面是乱码，koni_archive 解析会失败，
+      // 应被捕获并跳过，而不是让导入流程整体崩溃。
+      final fakeCbr = _writeFile(
+        dir,
+        'fake.cbr',
+        [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00, 0x00, 0x01, 0x02],
+      );
+
+      final result = await normalizeImportFiles([fakeCbr], tempDir: dir);
       expect(result, isEmpty);
     });
   });

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:koni_archive/io.dart';
 import 'package:path/path.dart' as p;
 import 'package:songjiang_reader/service/book.dart';
 import 'package:songjiang_reader/utils/get_path/get_temp_dir.dart';
@@ -89,6 +90,18 @@ String? sniffExtension(String path) {
     // 过小的文件（不足 4 字节，无法判断魔数）按纯文本处理
     if (head.length < 4) return 'txt';
 
+    // RAR（CBR 漫画）：52 61 72 21 1A 07 (R a r ! \x1a \x07)
+    // RAR4 为 `Rar!\x1a\x07\x00`，RAR5 为 `Rar!\x1a\x07\x01\x00`，
+    // 两者前 7 字节相同，统一判为 CBR，具体解压交给 koni_archive。
+    if (head[0] == 0x52 &&
+        head[1] == 0x61 &&
+        head[2] == 0x72 &&
+        head[3] == 0x21 &&
+        head[4] == 0x1A &&
+        head[5] == 0x07) {
+      return 'cbr';
+    }
+
     // ZIP（EPUB / CBZ / DOCX / ODT 都是 ZIP 容器）：50 4B 03 04
     if (head[0] == 0x50 && head[1] == 0x4B && head[2] == 0x03 && head[3] == 0x04) {
       return _sniffZip(head);
@@ -141,10 +154,120 @@ Future<File?> _copyWithExtension(
   }
 }
 
+/// 图片扩展名集合（漫画页常见格式）。
+const _imageExtensions = {
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'gif',
+  'bmp',
+  'avif',
+  'tif',
+  'tiff',
+};
+
+bool _isImageName(String name) {
+  final ext = p.extension(name).replaceFirst('.', '').toLowerCase();
+  return _imageExtensions.contains(ext);
+}
+
+/// 文件名「自然排序」比较器：让 `page2` 排在 `page10` 之前，
+/// 保持漫画阅读顺序（否则字典序会把 page10 排到 page2 前面）。
+int _naturalCompare(String a, String b) {
+  final re = RegExp(r'(\d+)|(\D+)');
+  final aParts = re.allMatches(a).map((m) => m.group(0)!).toList();
+  final bParts = re.allMatches(b).map((m) => m.group(0)!).toList();
+  final len = aParts.length < bParts.length ? aParts.length : bParts.length;
+
+  for (var i = 0; i < len; i++) {
+    final ap = aParts[i];
+    final bp = bParts[i];
+    final aNum = int.tryParse(ap);
+    final bNum = int.tryParse(bp);
+    int cmp;
+    if (aNum != null && bNum != null) {
+      cmp = aNum.compareTo(bNum);
+    } else {
+      cmp = ap.compareTo(bp);
+    }
+    if (cmp != 0) return cmp;
+  }
+  return aParts.length.compareTo(bParts.length);
+}
+
+/// 把 CBR（RAR 容器）转换为标准 CBZ（ZIP 容器），供 foliate comic-book 加载器渲染。
+///
+/// 背景：foliate-js 的 comic-book 加载器只认 ZIP（CBZ），不认 RAR（CBR）。
+/// 因此导入 CBR 时，先解压 RAR 中的图片序列、按文件名自然排序，
+/// 重打包为 CBZ，再交给已有的漫画渲染链路。
+///
+/// koni_archive 为纯 Dart 实现（无 FFI / 无原生代码），可读 RAR5/RAR4，
+/// 并写出标准 ZIP/CBZ，与本项目「不引入原生依赖」的约束一致。
+Future<File?> _convertCbrToCbz(String src, {Directory? tempDir}) async {
+  try {
+    final dir = tempDir ?? await getAnxTempDir();
+    var base = p.basenameWithoutExtension(src);
+    if (base.isEmpty) base = 'import';
+    base = base.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+
+    var targetPath = p.join(dir.path, '$base.cbz');
+    var i = 1;
+    while (File(targetPath).existsSync()) {
+      targetPath = p.join(dir.path, '${base}_${i++}.cbz');
+    }
+
+    final archive = await openArchiveFile(src);
+    try {
+      // 只保留图片条目，按文件名自然排序以保持漫画页序
+      final imageEntries = archive.files
+          .where((e) => _isImageName(e.path))
+          .toList()
+        ..sort((a, b) => _naturalCompare(a.path, b.path));
+
+      if (imageEntries.isEmpty) {
+        AnxLog.warning('Import: CBR 内未找到图片条目，跳过：$src');
+        return null;
+      }
+
+      final writer = await createArchiveFile(
+        targetPath,
+        format: const ZipWriteFormat(),
+      );
+      try {
+        for (final entry in imageEntries) {
+          final bytes = await archive.readBytes(entry, maxSize: 50 << 20);
+          await writer.addBytes(
+            ArchiveEntrySpec(
+              path: entry.path,
+              compression: ArchiveCompression.stored,
+            ),
+            bytes,
+          );
+        }
+        await writer.close();
+      } catch (e) {
+        // 失败时确保 writer 关闭，避免临时文件残留半截 ZIP
+        await writer.close().catchError((_) {});
+        rethrow;
+      }
+    } finally {
+      await archive.close();
+    }
+
+    AnxLog.info('Import: CBR 已转换为 CBZ：$src -> $targetPath');
+    return File(targetPath);
+  } catch (e) {
+    AnxLog.severe('Import: CBR 转 CBZ 失败 $src: $e');
+    return null;
+  }
+}
+
 /// 规范化导入文件列表。
 ///
 /// - 扩展名已在白名单内：原样保留，不做任何拷贝；
 /// - 扩展名缺失或不被支持：按内容嗅探真实格式，复制为带正确扩展名的临时文件；
+/// - CBR：RAR 容器不在 foliate 支持范围，解压图片并重打包为 CBZ 后交给漫画渲染链路；
 /// - 文件不存在（例如 content:// 这类无法直接读取的 URI）或嗅探失败：跳过并记录日志。
 Future<List<File>> normalizeImportFiles(
   List<File> files, {
@@ -173,7 +296,13 @@ Future<List<File>> normalizeImportFiles(
       continue;
     }
 
-    final fixed = await _copyWithExtension(src, sniffed, tempDir: tempDir);
+    // CBR 需解压 RAR 并重打包为 CBZ，不能直接复制
+    File? fixed;
+    if (sniffed == 'cbr') {
+      fixed = await _convertCbrToCbz(src, tempDir: tempDir);
+    } else {
+      fixed = await _copyWithExtension(src, sniffed, tempDir: tempDir);
+    }
     if (fixed != null) result.add(fixed);
   }
 
