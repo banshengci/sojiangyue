@@ -16,7 +16,6 @@ import 'package:songjiang_reader/service/book.dart';
 import 'package:songjiang_reader/page/search/search_page.dart';
 import 'package:songjiang_reader/utils/get_path/get_temp_dir.dart';
 import 'package:songjiang_reader/utils/color/hash_color.dart';
-import 'package:songjiang_reader/utils/platform_utils.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/widgets/bookshelf/book_bottom_sheet.dart';
 import 'package:songjiang_reader/widgets/bookshelf/book_folder.dart';
@@ -85,19 +84,41 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
 
     List<PlatformFile> files = result.files;
     AnxLog.info('importBook files: ${files.toString()}');
-    List<File> fileList = [];
-    // FilePicker on Windows will return files with original path,
-    // but on Android it will return files with temporary path.
-    // So we need to save the files to the temp directory.
-    if (!AnxPlatform.isAndroid) {
-      fileList = await Future.wait(files.map((file) async {
-        return _copyToTempFile(sourcePath: file.path!, fileName: file.name);
-      }).toList());
-    } else {
-      fileList = files.map((file) => File(file.path!)).toList();
-    }
+
+    // 统一从 file.bytes 写入我们自己的临时目录，
+    // 不依赖 file_picker 在各平台返回的路径（安卓上该路径
+    // 可能是 content:// URI、缓存路径被清理、或扩展名丢失）。
+    final List<File> fileList = await Future.wait(files.map((file) async {
+      final bytes = file.bytes;
+      if (bytes != null && bytes.isNotEmpty) {
+        return _writeToTemp(bytes: bytes, fileName: file.name);
+      }
+      // bytes 为 null 时兜底：从 file.path 复制（可能在某些平台失效）
+      AnxLog.warning(
+          'importBook: file.bytes 为空，尝试从路径读取: ${file.path}');
+      return _copyToTempFile(sourcePath: file.path!, fileName: file.name);
+    }).toList());
 
     await importBookList(fileList, context, ref);
+  }
+
+  /// 将内存中的字节写入应用临时目录，返回写入后的 File 对象。
+  Future<File> _writeToTemp({
+    required List<int> bytes,
+    required String fileName,
+  }) async {
+    final tempDir = await getAnxTempDir();
+    var targetPath = p.join(tempDir.path, fileName);
+    // 同名文件加序号避免覆盖
+    var i = 1;
+    while (await File(targetPath).exists()) {
+      targetPath =
+          p.join(tempDir.path, '${p.basenameWithoutExtension(fileName)}_${i++}${p.extension(fileName)}');
+    }
+    final targetFile = File(targetPath);
+    await targetFile.writeAsBytes(bytes, flush: true);
+    AnxLog.info('importBook: 已写入临时文件 $targetPath (${bytes.length} 字节)');
+    return targetFile;
   }
 
   @override
