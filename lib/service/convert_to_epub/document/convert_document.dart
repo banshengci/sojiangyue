@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:songjiang_reader/service/convert_to_epub/document/convert_doc.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/convert_docx.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/convert_html.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/convert_markdown.dart';
@@ -14,6 +15,7 @@ import 'package:songjiang_reader/service/convert_to_epub/document/convert_rtf.da
 /// - docx：Word OOXML（按 Heading 样式切分章节）
 /// - odt：OpenDocument Text（按标题样式切分章节）
 /// - rtf：富文本格式（按样式表中的标题样式切分章节）
+/// - doc：老版 Word 二进制（OLE2）；best-effort 提取正文文本
 ///
 /// 长文档会被切成多个章节并生成目录；转换后的 EPUB 走与 TXT 转换相同的导入/元数据/入库流程。
 Future<File> convertDocumentToEpub(File file, {Directory? tempDir}) async {
@@ -35,6 +37,8 @@ Future<File> convertDocumentToEpub(File file, {Directory? tempDir}) async {
       return convertOdtToEpub(file, tempDir: tempDir);
     case 'rtf':
       return convertRtfToEpub(file, tempDir: tempDir);
+    case 'doc':
+      return convertDocToEpub(file, tempDir: tempDir);
     default:
       throw Exception('Convert: 不支持的文档格式转换：$ext');
   }

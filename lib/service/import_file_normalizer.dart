@@ -102,6 +102,18 @@ String? sniffExtension(String path) {
       return 'cbr';
     }
 
+    // OLE2 复合文档（老版 .doc / .ppt / .xls）：D0 CF 11 E0 A1 B1 1A E1
+    if (head[0] == 0xD0 &&
+        head[1] == 0xCF &&
+        head[2] == 0x11 &&
+        head[3] == 0xE0 &&
+        head[4] == 0xA1 &&
+        head[5] == 0xB1 &&
+        head[6] == 0x1A &&
+        head[7] == 0xE1) {
+      return 'doc';
+    }
+
     // ZIP（EPUB / CBZ / DOCX / ODT 都是 ZIP 容器）：50 4B 03 04
     if (head[0] == 0x50 && head[1] == 0x4B && head[2] == 0x03 && head[3] == 0x04) {
       return _sniffZip(head);

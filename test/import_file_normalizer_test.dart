@@ -83,6 +83,17 @@ void main() {
       expect(sniffExtension(f.path), 'cbr');
     });
 
+    test('识别老版 .doc（OLE2 魔数）', () {
+      final dir = _makeTempDir();
+      addTearDown(() => dir.deleteSync(recursive: true));
+      // OLE2 复合文档魔数：D0 CF 11 E0 A1 B1 1A E1
+      final oleMagic = [
+        0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0x00, 0x00,
+      ];
+      final f = _writeFile(dir, 'legacy.doc', oleMagic);
+      expect(sniffExtension(f.path), 'doc');
+    });
+
     test('识别 PDF（%PDF 魔数）', () {
       final dir = _makeTempDir();
       addTearDown(() => dir.deleteSync(recursive: true));

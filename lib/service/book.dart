@@ -63,6 +63,7 @@ final allowBookExtensions = [
   "docx",
   "odt",
   "rtf",
+  "doc",
 ];
 
 /// 导入时需要在导入前转换为 EPUB 的文档格式。
