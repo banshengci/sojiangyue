@@ -60,7 +60,12 @@ Future<Directory> getAnxDocumentDir() async {
   return Directory(await getAnxDocumentsPath());
 }
 
-void initBasePath() async {
+/// 初始化文档根目录与子目录。
+///
+/// 必须返回 Future 以便调用方 await：本函数为 async，若声明成 void，
+/// 调用方无法等待其完成，随后立刻调用 [getBasePath] 会拿到空的
+/// documentPath，在安卓上表现为导入/保存书籍失败。
+Future<void> initBasePath() async {
   Directory appDocDir = await getAnxDocumentDir();
   documentPath = appDocDir.path;
   debugPrint('documentPath: $documentPath');

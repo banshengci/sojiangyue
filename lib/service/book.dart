@@ -19,6 +19,7 @@ import 'package:songjiang_reader/providers/book_list.dart';
 import 'package:songjiang_reader/providers/toc_search.dart';
 import 'package:songjiang_reader/service/convert_to_epub/txt/convert_from_txt.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/convert_document.dart';
+import 'package:songjiang_reader/service/import_file_normalizer.dart';
 import 'package:songjiang_reader/service/md5_service.dart';
 import 'package:songjiang_reader/utils/webView/anx_headless_webview.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
@@ -79,15 +80,26 @@ const documentConvertibleExtensions = {
 };
 
 /// import book list and **delete file**
-void importBookList(List<File> fileList, BuildContext context, WidgetRef ref) {
+Future<void> importBookList(
+  List<File> fileList,
+  BuildContext context,
+  WidgetRef ref,
+) async {
   AnxLog.info('importBook fileList: ${fileList.toString()}');
 
-  List<File> supportedFiles = fileList.where((file) {
+  // 安卓上导入进来的路径经常不带正确扩展名（系统分享兜底会生成
+  // `FILE_xxx.null`），直接按扩展名过滤会被判为不支持而静默丢弃，
+  // 表现为「点了导入但书架没反应」。这里先按文件内容规范化。
+  final normalizedFiles = await normalizeImportFiles(fileList);
+  AnxLog.info(
+      'importBook normalized: ${normalizedFiles.map((f) => f.path).join(', ')}');
+
+  List<File> supportedFiles = normalizedFiles.where((file) {
     return allowBookExtensions
         .contains(file.path.split('.').last.toLowerCase());
   }).toList();
 
-  List<File> unsupportedFiles = fileList.where((file) {
+  List<File> unsupportedFiles = normalizedFiles.where((file) {
     return !allowBookExtensions
         .contains(file.path.split('.').last.toLowerCase());
   }).toList();
@@ -571,9 +583,20 @@ Future<void> saveBook(
   String? dbCoverPath = 'cover/$newBookName';
   // final coverPath = getBasePath(dbCoverPath);
 
+  // documentPath 由 initBasePath() 异步赋值，若尚未就绪会得到错误路径，
+  // 在安卓上会直接导致 copy 失败且异常被上层吞掉。这里提前暴露问题。
+  if (documentPath.isEmpty) {
+    AnxLog.severe('Import: documentPath 尚未初始化，无法保存书籍文件');
+  }
+  AnxLog.info('Import: 复制书籍文件 ${file.path} -> $filePath');
   await file.copy(filePath);
   // remove cached file
-  file.delete();
+  try {
+    await file.delete();
+  } catch (e) {
+    // 缓存文件清理失败不影响已入库的副本，仅记录
+    AnxLog.warning('Import: 清理缓存文件失败（可忽略）: $e');
+  }
 
   dbCoverPath = await saveImageToLocal(cover, dbCoverPath);
   if (md5 != null) {
@@ -640,16 +663,26 @@ Future<void> getBookMetadata(
             // base64 cover
             String cover = metadata['cover'] ?? '';
             String description = metadata['description'] ?? '';
-            saveBook(
-              file,
-              title,
-              author,
-              description,
-              md5,
-              cover,
-              provideBook: book,
-            );
-            ref?.read(bookListProvider.notifier).refresh();
+            // 必须 await 并捕获异常：saveBook 内部会释放 headless webview，
+            // 若它抛异常且未被捕获，外层的等待循环会空转到 30 秒超时，
+            // 用户界面上就只表现为「导入了但书架没反应」。
+            try {
+              await saveBook(
+                file,
+                title,
+                author,
+                description,
+                md5,
+                cover,
+                provideBook: book,
+              );
+              ref?.read(bookListProvider.notifier).refresh();
+            } catch (e, stackTrace) {
+              AnxLog.severe('Import: 保存书籍失败: $e');
+              AnxLog.severe('Stack trace: $stackTrace');
+              await headlessInAppWebView?.dispose();
+              headlessInAppWebView = null;
+            }
             // return;
           });
     },

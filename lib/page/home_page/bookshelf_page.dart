@@ -97,7 +97,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
       fileList = files.map((file) => File(file.path!)).toList();
     }
 
-    importBookList(fileList, context, ref);
+    await importBookList(fileList, context, ref);
   }
 
   @override
@@ -481,7 +481,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                   fileName: file.name,
                 ));
               }
-              importBookList(files, context, ref);
+              await importBookList(files, context, ref);
               setState(() {
                 _dragging = false;
               });
