@@ -39,12 +39,18 @@ List<int> _readHead(String path, int size) {
 /// ZIP 容器的细分类别。
 ///
 /// EPUB 规范要求 `mimetype` 必须是 ZIP 的第一个条目（且不压缩），
-/// 因此它一定落在文件头部，直接在前 1KB 内查找该名字即可区分
-/// EPUB 与漫画包（CBZ 同为 ZIP 但没有 mimetype 条目）。
+/// 因此它一定落在文件头部，直接在前 1KB 内查找该名字即可与漫画包
+/// （CBZ 同为 ZIP 但没有 mimetype 条目）区分开。
+///
+/// 注意：**ODT 同样要求首条目是 mimetype**，只是内容为
+/// `application/vnd.oasis.opendocument.text`。因此必须进一步读取
+/// mimetype 的内容，否则 ODT 会被误判成 EPUB，绕过 ODT→EPUB 转换
+/// 直接交给引擎解析而失败。
 String _sniffZip(List<int> head) {
   // 'mimetype' 的 ASCII 码
   const marker = <int>[0x6D, 0x69, 0x6D, 0x65, 0x74, 0x79, 0x70, 0x65];
   final limit = head.length - marker.length;
+
   for (var i = 0; i <= limit; i++) {
     var matched = true;
     for (var j = 0; j < marker.length; j++) {
@@ -53,8 +59,21 @@ String _sniffZip(List<int> head) {
         break;
       }
     }
-    if (matched) return 'epub';
+    if (!matched) continue;
+
+    // mimetype 条目要求 STORED（不压缩），内容紧跟在条目名之后，
+    // 读取其后一小段即可取出真实的 MIME 值。
+    final start = i + marker.length;
+    final end = start + 128 > head.length ? head.length : start + 128;
+    if (end <= start) return 'epub';
+
+    final tail = String.fromCharCodes(head, start, end).toLowerCase();
+    if (tail.contains('oasis.opendocument')) return 'odt';
+    if (tail.contains('epub')) return 'epub';
+    // 有 mimetype 条目但内容无法判断时，按最常见的书籍格式处理
+    return 'epub';
   }
+
   return 'cbz';
 }
 

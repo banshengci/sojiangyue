@@ -20,6 +20,19 @@ Uint8List _buildEpubBytes() {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
+/// 构造最小 ODT 字节流。
+///
+/// ODT 与 EPUB 一样要求 ZIP 首条目为 mimetype，区别只在内容：
+/// ODT 是 application/vnd.oasis.opendocument.text。
+Uint8List _buildOdtBytes() {
+  final archive = Archive();
+  final mime = utf8.encode('application/vnd.oasis.opendocument.text');
+  archive.addFile(ArchiveFile.noCompress('mimetype', mime.length, mime));
+  final content = utf8.encode('<?xml version="1.0"?><office:document/>');
+  archive.addFile(ArchiveFile('content.xml', content.length, content));
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
 /// 构造最小 CBZ（漫画包）：同样是 ZIP，但没有 mimetype 条目。
 Uint8List _buildCbzBytes() {
   final archive = Archive();
@@ -43,6 +56,15 @@ void main() {
       addTearDown(() => dir.deleteSync(recursive: true));
       final f = _writeFile(dir, 'book.epub', _buildEpubBytes());
       expect(sniffExtension(f.path), 'epub');
+    });
+
+    test('区分 EPUB 与 ODT（两者首条目都是 mimetype，靠内容区分）', () {
+      final dir = _makeTempDir();
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final epub = _writeFile(dir, 'a_no_ext', _buildEpubBytes());
+      final odt = _writeFile(dir, 'b_no_ext', _buildOdtBytes());
+      expect(sniffExtension(epub.path), 'epub');
+      expect(sniffExtension(odt.path), 'odt');
     });
 
     test('识别 CBZ（ZIP 但无 mimetype 条目）', () {
