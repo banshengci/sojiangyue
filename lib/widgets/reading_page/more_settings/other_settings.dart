@@ -1,11 +1,13 @@
-import 'package:songjiang_reader/utils/platform_utils.dart';
+﻿import 'package:songjiang_reader/utils/platform_utils.dart';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/enums/page_turn_mode.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/utils/ui/status_bar.dart';
-import 'package:songjiang_reader/widgets/common/anx_segmented_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:songjiang_reader/widgets/reading_page/more_settings/page_turning/diagram.dart';
 import 'package:songjiang_reader/widgets/reading_page/more_settings/page_turning/page_turn_dropdown.dart';
 import 'package:songjiang_reader/widgets/reading_page/more_settings/page_turning/types_and_icons.dart';
@@ -34,19 +36,19 @@ class _OtherSettingsState extends State<OtherSettings> {
         ),
         subtitle: Row(
           children: [
-            Text(L10n.of(context).commonMinutes(Prefs().awakeTime)),
+            Text(L10n.of(context).commonMinutes(ReadingUiPrefs.awakeTime)),
             Expanded(
               child: Slider(
                   min: 0,
                   max: 60,
-                  label: Prefs().awakeTime.toString(),
-                  value: Prefs().awakeTime.toDouble(),
+                  label: ReadingUiPrefs.awakeTime.toString(),
+                  value: ReadingUiPrefs.awakeTime.toDouble(),
                   onChangeEnd: (value) => setState(() {
                         readingPageKey.currentState
                             ?.setAwakeTimer(value.toInt());
                       }),
                   onChanged: (value) => setState(() {
-                        Prefs().awakeTime = value.toInt();
+                        ReadingUiPrefs.awakeTime = value.toInt();
                       })),
             ),
           ],
@@ -58,9 +60,9 @@ class _OtherSettingsState extends State<OtherSettings> {
       return ListTile(
         contentPadding: EdgeInsets.zero,
         trailing: Switch(
-            value: Prefs().hideStatusBar,
+            value: ReadingUiPrefs.hideStatusBar,
             onChanged: (bool? value) => setState(() {
-                  Prefs().saveHideStatusBar(value!);
+                  ReadingUiPrefs.saveHideStatusBar(value!);
                   if (value) {
                     hideStatusBar();
                   } else {
@@ -72,9 +74,9 @@ class _OtherSettingsState extends State<OtherSettings> {
     }
 
     Widget pageTurningControl() {
-      int currentType = Prefs().pageTurningType;
+      int currentType = ReadingStylePrefs.pageTurningType;
       ScrollController scrollController = ScrollController();
-      PageTurnMode currentMode = PageTurnMode.fromCode(Prefs().pageTurnMode);
+      PageTurnMode currentMode = PageTurnMode.fromCode(ReadingStylePrefs.pageTurnMode);
 
       return StatefulBuilder(builder: (
         BuildContext context,
@@ -82,7 +84,7 @@ class _OtherSettingsState extends State<OtherSettings> {
       ) {
         void onTap(int index) {
           setState(() {
-            Prefs().pageTurningType = index;
+            ReadingStylePrefs.pageTurningType = index;
             currentType = index;
           });
         }
@@ -90,14 +92,14 @@ class _OtherSettingsState extends State<OtherSettings> {
         void onModeChanged(Set<PageTurnMode> selected) {
           setState(() {
             currentMode = selected.first;
-            Prefs().pageTurnMode = selected.first.code;
+            ReadingStylePrefs.pageTurnMode = selected.first.code;
           });
         }
 
         void onCustomConfigChanged(int index, PageTurningType type) {
-          List<int> config = Prefs().customPageTurnConfig;
+          List<int> config = ReadingStylePrefs.customPageTurnConfig;
           config[index] = type.index;
-          Prefs().customPageTurnConfig = config;
+          ReadingStylePrefs.customPageTurnConfig = config;
         }
 
         return ListTile(
@@ -110,7 +112,7 @@ class _OtherSettingsState extends State<OtherSettings> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const Spacer(),
-              AnxSegmentedButton<PageTurnMode>(
+              SjSegmentedButton<PageTurnMode>(
                 segments: [
                   SegmentButtonItem(
                     value: PageTurnMode.simple,
@@ -177,7 +179,7 @@ class _OtherSettingsState extends State<OtherSettings> {
                                     builder: (context) {
                                       int index = row * 3 + col;
                                       List<int> config =
-                                          Prefs().customPageTurnConfig;
+                                          ReadingStylePrefs.customPageTurnConfig;
                                       return PageTurnDropdown(
                                         value: PageTurningType
                                             .values[config[index]],
@@ -210,9 +212,9 @@ class _OtherSettingsState extends State<OtherSettings> {
       return ListTile(
         contentPadding: EdgeInsets.zero,
         trailing: Switch(
-          value: Prefs().autoTranslateSelection,
+          value: ReadingUiPrefs.autoTranslateSelection,
           onChanged: (bool value) => setState(() {
-            Prefs().autoTranslateSelection = value;
+            ReadingUiPrefs.autoTranslateSelection = value;
           }),
         ),
         title: Text(L10n.of(context).readingPageAutoTranslateSelection),
@@ -224,9 +226,9 @@ class _OtherSettingsState extends State<OtherSettings> {
         contentPadding: EdgeInsets.zero,
         title: Text(L10n.of(context).readingPageAutoSummaryPreviousContent),
         trailing: Switch(
-          value: Prefs().autoSummaryPreviousContent,
+          value: ReadingUiPrefs.autoSummaryPreviousContent,
           onChanged: (bool value) => setState(() {
-            Prefs().autoSummaryPreviousContent = value;
+            ReadingUiPrefs.autoSummaryPreviousContent = value;
           }),
         ),
       );
@@ -236,9 +238,9 @@ class _OtherSettingsState extends State<OtherSettings> {
       return ListTile(
         contentPadding: EdgeInsets.zero,
         trailing: Switch(
-          value: Prefs().autoMarkSelection,
+          value: ReadingUiPrefs.autoMarkSelection,
           onChanged: (bool value) => setState(() {
-            Prefs().autoMarkSelection = value;
+            ReadingUiPrefs.autoMarkSelection = value;
           }),
         ),
         title: Text(L10n.of(context).readingPageAutoMarkSelection),
@@ -252,9 +254,9 @@ class _OtherSettingsState extends State<OtherSettings> {
         title: Text(L10n.of(context).readingPageAutoAdjustReadingTheme),
         subtitle: Text(L10n.of(context).readingPageAutoAdjustReadingThemeTips),
         trailing: Switch(
-          value: Prefs().autoAdjustReadingTheme,
+          value: ThemePrefs.autoAdjustReadingTheme,
           onChanged: (bool value) => setState(() {
-            Prefs().autoAdjustReadingTheme = value;
+            ThemePrefs.autoAdjustReadingTheme = value;
           }),
         ),
       );
@@ -265,9 +267,9 @@ class _OtherSettingsState extends State<OtherSettings> {
         contentPadding: EdgeInsets.zero,
         title: Text(L10n.of(context).readingPageVolumeKeyTurnPage),
         trailing: Switch(
-          value: Prefs().volumeKeyTurnPage,
+          value: ReadingUiPrefs.volumeKeyTurnPage,
           onChanged: (bool value) => setState(() {
-            Prefs().volumeKeyTurnPage = value;
+            ReadingUiPrefs.volumeKeyTurnPage = value;
           }),
         ),
       );
@@ -279,9 +281,9 @@ class _OtherSettingsState extends State<OtherSettings> {
         title: Text(L10n.of(context).readingPageSwapPageTurnArea),
         subtitle: Text(L10n.of(context).readingPageSwapPageTurnAreaTips),
         trailing: Switch(
-          value: Prefs().swapPageTurnArea,
+          value: ReadingUiPrefs.swapPageTurnArea,
           onChanged: (bool value) => setState(() {
-            Prefs().swapPageTurnArea = value;
+            ReadingUiPrefs.swapPageTurnArea = value;
           }),
         ),
       );
@@ -293,9 +295,9 @@ class _OtherSettingsState extends State<OtherSettings> {
         title: Text(L10n.of(context).readingPageShowMenuOnHover),
         subtitle: Text(L10n.of(context).readingPageShowMenuOnHoverTips),
         trailing: Switch(
-          value: Prefs().showMenuOnHover,
+          value: ReadingUiPrefs.showMenuOnHover,
           onChanged: (bool value) => setState(() {
-            Prefs().showMenuOnHover = value;
+            ReadingUiPrefs.showMenuOnHover = value;
           }),
         ),
       );
@@ -308,9 +310,9 @@ class _OtherSettingsState extends State<OtherSettings> {
         subtitle:
             Text(L10n.of(context).readingPageKeyboardShortcutTurnPageTips),
         trailing: Switch(
-          value: Prefs().keyboardShortcutTurnPage,
+          value: ReadingUiPrefs.keyboardShortcutTurnPage,
           onChanged: (bool value) => setState(() {
-            Prefs().keyboardShortcutTurnPage = value;
+            ReadingUiPrefs.keyboardShortcutTurnPage = value;
           }),
         ),
       );
@@ -321,12 +323,12 @@ class _OtherSettingsState extends State<OtherSettings> {
       child: Column(
         children: [
           fullScreen(),
-          if (AnxPlatform.isAndroid) keyboardTurnPage(),
-          // if (PageTurnMode.fromCode(Prefs().pageTurnMode) ==
+          if (SjPlatform.isAndroid) keyboardTurnPage(),
+          // if (PageTurnMode.fromCode(ReadingStylePrefs.pageTurnMode) ==
           //     PageTurnMode.simple)
           swapPageTurnArea(),
           showMenuOnHover(),
-          if (AnxPlatform.isDesktop) keyboardShortcutTurnPage(),
+          if (SjPlatform.isDesktop) keyboardShortcutTurnPage(),
           autoAdjustReadingTheme(),
           autoTranslateSelection(),
           autoMarkSelection(),

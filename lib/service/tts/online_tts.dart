@@ -1,6 +1,6 @@
-import 'dart:async';
+﻿import 'dart:async';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
 import 'package:songjiang_reader/service/tts/tts_service.dart';
@@ -58,7 +58,7 @@ class OnlineTts extends BaseTts {
   TtsServiceProvider? _currentBackend;
 
   TtsServiceProvider get backend {
-    TtsService service = getTtsService(Prefs().ttsService);
+    TtsService service = getTtsService(TtsPrefs.serviceId);
     if (_currentBackend?.service != service) {
       _currentBackend = service.provider;
     }
@@ -77,33 +77,33 @@ class OnlineTts extends BaseTts {
 
   // ============ Properties ============
   @override
-  double get volume => Prefs().ttsVolume;
+  double get volume => TtsPrefs.volume;
 
   @override
   set volume(double volume) {
-    Prefs().ttsVolume = volume;
+    TtsPrefs.volume = volume;
     _player?.setVolume(volume);
   }
 
   @override
-  double get pitch => Prefs().ttsPitch;
+  double get pitch => TtsPrefs.pitch;
 
   @override
   set pitch(double pitch) {
-    Prefs().ttsPitch = pitch;
+    TtsPrefs.pitch = pitch;
     // Clear pending audio so it will be re-fetched with new pitch
     _clearPendingAudio();
   }
 
   @override
   set rate(double rate) {
-    Prefs().ttsRate = rate;
+    TtsPrefs.rate = rate;
     // Clear pending audio so it will be re-fetched with new rate
     _clearPendingAudio();
   }
 
   @override
-  double get rate => Prefs().ttsRate;
+  double get rate => TtsPrefs.rate;
 
   @override
   @override
@@ -176,7 +176,7 @@ class OnlineTts extends BaseTts {
       segment.isSilent = false;
       segment.fetchVersion = _audioFetchVersion; // Mark with current version
     }
-    AnxLog.info(
+    SjLog.info(
         'Cleared pending audio buffer - will re-fetch with new settings (version: $_audioFetchVersion)');
   }
 
@@ -242,7 +242,7 @@ class OnlineTts extends BaseTts {
         }
       }
     } catch (e) {
-      AnxLog.severe('Prefetcher error: $e');
+      SjLog.severe('Prefetcher error: $e');
     } finally {
       _isPrefetcherRunning = false;
       _prefetcherCompleter?.complete();
@@ -275,7 +275,7 @@ class OnlineTts extends BaseTts {
 
       return newSentences;
     } catch (e) {
-      AnxLog.severe('Collect sentences error: $e');
+      SjLog.severe('Collect sentences error: $e');
       return [];
     }
   }
@@ -303,7 +303,7 @@ class OnlineTts extends BaseTts {
 
         // Check if version is still valid (settings haven't changed during fetch)
         if (segment.fetchVersion != targetVersion) {
-          AnxLog.info(
+          SjLog.info(
               'Audio fetch completed but version changed - discarding (segment version: ${segment.fetchVersion}, target: $targetVersion)');
           return;
         }
@@ -315,7 +315,7 @@ class OnlineTts extends BaseTts {
         }
         return; // Success, exit retry loop
       } on TimeoutException {
-        AnxLog.severe(
+        SjLog.severe(
             'Fetch timeout (attempt ${attempt + 1}/$_maxRetries): "${segment.sentence.text.substring(0, segment.sentence.text.length.clamp(0, 20))}..."');
         if (attempt == _maxRetries) {
           // Check version before marking as silent
@@ -324,7 +324,7 @@ class OnlineTts extends BaseTts {
           }
         }
       } catch (e) {
-        AnxLog.severe('Fetch error (attempt ${attempt + 1}): $e');
+        SjLog.severe('Fetch error (attempt ${attempt + 1}): $e');
         if (attempt == _maxRetries) {
           // Check version before marking as silent
           if (segment.fetchVersion == targetVersion) {
@@ -384,7 +384,7 @@ class OnlineTts extends BaseTts {
           await audioPlayer.play(source);
           await _playbackCompleter!.future;
         } catch (e) {
-          AnxLog.severe('Playback error: $e');
+          SjLog.severe('Playback error: $e');
         }
 
         _playbackCompleter = null;
@@ -396,7 +396,7 @@ class OnlineTts extends BaseTts {
         }
       }
     } catch (e) {
-      AnxLog.severe('Player loop error: $e');
+      SjLog.severe('Player loop error: $e');
     } finally {
       _isPlayerRunning = false;
       _playerCompleter?.complete();

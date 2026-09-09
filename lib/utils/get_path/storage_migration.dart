@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:path_provider/path_provider.dart';
@@ -43,7 +43,7 @@ Future<bool> performStorageMigration({
       await _copyDirectory(sourceDir, destDir);
       successfullyMigrated.add(folder);
 
-      AnxLog.info('StorageMigration: Copied $folder successfully');
+      SjLog.info('StorageMigration: Copied $folder successfully');
     }
 
     // Also copy the log file if it exists
@@ -54,18 +54,18 @@ Future<bool> performStorageMigration({
       final destLogFile =
           File('$destinationPath${Platform.pathSeparator}songjiang_reader.log');
       await sourceLogFile.copy(destLogFile.path);
-      AnxLog.info('StorageMigration: Copied log file successfully');
+      SjLog.info('StorageMigration: Copied log file successfully');
     }
 
     // All copies successful, now delete old data
-    AnxLog.info(
+    SjLog.info(
         'StorageMigration: All data copied, cleaning up source data...');
     for (final folder in successfullyMigrated) {
       final sourceDir =
           Directory('$sourcePath${Platform.pathSeparator}$folder');
       if (sourceDir.existsSync()) {
         await sourceDir.delete(recursive: true);
-        AnxLog.info('StorageMigration: Deleted source $folder');
+        SjLog.info('StorageMigration: Deleted source $folder');
       }
     }
 
@@ -74,10 +74,10 @@ Future<bool> performStorageMigration({
       await sourceLogFile.delete();
     }
 
-    AnxLog.info('StorageMigration: Completed successfully');
+    SjLog.info('StorageMigration: Completed successfully');
     return true;
   } catch (e) {
-    AnxLog.severe('StorageMigration failed: $e');
+    SjLog.severe('StorageMigration failed: $e');
     return false;
   }
 }

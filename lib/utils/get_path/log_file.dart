@@ -1,9 +1,9 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'get_base_path.dart';
 
 Future<File> getLogFile() async {
-  final logFileDir = await getAnxDocumentsPath();
+  final logFileDir = await getSjDocumentsPath();
   final String logFilePath =
       '$logFileDir${Platform.pathSeparator}songjiang_reader.log';
   final logFile = File(logFilePath);

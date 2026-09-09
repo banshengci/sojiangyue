@@ -1,7 +1,7 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/utils/get_path/get_cache_dir.dart';
 import 'package:langchain_core/chat_models.dart';
 
@@ -126,7 +126,7 @@ class AiHistoryStore {
     }
 
     history.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final maxCount = Prefs().maxAiCacheCount;
+    final maxCount = AiPrefs.maxCacheCount;
     final limit = maxCount <= 0 ? history.length : maxCount;
     final limited = history.take(limit).toList(growable: false);
 
@@ -153,7 +153,7 @@ class AiHistoryStore {
   }
 
   static Future<File> _resolveFile() async {
-    final cacheDir = await getAnxCacheDir();
+    final cacheDir = await getSjCacheDir();
     return File('${cacheDir.path}/$historyFileName');
   }
 }

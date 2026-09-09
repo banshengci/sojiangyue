@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:ui';
 
 import 'package:songjiang_reader/dao/book.dart';
@@ -179,7 +179,7 @@ class _BookDetailState extends ConsumerState<BookDetail> {
 
                   File image = File(result.files.single.path!);
 
-                  AnxLog.info('BookDetail: Image path: ${image.path}');
+                  SjLog.info('BookDetail: Image path: ${image.path}');
                   // Delete the existing cover image file
                   final File oldCoverImageFile =
                       File(widget.book.coverFullPath);
@@ -199,7 +199,7 @@ class _BookDetailState extends ConsumerState<BookDetail> {
                       '$oldName-${DateTime.now().millisecondsSinceEpoch.toString()}.png'
                           .trim();
 
-                  AnxLog.info('BookDetail: New path: $newPath');
+                  SjLog.info('BookDetail: New path: $newPath');
                   String newFullPath = getBasePath(newPath);
 
                   final File newCoverImageFile = File(newFullPath);

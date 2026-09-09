@@ -4,7 +4,7 @@ import 'package:flutter/painting.dart';
 /// 松江阅自有视觉体系
 ///
 /// 取「松江」意象：松之苍绿为主，宣纸之暖白为底，松烟墨为暗色，
-/// 松花黄作点缀。与上游 Anx 的冷灰 + 蓝色调刻意区分。
+/// 松花黄作点缀。与上游 anx-reader 的冷灰 + 蓝色调刻意区分。
 class SongJiangColors {
   const SongJiangColors._();
 

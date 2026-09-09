@@ -1,7 +1,7 @@
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/utils/theme_mode_to_string.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
-import 'package:songjiang_reader/widgets/common/anx_segmented_button.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
+import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:flutter/material.dart';
 
 class ChangeThemeMode extends StatefulWidget {
@@ -17,12 +17,12 @@ class ChangeThemeModeState extends State<ChangeThemeMode> {
   @override
   void initState() {
     super.initState();
-    _themeMode = themeModeToString(Prefs().themeMode);
+    _themeMode = themeModeToString(ThemePrefs.themeMode);
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnxSegmentedButton<String>(
+    return SjSegmentedButton<String>(
       segments: <SegmentButtonItem<String>>[
         SegmentButtonItem(
           value: 'auto',
@@ -43,7 +43,7 @@ class ChangeThemeModeState extends State<ChangeThemeMode> {
       selected: {_themeMode},
       onSelectionChanged: (Set<String> newSelection) {
         final String mode = newSelection.first;
-        Prefs().saveThemeModeToPrefs(mode);
+        ThemePrefs.saveThemeMode(mode);
         setState(() {
           _themeMode = mode;
         });

@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:charset/charset.dart';
@@ -26,7 +26,7 @@ Future<File> convertRtfToEpub(File file, {Directory? tempDir}) async {
 
   final chapters = _parseRtf(src);
 
-  AnxLog.info('Convert: RTF 转换完成，文件名=$filename，章节数=${chapters.length}');
+  SjLog.info('Convert: RTF 转换完成，文件名=$filename，章节数=${chapters.length}');
   return buildEpubFromHtml(
     title: filename,
     author: 'Unknown',

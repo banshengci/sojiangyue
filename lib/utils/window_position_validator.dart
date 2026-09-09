@@ -1,5 +1,5 @@
-import 'dart:ui';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'dart:ui';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
@@ -48,7 +48,7 @@ class WindowPositionValidator {
 
       return false;
     } catch (e) {
-      AnxLog.warning('Failed to validate window position: $e');
+      SjLog.warning('Failed to validate window position: $e');
       return false;
     }
   }
@@ -70,7 +70,7 @@ class WindowPositionValidator {
         visibleStartY + (visibleHeight / 2) - (windowSize.height / 2),
       );
     } catch (e) {
-      AnxLog.warning('Failed to calculate centered position: $e');
+      SjLog.warning('Failed to calculate centered position: $e');
       // Fallback to origin if screen retrieval fails
       return const Offset(100, 100);
     }
@@ -87,14 +87,14 @@ class WindowPositionValidator {
     final isValid = await isPositionValid(savedPosition, windowSize);
 
     if (isValid) {
-      AnxLog.info(
+      SjLog.info(
         'Window position valid: (${savedPosition.dx}, ${savedPosition.dy})',
       );
       return savedPosition;
     }
 
     final centeredPosition = await getCenteredPosition(windowSize);
-    AnxLog.info(
+    SjLog.info(
       'Window position invalid (${savedPosition.dx}, ${savedPosition.dy}), '
       'adjusted to centered position (${centeredPosition.dx}, ${centeredPosition.dy})',
     );
@@ -116,14 +116,14 @@ Future<void> initializeDesktopWindow() async {
   await windowManager.ensureInitialized();
 
   final savedSize = Size(
-    Prefs().windowInfo.width,
-    Prefs().windowInfo.height,
+    AppMiscPrefs.windowInfo.width,
+    AppMiscPrefs.windowInfo.height,
   );
   final savedOffset = Offset(
-    Prefs().windowInfo.x,
-    Prefs().windowInfo.y,
+    AppMiscPrefs.windowInfo.x,
+    AppMiscPrefs.windowInfo.y,
   );
-  final isMaximized = Prefs().windowInfo.isMaximized;
+  final isMaximized = AppMiscPrefs.windowInfo.isMaximized;
 
   WindowManager.instance.setTitle('SongJiang Reader');
 

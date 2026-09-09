@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:songjiang_reader/service/iap/base_iap_service.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -57,7 +57,7 @@ class PlayStoreIAPService extends BaseIAPService {
 
   @override
   Future<void> initialize() async {
-    AnxLog.info('IAP: Initializing Play Store IAP Service');
+    SjLog.info('IAP: Initializing Play Store IAP Service');
     await _resolveTrialStartDate();
   }
 
@@ -79,7 +79,7 @@ class PlayStoreIAPService extends BaseIAPService {
         isOriginalUser: false,
       );
     } catch (e, stack) {
-      AnxLog.warning('IAP: Play Store snapshot error: $e', stack);
+      SjLog.warning('IAP: Play Store snapshot error: $e', stack);
       return IapPlatformSnapshot(
         hasPurchase: null,
         isPurchaseStatusReliable: false,
@@ -92,7 +92,7 @@ class PlayStoreIAPService extends BaseIAPService {
 
   Future<void> _resolveTrialStartDate() async {
     final installDate = await _getInstallDate();
-    AnxLog.info('IAP: Install date: $installDate');
+    SjLog.info('IAP: Install date: $installDate');
     if (installDate != null) {
       _trialStartDate = installDate;
       return;
@@ -117,7 +117,7 @@ class PlayStoreIAPService extends BaseIAPService {
       }
       return DateTime.fromMillisecondsSinceEpoch(timestampMs);
     } catch (e) {
-      AnxLog.warning('IAP: Unable to read install info: $e');
+      SjLog.warning('IAP: Unable to read install info: $e');
       return null;
     }
   }
@@ -129,20 +129,20 @@ extension on PlayStoreIAPService {
         .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
     final response = await addition.queryPastPurchases();
     if (response.error != null) {
-      AnxLog.warning(
+      SjLog.warning(
           'IAP: Play Store queryPastPurchases error: ${response.error}');
     }
     return response;
   }
 
   PurchaseDetails? _selectActivePurchase(List<PurchaseDetails> purchases) {
-    AnxLog.info('IAP: Evaluating ${purchases.length} past purchases');
+    SjLog.info('IAP: Evaluating ${purchases.length} past purchases');
 
     for (final purchase in purchases) {
       if (purchase.productID == _productId &&
           (purchase.status == PurchaseStatus.purchased ||
               purchase.status == PurchaseStatus.restored)) {
-        AnxLog.info('IAP: Found active purchase: '
+        SjLog.info('IAP: Found active purchase: '
             'pendingCompletePurchase: ${purchase.pendingCompletePurchase},'
             'productID: ${purchase.productID},'
             'status: ${purchase.status.name},'

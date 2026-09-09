@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/enums/bookshelf_folder_style.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/tb_group.dart';
@@ -10,7 +10,6 @@ import 'package:songjiang_reader/widgets/bookshelf/book_opened_folder.dart';
 import 'package:songjiang_reader/widgets/common/container/outlined_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:provider/provider.dart';
 
 class BookFolder extends ConsumerStatefulWidget {
   const BookFolder({
@@ -29,7 +28,7 @@ class _BookFolderState extends ConsumerState<BookFolder> {
 
   @override
   Widget build(BuildContext context) {
-    final folderStyle = context.watch<Prefs>().bookshelfFolderStyle;
+    final folderStyle = BookshelfPrefs.folderStyle;
 
     void onAcceptBook(DragTargetDetails<Book> details) {
       int targetGroupId;
@@ -111,7 +110,7 @@ class _BookFolderState extends ConsumerState<BookFolder> {
                 count++;
                 return Positioned.fill(
                   right: 0,
-                  top: 30 - count * Prefs().bookCoverWidth * 0.12,
+                  top: 30 - count * BookshelfPrefs.coverWidth * 0.12,
                   child: Transform.scale(
                     scale: 1 - (count * 0.08),
                     child: Container(

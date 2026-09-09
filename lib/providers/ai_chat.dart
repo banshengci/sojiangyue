@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/providers/ai_history.dart';
 import 'package:songjiang_reader/service/ai/ai_history.dart';
 import 'package:songjiang_reader/service/ai/index.dart';
@@ -39,8 +39,8 @@ class AiChat extends _$AiChat {
     bool isRegenerate,
   ) async* {
     final sessionId = _ensureSessionId();
-    final serviceId = Prefs().selectedAiService;
-    final config = Prefs().getAiConfig(serviceId);
+    final serviceId = AiPrefs.selectedServiceId;
+    final config = AiPrefs.getConfig(serviceId);
     final model = (config['model'])?.trim() ?? '';
     final historyNotifier = widgetRef.read(aiHistoryProvider.notifier);
     final initialHistoryState = widgetRef

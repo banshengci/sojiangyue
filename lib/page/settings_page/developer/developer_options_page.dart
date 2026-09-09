@@ -1,4 +1,5 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/page/settings_page/developer/vibration_test_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +16,7 @@ class DeveloperOptionsPage extends StatelessWidget {
       body: AnimatedBuilder(
         animation: Prefs(),
         builder: (context, _) {
-          final enabled = Prefs().developerOptionsEnabled;
+          final enabled = DeveloperPrefs.developerOptionsEnabled;
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
@@ -25,7 +26,7 @@ class DeveloperOptionsPage extends StatelessWidget {
                     'Toggle off to hide developer entries in settings'),
                 value: enabled,
                 onChanged: (value) {
-                  Prefs().developerOptionsEnabled = value;
+                  DeveloperPrefs.developerOptionsEnabled = value;
                   if (!value && Navigator.of(context).canPop()) {
                     Navigator.of(context).pop();
                   }

@@ -1,5 +1,5 @@
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/widgets/common/anx_dropdown_button.dart';
+﻿import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/widgets/common/sj_dropdown_button.dart';
 import 'package:songjiang_reader/widgets/reading_page/more_settings/page_turning/diagram.dart';
 import 'package:flutter/material.dart';
 
@@ -28,7 +28,7 @@ class PageTurnDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnxDropdownButton<PageTurningType>(
+    return SjDropdownButton<PageTurningType>(
       value: value,
       items: PageTurningType.values
           .map((type) => DropdownItem<PageTurningType>(

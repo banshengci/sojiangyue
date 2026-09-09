@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/remote_config.dart';
+﻿import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/enums/lang_list.dart';
@@ -106,7 +106,7 @@ class DeepLTranslateProvider extends TranslateServiceProvider {
             Exception('Deepl returned unexpected data: ${response.data}'));
       }
     } catch (e) {
-      AnxLog.severe(
+      SjLog.severe(
           "Deepl ${L10n.of(navigatorKey.currentContext!).translateError}: $e");
       yield* Stream.error(Exception(e));
     }

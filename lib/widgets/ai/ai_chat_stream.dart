@@ -1,6 +1,7 @@
-import 'dart:async';
+﻿import 'dart:async';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/enums/hint_key.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
@@ -20,7 +21,7 @@ import 'package:songjiang_reader/widgets/ai/tool_step_tile.dart';
 import 'package:songjiang_reader/widgets/ai/tool_tiles/apply_book_tags_step_tile.dart';
 import 'package:songjiang_reader/widgets/ai/tool_tiles/mindmap_step_tile.dart';
 import 'package:songjiang_reader/widgets/ai/tool_tiles/organize_bookshelf_step_tile.dart';
-import 'package:songjiang_reader/widgets/common/anx_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_button.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/delete_confirm.dart';
 import 'package:songjiang_reader/widgets/markdown/styled_markdown.dart';
@@ -104,7 +105,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
       L10n.of(navigatorKey.currentContext!).quickPrompt11,
       L10n.of(navigatorKey.currentContext!).quickPrompt12,
     ];
-    _fontSize = Prefs().aiChatFontSize;
+    _fontSize = AiPrefs.chatFontSize;
     inputController.text = widget.initialMessage ?? '';
     _suggestedPrompts = _pickSuggestedPrompts();
     if (widget.sendImmediate) {
@@ -123,7 +124,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
   }
 
   AiProvider? _currentProvider(List<AiProvider> enabledProviders) {
-    final selectedId = Prefs().selectedAiService;
+    final selectedId = AiPrefs.selectedServiceId;
     try {
       return enabledProviders.firstWhere((p) => p.id == selectedId);
     } catch (_) {
@@ -466,7 +467,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
     final parsed = parseReasoningContent(content);
     final clipboardText = _buildCopyableText(parsed, content);
     Clipboard.setData(ClipboardData(text: clipboardText));
-    AnxToast.show(L10n.of(context).notesPageCopied);
+    SjToast.show(L10n.of(context).notesPageCopied);
   }
 
   void _cancelStreaming() {
@@ -526,7 +527,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
                             setState(() {
                               _fontSize = value;
                             });
-                            Prefs().aiChatFontSize = value;
+                            AiPrefs.chatFontSize = value;
                           },
                         ),
                       ),
@@ -561,7 +562,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
     final allProviders = ref.watch(aiProvidersProvider);
     final enabledProviders = allProviders.where((p) => p.enabled).toList();
     final currentProvider = _currentProvider(enabledProviders);
-    final selectedId = Prefs().selectedAiService;
+    final selectedId = AiPrefs.selectedServiceId;
 
     var aiService = PopupMenuButton<String>(
       enabled: !_isStreaming,
@@ -807,7 +808,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
         child: _buildHistoryDrawer(context),
       ),
       body: EnvVar.isAppStore &&
-              Prefs().shouldShowHint(HintKey.aiDataSharingConsent)
+              ReadingUiPrefs.shouldShowHint(HintKey.aiDataSharingConsent)
           ? _buildDataSharingConsent(context)
           : Column(
               children: [
@@ -886,9 +887,9 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
-                  AnxButton(
+                  SjButton(
                     onPressed: () {
-                      Prefs().setShowHint(HintKey.aiDataSharingConsent, false);
+                      ReadingUiPrefs.setShowHint(HintKey.aiDataSharingConsent, false);
                       setState(() {});
                     },
                     child: Text(L10n.of(context).aiDataSharingAgree),

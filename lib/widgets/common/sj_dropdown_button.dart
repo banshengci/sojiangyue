@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
-/// Defines a single dropdown item used by [AnxDropdownButton].
+/// Defines a single dropdown item used by [SjDropdownButton].
 class DropdownItem<T> {
   const DropdownItem({
     required this.value,
@@ -15,8 +15,8 @@ class DropdownItem<T> {
 
 /// A thin wrapper around [DropdownButton] that provides consistent styling
 /// and accepts [DropdownItem] definitions across the app.
-class AnxDropdownButton<T> extends StatelessWidget {
-  const AnxDropdownButton({
+class SjDropdownButton<T> extends StatelessWidget {
+  const SjDropdownButton({
     super.key,
     required this.items,
     required this.value,

@@ -1,4 +1,5 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/models/book_style.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
 import 'package:songjiang_reader/utils/js/convert_dart_color_to_js.dart';
@@ -16,11 +17,11 @@ Future<void> webviewInitialVariable(
   String? backgroundColor,
   bool? importing,
 }) async {
-  ReadTheme readTheme = Prefs().readTheme;
-  bookStyle ??= Prefs().bookStyle;
+  ReadTheme readTheme = AppMiscPrefs.readTheme;
+  bookStyle ??= ReadingStylePrefs.bookStyle;
   textColor ??= readTheme.textColor;
-  fontName ??= Prefs().font.name;
-  fontPath ??= Prefs().font.path;
+  fontName ??= AppMiscPrefs.font.name;
+  fontPath ??= AppMiscPrefs.font.path;
   backgroundColor ??= readTheme.backgroundColor;
   importing ??= false;
 
@@ -51,12 +52,12 @@ Future<void> webviewInitialVariable(
           sideMargin: ${bookStyle.sideMargin},
           justify: true,
           hyphenate: true,
-          pageTurnStyle: '${Prefs().pageTurnStyle.name}',
+          pageTurnStyle: '${ReadingStylePrefs.pageTurnStyle.name}',
           maxColumnCount: ${bookStyle.maxColumnCount},
       }
       let readingRules = {
-        convertChineseMode: '${Prefs().readingRules.convertChineseMode.name}',
-        bionicReadingMode: ${Prefs().readingRules.bionicReading},
+        convertChineseMode: '${ReadingStylePrefs.readingRules.convertChineseMode.name}',
+        bionicReadingMode: ${ReadingStylePrefs.readingRules.bionicReading},
       }
 
       window.loadBook()

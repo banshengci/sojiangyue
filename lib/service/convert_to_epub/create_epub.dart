@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/service/convert_to_epub/generate_toc.dart';
 import 'package:songjiang_reader/service/convert_to_epub/section.dart';
@@ -64,7 +64,7 @@ Future<File> createEpub(
   Directory? tempDir,
 }) async {
   // create epub
-  final cacheDir = tempDir ?? await getAnxTempDir();
+  final cacheDir = tempDir ?? await getSjTempDir();
   final epubDir = Directory('${cacheDir.path}/$titleString');
   if (epubDir.existsSync()) {
     epubDir.deleteSync(recursive: true);
@@ -198,7 +198,7 @@ ${bodyContent.isEmpty ? '' : '$bodyContent\n'}
     await encoder.addDirectory(oebpsDir);
     await encoder.close();
   } catch (e) {
-    AnxLog.severe('EPUB: ZIP compression failed: $e');
+    SjLog.severe('EPUB: ZIP compression failed: $e');
     rethrow;
   }
 

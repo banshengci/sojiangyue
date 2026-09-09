@@ -1,8 +1,8 @@
-import 'dart:io';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'dart:io';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 
 String getCurrentLanguageCode() {
-  String? locale = Prefs().locale?.toLanguageTag();
+  String? locale = AppMiscPrefs.locale?.toLanguageTag();
 
   locale ??= Platform.localeName;
 

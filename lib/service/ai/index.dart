@@ -1,7 +1,7 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/models/ai_provider.dart';
@@ -23,7 +23,7 @@ final List<DateTime> _aiRequestTimestamps = [];
 
 /// Throttle AI requests if RPM limit is configured (sliding 1-minute window).
 Future<void> _throttleIfNeeded() async {
-  final rpm = Prefs().aiRpm;
+  final rpm = AiPrefs.rpm;
   if (rpm <= 0) return;
   final now = DateTime.now();
   final windowStart = now.subtract(const Duration(minutes: 1));
@@ -76,7 +76,7 @@ Stream<String> _generateStream({
   required bool useAgent,
   required LangchainAiRegistry registry,
 }) async* {
-  AnxLog.info('aiGenerateStream called identifier: $identifier');
+  SjLog.info('aiGenerateStream called identifier: $identifier');
   final sanitizedMessages = _sanitizeMessagesForPrompt(messages);
 
   LangchainAiConfig config;
@@ -102,7 +102,7 @@ Stream<String> _generateStream({
             reasoningEffort: provider.reasoningEffort,
           );
 
-          AnxLog.info(
+          SjLog.info(
               'aiGenerateStream (new): ${provider.id}, model: ${config.model}, baseUrl: ${config.baseUrl}');
 
           final pipeline = registry.resolveByProtocol(provider.protocol, config,
@@ -125,7 +125,7 @@ Stream<String> _generateStream({
         }
       }
     } catch (e) {
-      AnxLog.warning(
+      SjLog.warning(
           'Failed to use new provider system, falling back to legacy: $e');
     }
   }
@@ -133,7 +133,7 @@ Stream<String> _generateStream({
   // Try new provider system without ref (reads directly from Prefs storage)
   if (overrideConfig == null) {
     try {
-      final rawProviders = Prefs().getAiProviders();
+      final rawProviders = AiPrefs.getProviders();
       if (rawProviders.isNotEmpty) {
         final providers = rawProviders
             .map((json) => AiProvider.fromJson(json as Map<String, dynamic>))
@@ -147,7 +147,7 @@ Stream<String> _generateStream({
             provider = null;
           }
         } else {
-          final selectedId = Prefs().selectedAiService;
+          final selectedId = AiPrefs.selectedServiceId;
           try {
             provider = providers.firstWhere((p) => p.id == selectedId);
           } catch (_) {}
@@ -167,7 +167,7 @@ Stream<String> _generateStream({
               reasoningEffort: provider.reasoningEffort,
             );
 
-            AnxLog.info(
+            SjLog.info(
                 'aiGenerateStream (no-ref new): ${provider.id}, model: ${config.model}, baseUrl: ${config.baseUrl}');
 
             final pipeline = registry.resolveByProtocol(
@@ -191,20 +191,20 @@ Stream<String> _generateStream({
               }
               return p;
             }).toList();
-            Prefs().saveAiProviders(updatedProviders);
+            AiPrefs.saveProviders(updatedProviders);
             return;
           }
         }
       }
     } catch (e) {
-      AnxLog.warning(
+      SjLog.warning(
           'Failed to use no-ref new provider system, falling back to legacy: $e');
     }
   }
 
   // Fall back to legacy system
-  final selectedIdentifier = identifier ?? Prefs().selectedAiService;
-  final savedConfig = Prefs().getAiConfig(selectedIdentifier);
+  final selectedIdentifier = identifier ?? AiPrefs.selectedServiceId;
+  final savedConfig = AiPrefs.getConfig(selectedIdentifier);
   if (savedConfig.isEmpty &&
       (overrideConfig == null || overrideConfig.isEmpty)) {
     final context = navigatorKey.currentContext;
@@ -223,7 +223,7 @@ Stream<String> _generateStream({
     config = mergeConfigs(config, override);
   }
 
-  AnxLog.info(
+  SjLog.info(
       'aiGenerateStream (legacy): $selectedIdentifier, model: ${config.model}, baseUrl: ${config.baseUrl}');
 
   final pipeline = registry.resolve(config, useAgent: useAgent);
@@ -284,7 +284,7 @@ Stream<String> _executeStream({
     }
   } catch (error, stack) {
     final mapped = _mapError(error);
-    AnxLog.severe('AI error: $mapped\n$stack');
+    SjLog.severe('AI error: $mapped\n$stack');
     yield mapped;
   } finally {
     try {

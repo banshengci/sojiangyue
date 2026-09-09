@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:songjiang_reader/service/iap/base_iap_service.dart';
@@ -71,14 +71,14 @@ class AppStoreIAPService extends BaseIAPService {
 
   @override
   Future<void> restorePurchases() async {
-    AnxLog.info('IAP: Starting restore purchases');
+    SjLog.info('IAP: Starting restore purchases');
 
     // Clear any pending transactions that might be blocking the restore
     try {
       final paymentWrapper = SKPaymentQueueWrapper();
       final transactions = await paymentWrapper.transactions();
       if (transactions.isNotEmpty) {
-        AnxLog.info(
+        SjLog.info(
             'IAP: Clearing ${transactions.length} pending transaction(s) before restore');
         await Future.wait(
           transactions.map(
@@ -86,7 +86,7 @@ class AppStoreIAPService extends BaseIAPService {
         );
       }
     } catch (e) {
-      AnxLog.warning('IAP: Error clearing pending transactions: $e');
+      SjLog.warning('IAP: Error clearing pending transactions: $e');
       // Continue with restore even if clearing fails
     }
 
@@ -127,15 +127,15 @@ class AppStoreIAPService extends BaseIAPService {
     try {
       final receiptBase64 = await _getReceiptBase64();
       if (receiptBase64.isEmpty) {
-        AnxLog.warning('IAP: Empty receipt during initialization');
+        SjLog.warning('IAP: Empty receipt during initialization');
         return;
       }
 
       _parsedReceipt = _parseReceiptLocally(receiptBase64);
 
-      AnxLog.info('IAP: receipt loaded, $_parsedReceipt');
+      SjLog.info('IAP: receipt loaded, $_parsedReceipt');
     } catch (e) {
-      AnxLog.severe('IAP: Error loading receipt: $e');
+      SjLog.severe('IAP: Error loading receipt: $e');
     }
   }
 
@@ -154,16 +154,16 @@ class AppStoreIAPService extends BaseIAPService {
       }
 
       // Empty receipt but no exception - might be first install without purchase
-      AnxLog.info('IAP: Receipt refresh returned empty data');
+      SjLog.info('IAP: Receipt refresh returned empty data');
       return '';
     } catch (e) {
-      AnxLog.severe(
+      SjLog.severe(
           'IAP: Error getting receipt base64 (attempt ${retryCount + 1}): $e');
 
       // Retry with exponential backoff
       if (retryCount < maxRetries) {
         final delay = Duration(milliseconds: 500 * (retryCount + 1));
-        AnxLog.info(
+        SjLog.info(
             'IAP: Retrying receipt refresh after ${delay.inMilliseconds}ms');
         await Future.delayed(delay);
         return _getReceiptBase64(retryCount: retryCount + 1);
@@ -171,7 +171,7 @@ class AppStoreIAPService extends BaseIAPService {
 
       // All retries failed, mark as failed so we can fall back to cache
       _receiptRefreshFailed = true;
-      AnxLog.warning(
+      SjLog.warning(
           'IAP: Receipt refresh failed after $maxRetries retries, will trust cache');
       return '';
     }
@@ -204,7 +204,7 @@ class AppStoreIAPService extends BaseIAPService {
   //   }
 
   //   Map<String, dynamic> handleReceiptResponse(Map<String, dynamic> response) {
-  //     AnxLog.info('IAP: handleReceiptResponse: $response');
+  //     SjLog.info('IAP: handleReceiptResponse: $response');
   //     final status = response['status'];
   //     if (status == 0) {
   //       return response['receipt'];
@@ -222,7 +222,7 @@ class AppStoreIAPService extends BaseIAPService {
   //       return handleReceiptResponse(productionResponse);
   //     }
   //   } catch (e) {
-  //     AnxLog.severe('IAP: Server verification error: $e');
+  //     SjLog.severe('IAP: Server verification error: $e');
   //     rethrow;
   //   }
   // }
@@ -323,7 +323,7 @@ class AppStoreIAPService extends BaseIAPService {
               try {
                 parseInappPurchaseField(field, purchase);
               } catch (e) {
-                AnxLog.severe('IAP: Error parsing in-app purchase field: $e');
+                SjLog.severe('IAP: Error parsing in-app purchase field: $e');
               }
             }
           }
@@ -351,7 +351,7 @@ class AppStoreIAPService extends BaseIAPService {
           try {
             parseInAppPurchase(ASN1Parser(fieldValue.valueBytes()), result);
           } catch (e) {
-            AnxLog.severe('IAP: Error parsing in-app purchase: $e');
+            SjLog.severe('IAP: Error parsing in-app purchase: $e');
           }
           return;
         }
@@ -398,7 +398,7 @@ class AppStoreIAPService extends BaseIAPService {
           try {
             extractFieldValue(field, result);
           } catch (e) {
-            AnxLog.severe('IAP: Error extracting field value: $e');
+            SjLog.severe('IAP: Error extracting field value: $e');
           }
         }
       }
@@ -430,7 +430,7 @@ class AppStoreIAPService extends BaseIAPService {
     try {
       parseReceipt(set, result);
     } catch (e) {
-      AnxLog.severe('IAP: Error parsing receipt fields: $e');
+      SjLog.severe('IAP: Error parsing receipt fields: $e');
     }
 
     return result;
@@ -447,7 +447,7 @@ class AppStoreIAPService extends BaseIAPService {
       }
       return false;
     } catch (e) {
-      AnxLog.severe('IAP: Error checking original user: $e');
+      SjLog.severe('IAP: Error checking original user: $e');
       return false;
     }
   }
@@ -466,7 +466,7 @@ class AppStoreIAPService extends BaseIAPService {
       final inApp = receipt['receipt']?['in_app'];
       return inApp != null && inApp.isNotEmpty;
     } catch (e) {
-      AnxLog.severe('IAP: Error checking active purchase: $e');
+      SjLog.severe('IAP: Error checking active purchase: $e');
       return false;
     }
   }
@@ -479,7 +479,7 @@ class AppStoreIAPService extends BaseIAPService {
       }
       return null;
     } catch (e) {
-      AnxLog.severe('IAP: Error getting purchase date: $e');
+      SjLog.severe('IAP: Error getting purchase date: $e');
       return null;
     }
   }

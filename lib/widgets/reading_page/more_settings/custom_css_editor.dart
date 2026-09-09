@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
@@ -26,11 +26,11 @@ class _CustomCSSEditorState extends State<CustomCSSEditor> {
   @override
   void initState() {
     super.initState();
-    final currentCSS = Prefs().customCSS;
+    final currentCSS = ReadingUiPrefs.customCss;
     _tempCSS = currentCSS.isEmpty ? defaultCSS : currentCSS;
     _cssController = TextEditingController(text: _tempCSS);
     _cssController.addListener(_onCSSChanged);
-    _isExpanded = Prefs().customCSSEnabled;
+    _isExpanded = ReadingUiPrefs.customCssEnabled;
   }
 
   @override
@@ -93,13 +93,13 @@ class _CustomCSSEditorState extends State<CustomCSSEditor> {
   void _saveAndApply() {
     if (_hasValidationErrors) return;
 
-    Prefs().customCSS = _tempCSS;
+    ReadingUiPrefs.customCss = _tempCSS;
 
-    if (Prefs().customCSSEnabled) {
+    if (ReadingUiPrefs.customCssEnabled) {
       _applyCSS();
     }
 
-    AnxToast.show(L10n.of(context).commonSaved);
+    SjToast.show(L10n.of(context).commonSaved);
   }
 
   void _restoreDefault() {
@@ -117,10 +117,10 @@ class _CustomCSSEditorState extends State<CustomCSSEditor> {
           children: [
             Expanded(child: Text(L10n.of(context).customCssEnabled)),
             Switch(
-              value: Prefs().customCSSEnabled,
+              value: ReadingUiPrefs.customCssEnabled,
               onChanged: (value) {
                 setState(() {
-                  Prefs().customCSSEnabled = value;
+                  ReadingUiPrefs.customCssEnabled = value;
                   _isExpanded = value;
                   if (!_hasValidationErrors) {
                     _applyCSS();

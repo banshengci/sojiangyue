@@ -1,6 +1,10 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/config/bgimg_prefs.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/models/book_style.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
 import 'package:songjiang_reader/service/book_player/book_player_server.dart';
@@ -21,11 +25,11 @@ String generateUrl(
   String indexHtmlPath =
       "http://127.0.0.1:${Server().port}/foliate-js/index.html";
 
-  ReadTheme readTheme = Prefs().readTheme;
-  bookStyle ??= Prefs().bookStyle;
+  ReadTheme readTheme = AppMiscPrefs.readTheme;
+  bookStyle ??= ReadingStylePrefs.bookStyle;
   textColor ??= readTheme.textColor;
-  fontName ??= Prefs().font.name;
-  fontPath ??= Prefs().font.path;
+  fontName ??= AppMiscPrefs.font.name;
+  fontPath ??= AppMiscPrefs.font.path;
   backgroundColor ??= readTheme.backgroundColor;
   importing ??= false;
 
@@ -33,9 +37,9 @@ String generateUrl(
   backgroundColor = convertDartColorToJs(backgroundColor);
 
   // Get effective background image URL using the new method
-  String bgimgUrl = Prefs().bgimg.getEffectiveUrl(
+  String bgimgUrl = BgimgPrefs.bgimg.getEffectiveUrl(
         isDarkMode: isDarkMode,
-        autoAdjust: Prefs().autoAdjustReadingTheme,
+        autoAdjust: ThemePrefs.autoAdjustReadingTheme,
       );
   // const importing = $importing
   // const url = '${replaceSingleQuote(url)}'
@@ -56,13 +60,13 @@ String generateUrl(
   //     sideMargin: ${bookStyle.sideMargin},
   //     justify: true,
   //     hyphenate: true,
-  //     pageTurnStyle: '${Prefs().pageTurnStyle.name}',
+  //     pageTurnStyle: '${ReadingStylePrefs.pageTurnStyle.name}',
   //     maxColumnCount: ${bookStyle.maxColumnCount},
   // }
 
   // let readingRules = {
-  //   convertChineseMode: '${Prefs().readingRules.convertChineseMode.name}',
-  //   bionicReadingMode: ${Prefs().readingRules.bionicReading},
+  //   convertChineseMode: '${ReadingStylePrefs.readingRules.convertChineseMode.name}',
+  //   bionicReadingMode: ${ReadingStylePrefs.readingRules.bionicReading},
   // }
 
   Map<String, dynamic> style = {
@@ -81,26 +85,26 @@ String generateUrl(
     'sideMargin': bookStyle.sideMargin,
     'justify': true,
     'hyphenate': false,
-    'pageTurnStyle': Prefs().pageTurnStyle.name,
+    'pageTurnStyle': ReadingStylePrefs.pageTurnStyle.name,
     'maxColumnCount': bookStyle.maxColumnCount,
     'columnThreshold': bookStyle.columnThreshold,
-    'writingMode': Prefs().writingMode.code,
-    'textAlign': Prefs().textAlignment.code,
+    'writingMode': ReadingStylePrefs.writingMode.code,
+    'textAlign': ReadingStylePrefs.textAlignment.code,
     'backgroundImage': bgimgUrl,
-    'bgimgBlur': Prefs().bgimg.blur,
-    'bgimgOpacity': Prefs().bgimg.opacity,
-    'bgimgFit': Prefs().bgimgFit.code,
-    'allowScript': Prefs().enableJsForEpub,
-    'customCSS': Prefs().customCSS,
-    'customCSSEnabled': Prefs().customCSSEnabled,
-    'useBookStyles': Prefs().useBookStyles,
+    'bgimgBlur': BgimgPrefs.bgimg.blur,
+    'bgimgOpacity': BgimgPrefs.bgimg.opacity,
+    'bgimgFit': BgimgPrefs.fit.code,
+    'allowScript': ReadingUiPrefs.enableJsForEpub,
+    'customCSS': ReadingUiPrefs.customCss,
+    'customCSSEnabled': ReadingUiPrefs.customCssEnabled,
+    'useBookStyles': ReadingStylePrefs.useBookStyles,
     'headingFontSize': bookStyle.headingFontSize,
-    'codeHighlightTheme': Prefs().codeHighlightTheme.code,
+    'codeHighlightTheme': ReadingUiPrefs.codeHighlightTheme.code,
   };
 
   Map<String, dynamic> readingRules = {
-    'convertChineseMode': Prefs().readingRules.convertChineseMode.name,
-    'bionicReadingMode': Prefs().readingRules.bionicReading,
+    'convertChineseMode': ReadingStylePrefs.readingRules.convertChineseMode.name,
+    'bionicReadingMode': ReadingStylePrefs.readingRules.bionicReading,
   };
 
   Map<String, dynamic> params = {

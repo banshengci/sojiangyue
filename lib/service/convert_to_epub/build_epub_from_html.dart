@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:archive/archive_io.dart';
@@ -12,7 +12,7 @@ import 'package:songjiang_reader/utils/log/common.dart';
 /// 创建 EPUB 时使用的临时目录。
 /// 传入 [tempDir] 可绕过对 Flutter `path_provider` 的依赖，便于在纯 Dart 环境下测试。
 Future<Directory> _resolveTempDir(Directory? tempDir) async =>
-    tempDir ?? await getAnxTempDir();
+    tempDir ?? await getSjTempDir();
 
 String _escapeXml(String value) {
   return value
@@ -254,7 +254,7 @@ ${bodyContent.isEmpty ? '    <p></p>' : bodyContent}
     await encoder.addDirectory(oebpsDir);
     await encoder.close();
   } catch (e) {
-    AnxLog.severe('EPUB: ZIP compression failed: $e');
+    SjLog.severe('EPUB: ZIP compression failed: $e');
     rethrow;
   }
 

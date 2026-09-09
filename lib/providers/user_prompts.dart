@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/models/user_prompt.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -10,7 +10,7 @@ class UserPrompts extends _$UserPrompts {
   @override
   List<UserPrompt> build() {
     // Load from SharedPreferences and sort by order
-    final prompts = Prefs().userPrompts;
+    final prompts = AiPrefs.userPrompts;
     prompts.sort((a, b) => a.order.compareTo(b.order));
     return prompts;
   }
@@ -114,7 +114,7 @@ class UserPrompts extends _$UserPrompts {
 
   /// Save to SharedPreferences and update state
   void _saveAndUpdate(List<UserPrompt> prompts) {
-    Prefs().userPrompts = prompts;
+    AiPrefs.userPrompts = prompts;
     state = prompts;
   }
 

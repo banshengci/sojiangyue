@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:charset/charset.dart';
@@ -33,14 +33,14 @@ String readFileWithEncoding(File file) {
 
   for (final entry in decoder.entries) {
     try {
-      AnxLog.info('Convert: Reading file with encoding: ${entry.key}');
+      SjLog.info('Convert: Reading file with encoding: ${entry.key}');
       final content = entry.value(file.readAsBytesSync());
       if (!checkGarbled(content)) {
         return content;
       }
-      AnxLog.info('Convert: Detected garbled text ${entry.key}');
+      SjLog.info('Convert: Detected garbled text ${entry.key}');
     } catch (e) {
-      AnxLog.warning(
+      SjLog.warning(
           'Convert: Failed to read file with encoding: ${entry.key}');
     }
   }

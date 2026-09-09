@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -22,7 +22,7 @@ Future<String> saveB64ImageToPath(
 
     return path;
   } catch (e) {
-    AnxLog.severe('Error saving image\n$e');
+    SjLog.severe('Error saving image\n$e');
     return '';
   }
 }

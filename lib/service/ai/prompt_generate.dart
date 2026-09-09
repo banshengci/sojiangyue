@@ -1,6 +1,7 @@
-import 'dart:io';
+﻿import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/enums/ai_prompts.dart';
 import 'package:langchain_core/chat_models.dart';
 import 'package:langchain_core/prompts.dart';
@@ -20,8 +21,8 @@ class PromptTemplatePayload {
     try {
       return template.formatPrompt(variables).toChatMessages();
     } catch (e) {
-      Prefs().deleteAiPrompt(identifier);
-      final prompt = Prefs().getAiPrompt(identifier);
+      AiPrefs.deletePrompt(identifier);
+      final prompt = AiPrefs.getPrompt(identifier);
       final normalized = _normalizePrompt(prompt);
       final template = ChatPromptTemplate.fromPromptMessages([
         HumanChatMessagePromptTemplate.fromTemplate(normalized),
@@ -36,12 +37,12 @@ class PromptTemplatePayload {
 }
 
 PromptTemplatePayload generatePromptTest() {
-  final prompt = Prefs().getAiPrompt(AiPrompts.test);
+  final prompt = AiPrefs.getPrompt(AiPrompts.test);
   final normalized = _normalizePrompt(prompt);
   final template = ChatPromptTemplate.fromPromptMessages([
     HumanChatMessagePromptTemplate.fromTemplate(normalized),
   ]);
-  final currentLocale = Prefs().locale?.languageCode ?? Platform.localeName;
+  final currentLocale = AppMiscPrefs.locale?.languageCode ?? Platform.localeName;
   return PromptTemplatePayload(
     template: template,
     variables: {'language_locale': currentLocale},
@@ -50,7 +51,7 @@ PromptTemplatePayload generatePromptTest() {
 }
 
 PromptTemplatePayload generatePromptSummaryTheChapter() {
-  final prompt = Prefs().getAiPrompt(AiPrompts.summaryTheChapter);
+  final prompt = AiPrefs.getPrompt(AiPrompts.summaryTheChapter);
   final normalized = _normalizePrompt(prompt);
   final template = ChatPromptTemplate.fromPromptMessages([
     HumanChatMessagePromptTemplate.fromTemplate(normalized),
@@ -63,7 +64,7 @@ PromptTemplatePayload generatePromptSummaryTheChapter() {
 }
 
 PromptTemplatePayload generatePromptSummaryTheBook() {
-  final prompt = Prefs().getAiPrompt(AiPrompts.summaryTheBook);
+  final prompt = AiPrefs.getPrompt(AiPrompts.summaryTheBook);
   final normalized = _normalizePrompt(prompt);
   final template = ChatPromptTemplate.fromPromptMessages([
     HumanChatMessagePromptTemplate.fromTemplate(normalized),
@@ -76,7 +77,7 @@ PromptTemplatePayload generatePromptSummaryTheBook() {
 }
 
 PromptTemplatePayload generatePromptMindmap() {
-  final prompt = Prefs().getAiPrompt(AiPrompts.mindmap);
+  final prompt = AiPrefs.getPrompt(AiPrompts.mindmap);
   final normalized = _normalizePrompt(prompt);
   final template = ChatPromptTemplate.fromPromptMessages([
     HumanChatMessagePromptTemplate.fromTemplate(normalized),
@@ -90,7 +91,7 @@ PromptTemplatePayload generatePromptMindmap() {
 
 PromptTemplatePayload generatePromptSummaryThePreviousContent(
     String previousContent) {
-  final prompt = Prefs().getAiPrompt(AiPrompts.summaryThePreviousContent);
+  final prompt = AiPrefs.getPrompt(AiPrompts.summaryThePreviousContent);
   final normalized = _normalizePrompt(prompt);
   final template = ChatPromptTemplate.fromPromptMessages([
     HumanChatMessagePromptTemplate.fromTemplate(normalized),
@@ -107,7 +108,7 @@ PromptTemplatePayload generatePromptSummaryThePreviousContent(
 PromptTemplatePayload generatePromptTranslate(
     String text, String toLocale, String fromLocale,
     {String? contextText}) {
-  final prompt = Prefs().getAiPrompt(AiPrompts.translate);
+  final prompt = AiPrefs.getPrompt(AiPrompts.translate);
   final normalized = _normalizePrompt(prompt);
   final template = ChatPromptTemplate.fromPromptMessages([
     HumanChatMessagePromptTemplate.fromTemplate(normalized),
@@ -126,7 +127,7 @@ PromptTemplatePayload generatePromptTranslate(
 
 PromptTemplatePayload generatePromptFullTextTranslate(
     String text, String toLocale, String fromLocale) {
-  final prompt = Prefs().getAiPrompt(AiPrompts.fullTextTranslate);
+  final prompt = AiPrefs.getPrompt(AiPrompts.fullTextTranslate);
   final normalized = _normalizePrompt(prompt);
   final template = ChatPromptTemplate.fromPromptMessages([
     HumanChatMessagePromptTemplate.fromTemplate(normalized),

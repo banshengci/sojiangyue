@@ -1,14 +1,14 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:math';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/storage_info.dart';
 
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
 import 'package:songjiang_reader/utils/get_path/storage_migration.dart';
 import 'package:songjiang_reader/utils/platform_utils.dart';
-import 'package:songjiang_reader/widgets/common/anx_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_button.dart';
 import 'package:songjiang_reader/widgets/delete_confirm.dart';
 import 'package:songjiang_reader/widgets/settings/settings_section.dart';
 import 'package:songjiang_reader/widgets/settings/settings_tile.dart';
@@ -44,7 +44,7 @@ class _StorageSettingsState extends ConsumerState<StorageSettings>
   }
 
   Future<void> _loadCurrentPath() async {
-    final path = await getAnxDocumentsPath();
+    final path = await getSjDocumentsPath();
     if (mounted) {
       setState(() {
         _currentStoragePath = path;
@@ -128,7 +128,7 @@ class _StorageSettingsState extends ConsumerState<StorageSettings>
       });
 
       if (success) {
-        Prefs().customStoragePath = _selectedNewPath;
+        AppMiscPrefs.customStoragePath = _selectedNewPath;
         setState(() {
           _currentStoragePath = _selectedNewPath;
           _selectedNewPath = null;
@@ -249,7 +249,7 @@ class _StorageSettingsState extends ConsumerState<StorageSettings>
       ),
 
       // Custom storage location (Windows only)
-      if (AnxPlatform.isWindows)
+      if (SjPlatform.isWindows)
         SettingsSection(
           title: Text(L10n.of(context).storageCustomLocation),
           tiles: [
@@ -292,23 +292,23 @@ class _StorageSettingsState extends ConsumerState<StorageSettings>
                       children: [
                         if (_selectedNewPath == null)
                           Expanded(
-                            child: AnxButton(
+                            child: SjButton(
                               onPressed: _selectNewPath,
                               child: Text(L10n.of(context).storageSelectPath),
                             ),
                           )
                         else
                           Expanded(
-                            child: AnxButton(
+                            child: SjButton(
                               onPressed: _isMigrating ? null : _startMigration,
                               isLoading: _isMigrating,
                               child: Text(L10n.of(context).storageMigrateData),
                             ),
                           ),
                         const SizedBox(width: 8),
-                        if (Prefs().customStoragePath != null &&
+                        if (AppMiscPrefs.customStoragePath != null &&
                             _selectedNewPath == null)
-                          AnxButton.outlined(
+                          SjButton.outlined(
                             onPressed:
                                 _isMigrating ? null : _resetToDefaultPath,
                             child: Text(L10n.of(context).storageResetPath),

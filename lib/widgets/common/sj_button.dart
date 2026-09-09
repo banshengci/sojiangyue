@@ -1,15 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
-enum AnxButtonType { filled, outlined, text }
+enum SjButtonType { filled, outlined, text }
 
-class AnxButton extends StatelessWidget {
-  const AnxButton({
+class SjButton extends StatelessWidget {
+  const SjButton({
     super.key,
     required this.onPressed,
     required this.child,
     this.disabled = false,
     this.isLoading = false,
-    this.type = AnxButtonType.filled,
+    this.type = SjButtonType.filled,
     this.style,
     this.onLongPress,
     this.onHover,
@@ -20,14 +20,14 @@ class AnxButton extends StatelessWidget {
   })  : icon = null,
         label = null;
 
-  const AnxButton.icon({
+  const SjButton.icon({
     super.key,
     required this.onPressed,
     required this.icon,
     required this.label,
     this.disabled = false,
     this.isLoading = false,
-    this.type = AnxButtonType.filled,
+    this.type = SjButtonType.filled,
     this.style,
     this.onLongPress,
     this.onHover,
@@ -37,7 +37,7 @@ class AnxButton extends StatelessWidget {
     this.clipBehavior = Clip.none,
   }) : child = null;
 
-  const AnxButton.text({
+  const SjButton.text({
     super.key,
     required this.onPressed,
     required this.child,
@@ -52,9 +52,9 @@ class AnxButton extends StatelessWidget {
     this.clipBehavior = Clip.none,
   })  : icon = null,
         label = null,
-        type = AnxButtonType.text;
+        type = SjButtonType.text;
 
-  const AnxButton.outlined({
+  const SjButton.outlined({
     super.key,
     required this.onPressed,
     required this.child,
@@ -69,7 +69,7 @@ class AnxButton extends StatelessWidget {
     this.clipBehavior = Clip.none,
   })  : icon = null,
         label = null,
-        type = AnxButtonType.outlined;
+        type = SjButtonType.outlined;
 
   final VoidCallback? onPressed;
   final VoidCallback? onLongPress;
@@ -84,7 +84,7 @@ class AnxButton extends StatelessWidget {
   final Widget? label;
   final bool disabled;
   final bool isLoading;
-  final AnxButtonType type;
+  final SjButtonType type;
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +101,7 @@ class AnxButton extends StatelessWidget {
         height: 24,
         child: CircularProgressIndicator(
           strokeWidth: 2.0,
-          color: type == AnxButtonType.filled
+          color: type == SjButtonType.filled
               ? Theme.of(context).colorScheme.onPrimary
               : Theme.of(context).colorScheme.primary,
         ),
@@ -116,7 +116,7 @@ class AnxButton extends StatelessWidget {
     // Helper to build the specific button widget
     Widget buildButton({required Widget child}) {
       switch (type) {
-        case AnxButtonType.filled:
+        case SjButtonType.filled:
           return FilledButton(
             onPressed: effectiveOnPressed,
             onLongPress: effectiveOnLongPress,
@@ -128,7 +128,7 @@ class AnxButton extends StatelessWidget {
             clipBehavior: clipBehavior,
             child: child,
           );
-        case AnxButtonType.outlined:
+        case SjButtonType.outlined:
           return OutlinedButton(
             onPressed: effectiveOnPressed,
             onLongPress: effectiveOnLongPress,
@@ -140,7 +140,7 @@ class AnxButton extends StatelessWidget {
             clipBehavior: clipBehavior,
             child: child,
           );
-        case AnxButtonType.text:
+        case SjButtonType.text:
           return TextButton(
             onPressed: effectiveOnPressed,
             onLongPress: effectiveOnLongPress,
@@ -163,7 +163,7 @@ class AnxButton extends StatelessWidget {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2.0,
-                color: type == AnxButtonType.filled
+                color: type == SjButtonType.filled
                     ? Theme.of(context).colorScheme.onPrimary
                     : Theme.of(context).colorScheme.primary,
               ),
@@ -171,7 +171,7 @@ class AnxButton extends StatelessWidget {
           : icon!;
 
       switch (type) {
-        case AnxButtonType.filled:
+        case SjButtonType.filled:
           return FilledButton.icon(
             onPressed: effectiveOnPressed,
             onLongPress: effectiveOnLongPress,
@@ -184,7 +184,7 @@ class AnxButton extends StatelessWidget {
             icon: iconToUse,
             label: label!,
           );
-        case AnxButtonType.outlined:
+        case SjButtonType.outlined:
           return OutlinedButton.icon(
             onPressed: effectiveOnPressed,
             onLongPress: effectiveOnLongPress,
@@ -197,7 +197,7 @@ class AnxButton extends StatelessWidget {
             icon: iconToUse,
             label: label!,
           );
-        case AnxButtonType.text:
+        case SjButtonType.text:
           return TextButton.icon(
             onPressed: effectiveOnPressed,
             onLongPress: effectiveOnLongPress,
@@ -221,7 +221,7 @@ class AnxButton extends StatelessWidget {
         width: 20,
         child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: type == AnxButtonType.filled
+            color: type == SjButtonType.filled
                 ? Theme.of(context).colorScheme.onPrimary
                 : Theme.of(context).colorScheme.primary),
       ));

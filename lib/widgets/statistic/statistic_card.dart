@@ -1,9 +1,9 @@
-import 'package:songjiang_reader/enums/chart_mode.dart';
+﻿import 'package:songjiang_reader/enums/chart_mode.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/statistic_data.dart';
 import 'package:songjiang_reader/utils/date/week_of_year.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
-import 'package:songjiang_reader/widgets/common/anx_segmented_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:songjiang_reader/widgets/statistic/heatmap_chart.dart';
 import 'package:songjiang_reader/widgets/statistic/statistic_chart.dart';
 import 'package:flutter/material.dart';
@@ -72,7 +72,7 @@ class StatisticCard extends ConsumerWidget {
     Widget segmentButton(data) => Row(
           children: [
             Expanded(
-              child: AnxSegmentedButton<ChartMode>(
+              child: SjSegmentedButton<ChartMode>(
                 segments: segmentButtonItems,
                 selected: {data.mode},
                 onSelectionChanged: (Set<ChartMode> newSelection) {

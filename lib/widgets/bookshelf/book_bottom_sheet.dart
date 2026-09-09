@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/enums/hint_key.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
@@ -75,7 +76,7 @@ class BookBottomSheet extends ConsumerWidget {
         ref.read(syncStatusProvider.notifier).refresh();
       }
 
-      if (Prefs().shouldShowHint(HintKey.releaseLocalSpace)) {
+      if (ReadingUiPrefs.shouldShowHint(HintKey.releaseLocalSpace)) {
         SmartDialog.show(
           builder: (context) => AlertDialog(
             title: Text(L10n.of(context).bookSyncStatusReleaseSpaceDialogTitle),
@@ -87,12 +88,12 @@ class BookBottomSheet extends ConsumerWidget {
                   children: [
                     StatefulBuilder(builder: (context, setState) {
                       return Checkbox(
-                          value: !Prefs()
-                              .shouldShowHint(HintKey.releaseLocalSpace),
+                          value: !ReadingUiPrefs.shouldShowHint(
+                              HintKey.releaseLocalSpace),
                           onChanged: (value) {
                             value = !(value ?? false);
-                            Prefs()
-                                .setShowHint(HintKey.releaseLocalSpace, value);
+                            ReadingUiPrefs.setShowHint(
+                                HintKey.releaseLocalSpace, value);
                             setState(() {});
                           });
                     }),
@@ -148,7 +149,7 @@ class BookBottomSheet extends ConsumerWidget {
       String extension =
           p.extension(newFile.name).replaceAll('.', '').toLowerCase();
       if (!allowBookExtensions.contains(extension)) {
-        AnxToast.show(
+        SjToast.show(
             L10n.of(context).bookBottomSheetUnsupportedFileFormat(extension));
         return;
       }
@@ -252,11 +253,11 @@ class BookBottomSheet extends ConsumerWidget {
         ref.read(bookListProvider.notifier).refresh();
         if (context.mounted) Navigator.pop(context);
 
-        if (Prefs().webdavStatus) {
+        if (SyncPrefs.webdavStatus) {
           ref.read(syncProvider.notifier).syncData(SyncDirection.upload, ref);
         }
       } catch (e) {
-        AnxToast.show(
+        SjToast.show(
             L10n.of(context).bookBottomSheetReplaceFailed(e.toString()));
       }
     }

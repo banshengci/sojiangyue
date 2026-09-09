@@ -2,9 +2,9 @@ import 'package:songjiang_reader/page/settings_page/appearance.dart';
 import 'package:flutter/material.dart';
 import 'package:introduction_screen/introduction_screen.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/theme/songjiang_theme.dart';
-import 'package:provider/provider.dart';
 
 /// Onboarding screen for first-time users
 /// Shows introduction pages covering key features and settings
@@ -273,7 +273,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildAppearanceSettings() {
     Widget buildLanguageSelector() {
-      final currentLocale = Prefs().locale;
+      final currentLocale = AppMiscPrefs.locale;
       final currentLanguageCode = currentLocale?.languageCode ?? 'System';
       final currentCountryCode = currentLocale?.countryCode ?? '';
       final currentLanguageTag = currentLanguageCode +
@@ -319,7 +319,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               onChanged: (String? newValue) {
                 if (newValue != null) {
                   setState(() {
-                    Prefs().saveLocaleToPrefs(newValue);
+                    AppMiscPrefs.saveLocale(newValue);
                   });
                 }
               },
@@ -343,7 +343,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       final List<Color> themeColors =
           List<Color>.of(SongJiangColors.themePalette);
 
-      final currentThemeColor = Prefs().themeColor;
+      final currentThemeColor = ThemePrefs.themeColor;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,7 +385,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               return GestureDetector(
                 onTap: () {
                   setState(() {
-                    Prefs().saveThemeToPrefs(color.toARGB32());
+                    ThemePrefs.saveThemeColor(color.toARGB32());
                   });
                 },
                 child: Container(
@@ -429,8 +429,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       );
     }
 
-    return Consumer<Prefs>(
-      builder: (context, prefs, child) {
+    return Builder(
+      builder: (context) {
         return SingleChildScrollView(
           child: Column(
             children: [
@@ -512,13 +512,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
                   Switch(
-                    value: prefs.eInkMode,
+                    value: ThemePrefs.eInkMode,
                     onChanged: (value) {
                       setState(() {
                         if (value) {
-                          prefs.saveThemeModeToPrefs('light');
+                          ThemePrefs.saveThemeMode('light');
                         }
-                        prefs.eInkMode = value;
+                        ThemePrefs.eInkMode = value;
                       });
                     },
                   ),

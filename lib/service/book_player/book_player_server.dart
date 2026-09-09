@@ -1,6 +1,6 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:typed_data';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:flutter/services.dart';
@@ -21,7 +21,7 @@ class Server {
 
   Future start() async {
     if (_server != null) {
-      AnxLog.info(
+      SjLog.info(
         'Server: Existing instance detected on port ${_server?.port}, restarting',
       );
       await stop();
@@ -31,18 +31,18 @@ class Server {
         .addMiddleware(shelf.logRequests())
         .addHandler(_handleRequests);
 
-    int port = Prefs().lastServerPort;
+    int port = AppMiscPrefs.lastServerPort;
 
     try {
       _server = await io.serve(handler, '127.0.0.1', port);
     } catch (e, s) {
-      AnxLog.warning(
+      SjLog.warning(
           'Server: Failed to bind to port $port, trying random port $e', s);
       _server = await io.serve(handler, '127.0.0.1', 0);
     }
 
-    Prefs().lastServerPort = _server!.port;
-    AnxLog.info(
+    AppMiscPrefs.lastServerPort = _server!.port;
+    SjLog.info(
         'Server: Serving at http://${_server?.address.host}:${_server?.port}');
   }
 
@@ -57,7 +57,7 @@ class Server {
     final stoppedPort = _server!.port;
     await _server?.close(force: true);
     _server = null;
-    AnxLog.info('Server: Server stopped (port $stoppedPort)');
+    SjLog.info('Server: Server stopped (port $stoppedPort)');
   }
 
   Future<String> _loadAsset(String path) async {
@@ -76,7 +76,7 @@ class Server {
 
   Future<shelf.Response> _handleRequests(shelf.Request request) async {
     final uriPath = request.requestedUri.path;
-    AnxLog.info('Server: Request for $uriPath');
+    SjLog.info('Server: Request for $uriPath');
 
     if (_tempFileName != null && uriPath == "/${_tempFileName!}") {
       return shelf.Response.ok(
@@ -161,7 +161,7 @@ class Server {
   shelf.Response _handleBookRequest(shelf.Request request) {
     final bookPath = Uri.decodeComponent(request.url.path.substring(5));
     final file = File(bookPath);
-    AnxLog.info('Server: Request for book: $bookPath');
+    SjLog.info('Server: Request for book: $bookPath');
     if (!file.existsSync()) {
       return shelf.Response.notFound('Book not found');
     }

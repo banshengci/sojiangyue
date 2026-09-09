@@ -1,4 +1,6 @@
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/enums/convert_chinese_mode.dart';
 import 'package:songjiang_reader/enums/reading_info.dart';
 import 'package:songjiang_reader/enums/translation_mode.dart';
@@ -8,7 +10,7 @@ import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/reading_info.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/page/settings_page/subpage/fonts.dart';
-import 'package:songjiang_reader/widgets/common/anx_segmented_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 
@@ -38,7 +40,7 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
               Row(
                 children: [
                   Expanded(
-                    child: AnxSegmentedButton<ConvertChineseMode>(
+                    child: SjSegmentedButton<ConvertChineseMode>(
                       segments: [
                         SegmentButtonItem(
                           label: L10n.of(context).readingPageOriginal,
@@ -56,16 +58,16 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                           icon: const Text("繁", style: iconStyle),
                         ),
                       ],
-                      selected: {Prefs().readingRules.convertChineseMode},
+                      selected: {ReadingStylePrefs.readingRules.convertChineseMode},
                       onSelectionChanged: (value) {
                         setState(() {
-                          // Prefs().readingRules.convertChineseMode =
+                          // ReadingStylePrefs.readingRules.convertChineseMode =
                           //     ConvertChineseMode.values.byName(value.first);
-                          Prefs().readingRules = Prefs()
+                          ReadingStylePrefs.readingRules = ReadingStylePrefs
                               .readingRules
                               .copyWith(convertChineseMode: value.first);
                           epubPlayerKey.currentState
-                              ?.changeReadingRules(Prefs().readingRules);
+                              ?.changeReadingRules(ReadingStylePrefs.readingRules);
                         });
                       },
                     ),
@@ -114,13 +116,13 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
     //         },
     //       ),
     //       trailing: Switch(
-    //         value: Prefs().readingRules.bionicReading,
+    //         value: ReadingStylePrefs.readingRules.bionicReading,
     //         onChanged: (value) {
     //           setState(() {
-    //             Prefs().readingRules =
-    //                 Prefs().readingRules.copyWith(bionicReading: value);
+    //             ReadingStylePrefs.readingRules =
+    //                 ReadingStylePrefs.readingRules.copyWith(bionicReading: value);
     //             epubPlayerKey.currentState?
-    //                 .changeReadingRules(Prefs().readingRules);
+    //                 .changeReadingRules(ReadingStylePrefs.readingRules);
     //           });
     //         },
     //       ),
@@ -139,7 +141,7 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
             Row(
               children: [
                 Expanded(
-                  child: AnxSegmentedButton<int>(
+                  child: SjSegmentedButton<int>(
                     segments: [
                       SegmentButtonItem(
                         label: L10n.of(context).readingPageAuto,
@@ -157,13 +159,13 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                         icon: const Icon(EvaIcons.book_open),
                       ),
                     ],
-                    selected: {Prefs().bookStyle.maxColumnCount},
+                    selected: {ReadingStylePrefs.bookStyle.maxColumnCount},
                     onSelectionChanged: (value) {
                       setState(() {
-                        final newBookStyle = Prefs()
+                        final newBookStyle = ReadingStylePrefs
                             .bookStyle
                             .copyWith(maxColumnCount: value.first);
-                        Prefs().saveBookStyleToPrefs(newBookStyle);
+                        ReadingStylePrefs.saveBookStyle(newBookStyle);
                         epubPlayerKey.currentState?.changeStyle(newBookStyle);
                       });
                     },
@@ -188,12 +190,12 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(width: 8),
                 Text(
-                  '${Prefs().bookStyle.columnThreshold.toInt()}px',
+                  '${ReadingStylePrefs.bookStyle.columnThreshold.toInt()}px',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
-            if (Prefs().bookStyle.maxColumnCount == 0)
+            if (ReadingStylePrefs.bookStyle.maxColumnCount == 0)
               Text(
                 L10n.of(context).readingPageColumnThresholdTip,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -201,17 +203,17 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                     ),
               ),
             Slider(
-              value: Prefs().bookStyle.columnThreshold,
+              value: ReadingStylePrefs.bookStyle.columnThreshold,
               min: 400,
               max: 1200,
               divisions: 40,
-              label: '${Prefs().bookStyle.columnThreshold.toInt()}px',
-              onChanged: Prefs().bookStyle.maxColumnCount == 0
+              label: '${ReadingStylePrefs.bookStyle.columnThreshold.toInt()}px',
+              onChanged: ReadingStylePrefs.bookStyle.maxColumnCount == 0
                   ? (value) {
                       setState(() {
                         final newBookStyle =
-                            Prefs().bookStyle.copyWith(columnThreshold: value);
-                        Prefs().saveBookStyleToPrefs(newBookStyle);
+                            ReadingStylePrefs.bookStyle.copyWith(columnThreshold: value);
+                        ReadingStylePrefs.saveBookStyle(newBookStyle);
                         epubPlayerKey.currentState?.changeStyle(newBookStyle);
                       });
                     }
@@ -233,7 +235,7 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
             Row(
               children: [
                 Expanded(
-                  child: AnxSegmentedButton<WritingModeEnum>(
+                  child: SjSegmentedButton<WritingModeEnum>(
                     segments: [
                       SegmentButtonItem(
                         label: L10n.of(context).readingPageWritingDirectionAuto,
@@ -253,13 +255,13 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                         icon: const Icon(Bootstrap.arrows),
                       ),
                     ],
-                    selected: {Prefs().writingMode},
+                    selected: {ReadingStylePrefs.writingMode},
                     onSelectionChanged: (value) {
                       setState(() {
                         final newBookStyle =
-                            Prefs().bookStyle.copyWith(maxColumnCount: 1);
-                        Prefs().saveBookStyleToPrefs(newBookStyle);
-                        Prefs().writingMode = value.first;
+                            ReadingStylePrefs.bookStyle.copyWith(maxColumnCount: 1);
+                        ReadingStylePrefs.saveBookStyle(newBookStyle);
+                        ReadingStylePrefs.writingMode = value.first;
                         epubPlayerKey.currentState?.changeStyle(newBookStyle);
                       });
                     },
@@ -289,7 +291,7 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
             Row(
               children: [
                 Expanded(
-                  child: AnxSegmentedButton<TranslationModeEnum>(
+                  child: SjSegmentedButton<TranslationModeEnum>(
                     enabled: isReading,
                     segments: [
                       SegmentButtonItem(
@@ -311,13 +313,15 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                     selected: {
                       epubPlayerKey.currentState != null
                           ? Prefs().getBookTranslationMode(
-                              epubPlayerKey.currentState!.widget.book.id)
+                              epubPlayerKey.currentState!.widget.book.id
+                                  .toString())
                           : TranslationModeEnum.off
                     },
                     onSelectionChanged: (value) {
                       setState(() {
                         final currentBookId =
-                            epubPlayerKey.currentState!.widget.book.id;
+                            epubPlayerKey.currentState!.widget.book.id
+                                .toString();
                         final newMode = value.first;
 
                         Prefs().setBookTranslationMode(currentBookId, newMode);
@@ -583,7 +587,7 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
               Row(
                 children: [
                   Expanded(
-                    child: AnxSegmentedButton<String>(
+                    child: SjSegmentedButton<String>(
                       segments: [
                         SegmentButtonItem(
                           label: L10n.of(context).codeHighlightOff,
@@ -602,22 +606,22 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                         ),
                       ],
                       selected: {
-                        Prefs().codeHighlightTheme == CodeHighlightThemeEnum.off
+                        ReadingUiPrefs.codeHighlightTheme == CodeHighlightThemeEnum.off
                             ? 'off'
-                            : Prefs().codeHighlightTheme.isLight
+                            : ReadingUiPrefs.codeHighlightTheme.isLight
                                 ? 'light'
                                 : 'dark'
                       },
                       onSelectionChanged: (value) {
                         setState(() {
                           if (value.first == 'off') {
-                            Prefs().codeHighlightTheme =
+                            ReadingUiPrefs.codeHighlightTheme =
                                 CodeHighlightThemeEnum.off;
                           } else if (value.first == 'light') {
-                            Prefs().codeHighlightTheme =
+                            ReadingUiPrefs.codeHighlightTheme =
                                 CodeHighlightThemeEnum.defaultTheme;
                           } else {
-                            Prefs().codeHighlightTheme =
+                            ReadingUiPrefs.codeHighlightTheme =
                                 CodeHighlightThemeEnum.vsDark;
                           }
                           epubPlayerKey.currentState?.changeStyle(null);
@@ -628,10 +632,10 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                 ],
               ),
               // Detailed theme selection (only show if not off)
-              if (Prefs().codeHighlightTheme != CodeHighlightThemeEnum.off) ...[
+              if (ReadingUiPrefs.codeHighlightTheme != CodeHighlightThemeEnum.off) ...[
                 const SizedBox(height: 16),
                 // Light themes section
-                if (Prefs().codeHighlightTheme.isLight) ...[
+                if (ReadingUiPrefs.codeHighlightTheme.isLight) ...[
                   Text(L10n.of(context).codeHighlightLightThemes,
                       style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 8),
@@ -639,14 +643,14 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                     spacing: 8,
                     runSpacing: 8,
                     children: lightThemes.map((theme) {
-                      final isSelected = Prefs().codeHighlightTheme == theme;
+                      final isSelected = ReadingUiPrefs.codeHighlightTheme == theme;
                       return ChoiceChip(
                         label: Text(theme.displayName),
                         selected: isSelected,
                         onSelected: (selected) {
                           if (selected) {
                             setState(() {
-                              Prefs().codeHighlightTheme = theme;
+                              ReadingUiPrefs.codeHighlightTheme = theme;
                               epubPlayerKey.currentState?.changeStyle(null);
                             });
                           }
@@ -656,7 +660,7 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                   ),
                 ],
                 // Dark themes section
-                if (Prefs().codeHighlightTheme.isDark) ...[
+                if (ReadingUiPrefs.codeHighlightTheme.isDark) ...[
                   Text(L10n.of(context).codeHighlightDarkThemes,
                       style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 8),
@@ -664,14 +668,14 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                     spacing: 8,
                     runSpacing: 8,
                     children: darkThemes.map((theme) {
-                      final isSelected = Prefs().codeHighlightTheme == theme;
+                      final isSelected = ReadingUiPrefs.codeHighlightTheme == theme;
                       return ChoiceChip(
                         label: Text(theme.displayName),
                         selected: isSelected,
                         onSelected: (selected) {
                           if (selected) {
                             setState(() {
-                              Prefs().codeHighlightTheme = theme;
+                              ReadingUiPrefs.codeHighlightTheme = theme;
                               epubPlayerKey.currentState?.changeStyle(null);
                             });
                           }

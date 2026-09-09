@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io' as io;
 import 'package:songjiang_reader/enums/sync_direction.dart';
 import 'package:songjiang_reader/enums/sync_trigger.dart';
@@ -22,7 +22,8 @@ import 'package:path/path.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,14 +69,14 @@ class Sync extends _$Sync {
   Future<void> init() async {
     final client = _syncClient;
     if (client == null) {
-      AnxLog.severe('No sync client configured');
+      SjLog.severe('No sync client configured');
       return;
     }
 
-    AnxLog.info('${client.protocolName}: init');
+    SjLog.info('${client.protocolName}: init');
   }
 
-  Future<void> _createAnxDir() async {
+  Future<void> _createSjDir() async {
     final client = _syncClient;
     if (client == null) return;
 
@@ -86,15 +87,15 @@ class Sync extends _$Sync {
   }
 
   Future<bool> shouldSync() async {
-    if (!Prefs().webdavStatus) {
+    if (!SyncPrefs.webdavStatus) {
       return false;
     }
 
-    if (Prefs().onlySyncWhenWifi &&
+    if (SyncPrefs.onlySyncWhenWifi &&
         !(await Connectivity().checkConnectivity())
             .contains(ConnectivityResult.wifi)) {
-      if (Prefs().syncCompletedToast) {
-        AnxToast.show(L10n.of(navigatorKey.currentContext!).webdavOnlyWifi);
+      if (SyncPrefs.syncCompletedToast) {
+        SjToast.show(L10n.of(navigatorKey.currentContext!).webdavOnlyWifi);
       }
       return false;
     }
@@ -114,7 +115,7 @@ class Sync extends _$Sync {
     try {
       remoteFiles = await client.safeReadDir('/anx');
     } catch (e) {
-      await _createAnxDir();
+      await _createSjDir();
       remoteFiles = await client.safeReadDir('/anx');
     }
 
@@ -133,13 +134,13 @@ class Sync extends _$Sync {
     }
 
     RemoteFile? remoteDb = await client.readProps('anx/$remoteDbFileName');
-    final databasePath = await getAnxDataBasesPath();
+    final databasePath = await getSjDatabasesPath();
     final localDbPath = join(databasePath, 'app_database.db');
     io.File localDb = io.File(localDbPath);
 
     // Use getLatestModTime to include WAL file modification time
     final localDbTime = DBHelper.getLatestModTime(localDbPath);
-    AnxLog.info('localDbTime: $localDbTime, remoteDbTime: ${remoteDb?.mTime}');
+    SjLog.info('localDbTime: $localDbTime, remoteDbTime: ${remoteDb?.mTime}');
 
     // Less than 5s difference, no sync needed
     if (remoteDb != null &&
@@ -152,8 +153,8 @@ class Sync extends _$Sync {
     }
 
     if (requestedDirection == SyncDirection.both) {
-      if (Prefs().lastUploadBookDate == null ||
-          Prefs()
+      if (AppMiscPrefs.lastUploadBookDate == null ||
+          AppMiscPrefs
                   .lastUploadBookDate!
                   .difference(remoteDb.mTime!)
                   .inSeconds
@@ -170,7 +171,7 @@ class Sync extends _$Sync {
       io.File localDb, RemoteFile remoteDb) async {
     // Prevent multiple dialogs from showing simultaneously
     if (_isShowingDirectionDialog) {
-      AnxLog.info('Sync direction dialog already showing, skipping');
+      SjLog.info('Sync direction dialog already showing, skipping');
       return null;
     }
 
@@ -243,11 +244,11 @@ class Sync extends _$Sync {
   }) async {
     final client = _syncClient;
     if (client == null) {
-      AnxLog.info('No sync client configured');
+      SjLog.info('No sync client configured');
       return;
     }
 
-    if (trigger == SyncTrigger.auto && !Prefs().autoSync) {
+    if (trigger == SyncTrigger.auto && !SyncPrefs.autoSync) {
       return;
     }
 
@@ -257,20 +258,20 @@ class Sync extends _$Sync {
 
     // Check if already syncing - MOVED BEFORE determineSyncDirection
     if (state.isSyncing) {
-      AnxLog.info('Sync already in progress, skipping');
+      SjLog.info('Sync already in progress, skipping');
       return;
     }
 
     // Test ping and initialize
     try {
       await client.ping();
-      await _createAnxDir();
+      await _createSjDir();
     } catch (e) {
-      AnxLog.severe('Sync connection failed, ping failed2\n${e.toString()}');
+      SjLog.severe('Sync connection failed, ping failed2\n${e.toString()}');
       return;
     }
 
-    AnxLog.info('Sync ping success');
+    SjLog.info('Sync ping success');
 
     // Determine sync direction
     SyncDirection? finalDirection = await determineSyncDirection(direction);
@@ -280,8 +281,8 @@ class Sync extends _$Sync {
 
     changeState(state.copyWith(isSyncing: true));
 
-    if (Prefs().syncCompletedToast) {
-      AnxToast.show(L10n.of(navigatorKey.currentContext!).webdavSyncing);
+    if (SyncPrefs.syncCompletedToast) {
+      SjToast.show(L10n.of(navigatorKey.currentContext!).webdavSyncing);
     }
 
     try {
@@ -293,8 +294,8 @@ class Sync extends _$Sync {
         return;
       }
 
-      if (Prefs().syncCompletedToast) {
-        AnxToast.show(L10n.of(navigatorKey.currentContext!).webdavSyncingFiles);
+      if (SyncPrefs.syncCompletedToast) {
+        SjToast.show(L10n.of(navigatorKey.currentContext!).webdavSyncingFiles);
       }
 
       await syncFiles();
@@ -306,21 +307,21 @@ class Sync extends _$Sync {
         ref?.read(bookListProvider.notifier).refresh();
         ref?.read(groupDaoProvider.notifier).refresh();
       } catch (e) {
-        AnxLog.info('Failed to refresh book list: $e');
+        SjLog.info('Failed to refresh book list: $e');
       }
 
       // Backup cleanup is now handled by DatabaseSyncManager
 
-      if (Prefs().syncCompletedToast) {
-        AnxToast.show(L10n.of(navigatorKey.currentContext!).webdavSyncComplete);
+      if (SyncPrefs.syncCompletedToast) {
+        SjToast.show(L10n.of(navigatorKey.currentContext!).webdavSyncComplete);
       }
     } catch (e, s) {
       if (e is DioException && e.type == DioExceptionType.connectionError) {
-        AnxToast.show('Sync connection failed, check your network');
-        AnxLog.severe('Sync connection failed, connection error\n$e, $s');
+        SjToast.show('Sync connection failed, check your network');
+        SjLog.severe('Sync connection failed, connection error\n$e, $s');
       } else {
-        AnxToast.show('Sync failed\n$e');
-        AnxLog.severe('Sync failed\n$e, $s');
+        SjToast.show('Sync failed\n$e');
+        SjLog.severe('Sync failed\n$e, $s');
       }
     } finally {
       changeState(state.copyWith(isSyncing: false));
@@ -332,7 +333,7 @@ class Sync extends _$Sync {
     final client = _syncClient;
     if (client == null) return;
 
-    AnxLog.info('Sync: syncFiles');
+    SjLog.info('Sync: syncFiles');
     List<String> currentBooks = await bookDao.getCurrentBooks();
     List<String> currentCover = await bookDao.getCurrentCover();
 
@@ -407,7 +408,7 @@ class Sync extends _$Sync {
     String remoteDbFileName = 'database$currentDbVersion.db';
     RemoteFile? remoteDb = await client.readProps('anx/$remoteDbFileName');
 
-    final databasePath = await getAnxDataBasesPath();
+    final databasePath = await getSjDatabasesPath();
     final localDbPath = join(databasePath, 'app_database.db');
     io.File localDb = io.File(localDbPath);
 
@@ -446,7 +447,7 @@ class Sync extends _$Sync {
 
             if (!result.isSuccess) {
               await DatabaseSyncManager.showSyncErrorDialog(result);
-              AnxLog.severe('Database sync failed: ${result.message}');
+              SjLog.severe('Database sync failed: ${result.message}');
               // Don't throw exception, let sync continue with file sync
               return;
             }
@@ -488,7 +489,7 @@ class Sync extends _$Sync {
 
             if (!result.isSuccess) {
               await DatabaseSyncManager.showSyncErrorDialog(result);
-              AnxLog.severe('Database sync failed: ${result.message}');
+              SjLog.severe('Database sync failed: ${result.message}');
               // Don't throw exception, let sync continue with file sync
               return;
             }
@@ -499,10 +500,10 @@ class Sync extends _$Sync {
       // Update last sync time
       RemoteFile? newRemoteDb = await client.readProps('anx/$remoteDbFileName');
       if (newRemoteDb != null) {
-        Prefs().lastUploadBookDate = newRemoteDb.mTime;
+        AppMiscPrefs.lastUploadBookDate = newRemoteDb.mTime;
       }
     } catch (e) {
-      AnxLog.severe('Failed to sync database\n$e');
+      SjLog.severe('Failed to sync database\n$e');
       rethrow;
     }
   }
@@ -576,7 +577,7 @@ class Sync extends _$Sync {
     final syncStatus = await ref.read(syncStatusProvider.future);
 
     if (!syncStatus.remoteOnly.contains(book.id)) {
-      AnxToast.show(L10n.of(navigatorKey.currentContext!)
+      SjToast.show(L10n.of(navigatorKey.currentContext!)
           .bookSyncStatusBookNotFoundRemote);
       return;
     }
@@ -601,15 +602,15 @@ class Sync extends _$Sync {
         final localPath = getBasePath(book.filePath);
         await uploadFile(localPath, remotePath);
       } catch (e) {
-        AnxToast.show(
+        SjToast.show(
             L10n.of(navigatorKey.currentContext!).bookSyncStatusUploadFailed);
-        AnxLog.severe('Failed to upload book\n$e');
+        SjLog.severe('Failed to upload book\n$e');
         rethrow;
       }
     }
 
     if (syncStatus.remoteOnly.contains(book.id)) {
-      AnxToast.show(
+      SjToast.show(
           L10n.of(navigatorKey.currentContext!).bookSyncStatusSpaceReleased);
       return;
     } else if (syncStatus.both.contains(book.id)) {
@@ -620,14 +621,14 @@ class Sync extends _$Sync {
         await uploadBook();
         await deleteLocalBook();
       } catch (e) {
-        AnxToast.show(
+        SjToast.show(
             L10n.of(navigatorKey.currentContext!).bookSyncStatusUploadFailed);
       }
     }
   }
 
   Future<void> downloadMultipleBooks(List<int> bookIds) async {
-    AnxLog.info(
+    SjLog.info(
         'WebDAV: Starting download for ${bookIds.length} remote books.');
     int successCount = 0;
     int failCount = 0;
@@ -640,7 +641,7 @@ class Sync extends _$Sync {
         throw Exception('No sync client configured');
       }
     } catch (e) {
-      AnxLog.severe(
+      SjLog.severe(
           'WebDAV connection failed before batch download, ping failed\n${e.toString()}');
       return;
     }
@@ -648,32 +649,32 @@ class Sync extends _$Sync {
     for (final bookId in bookIds) {
       try {
         final book = await bookDao.selectBookById(bookId);
-        AnxLog.info('WebDAV: Downloading book ID $bookId: ${book.title}');
+        SjLog.info('WebDAV: Downloading book ID $bookId: ${book.title}');
         await _downloadBook(book);
         successCount++;
       } catch (e) {
-        AnxLog.severe('WebDAV: Failed to download book ID $bookId: $e');
+        SjLog.severe('WebDAV: Failed to download book ID $bookId: $e');
         failCount++;
       }
     }
 
-    AnxLog.info(L10n.of(navigatorKey.currentContext!)
+    SjLog.info(L10n.of(navigatorKey.currentContext!)
         .webdavBatchDownloadFinishedReport(successCount, failCount));
-    AnxToast.show(L10n.of(navigatorKey.currentContext!)
+    SjToast.show(L10n.of(navigatorKey.currentContext!)
         .webdavBatchDownloadFinishedReport(successCount, failCount));
   }
 
   Future<void> _downloadBook(Book book) async {
     try {
-      AnxToast.show(L10n.of(navigatorKey.currentContext!)
+      SjToast.show(L10n.of(navigatorKey.currentContext!)
           .bookSyncStatusDownloadingBook(book.filePath));
       final remotePath = 'anx/data/${book.filePath}';
       final localPath = getBasePath(book.filePath);
       await downloadFile(remotePath, localPath);
     } catch (e) {
-      AnxToast.show(
+      SjToast.show(
           L10n.of(navigatorKey.currentContext!).bookSyncStatusDownloadFailed);
-      AnxLog.severe('Failed to download book\n$e');
+      SjLog.severe('Failed to download book\n$e');
       rethrow;
     }
   }
@@ -748,15 +749,15 @@ class Sync extends _$Sync {
         ),
       );
     } catch (e) {
-      AnxLog.severe('Failed to show backup management dialog: $e');
-      AnxToast.show('Failed to get backup list: $e');
+      SjLog.severe('Failed to show backup management dialog: $e');
+      SjToast.show('Failed to get backup list: $e');
     }
   }
 
   /// Restore database from specified backup
   Future<void> _restoreFromBackup(String backupPath) async {
     try {
-      final databasePath = await getAnxDataBasesPath();
+      final databasePath = await getSjDatabasesPath();
       final localDbPath = join(databasePath, 'app_database.db');
 
       // Confirmation dialog
@@ -789,14 +790,14 @@ class Sync extends _$Sync {
         ref.read(bookListProvider.notifier).refresh();
         ref.read(groupDaoProvider.notifier).refresh();
       } catch (e) {
-        AnxLog.info('Failed to refresh providers after restore: $e');
+        SjLog.info('Failed to refresh providers after restore: $e');
       }
 
-      AnxToast.show(L10n.of(navigatorKey.currentContext!).restoreSuccess);
-      AnxLog.info('Database restored from backup: $backupPath');
+      SjToast.show(L10n.of(navigatorKey.currentContext!).restoreSuccess);
+      SjLog.info('Database restored from backup: $backupPath');
     } catch (e) {
-      AnxLog.severe('Failed to restore from backup: $e');
-      AnxToast.show('Restore failed: $e');
+      SjLog.severe('Failed to restore from backup: $e');
+      SjToast.show('Restore failed: $e');
     }
   }
 

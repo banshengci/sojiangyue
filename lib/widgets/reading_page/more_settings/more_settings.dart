@@ -55,7 +55,6 @@ void showMoreSettings(ReadingSettings settings) {
                   ),
                   child: SingleChildScrollView(
                     child: ContentSizeTabBarView(
-                      animationDuration: const Duration(milliseconds: 600),
                       controller: tabController,
                       children: children,
                     ),

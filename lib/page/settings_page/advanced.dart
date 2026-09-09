@@ -1,4 +1,6 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/md5_statistics.dart';
@@ -16,16 +18,18 @@ import 'package:songjiang_reader/widgets/settings/settings_title.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:songjiang_reader/main.dart';
+import 'package:songjiang_reader/providers/http_proxy.dart';
 
-class AdvancedSetting extends StatefulWidget {
+class AdvancedSetting extends ConsumerStatefulWidget {
   const AdvancedSetting({super.key});
 
   @override
-  State<AdvancedSetting> createState() => _AdvancedSettingState();
+  ConsumerState<AdvancedSetting> createState() => _AdvancedSettingState();
 }
 
-class _AdvancedSettingState extends State<AdvancedSetting> {
+class _AdvancedSettingState extends ConsumerState<AdvancedSetting> {
   MD5Statistics? _md5Stats;
   bool _isCalculating = false;
   double _progress = 0.0;
@@ -70,9 +74,9 @@ class _AdvancedSettingState extends State<AdvancedSetting> {
             SettingsTile.switchTile(
               title: Text(L10n.of(context).settingsAdvancedClearLogWhenStart),
               leading: const Icon(Icons.delete_forever_outlined),
-              initialValue: Prefs().clearLogWhenStart,
+              initialValue: DeveloperPrefs.clearLogWhenStart,
               onToggle: (value) {
-                Prefs().saveClearLogWhenStart(value);
+                DeveloperPrefs.clearLogWhenStart = value;
                 setState(() {});
               },
             ),
@@ -159,9 +163,9 @@ class _AdvancedSettingState extends State<AdvancedSetting> {
               title: Text(
                   L10n.of(context).settingsAdvancedEnableJavascriptForEpub),
               leading: const Icon(Icons.code),
-              initialValue: Prefs().enableJsForEpub,
+              initialValue: ReadingUiPrefs.enableJsForEpub,
               onToggle: (value) {
-                Prefs().enableJsForEpub = value;
+                ReadingUiPrefs.enableJsForEpub = value;
                 setState(() {});
               },
             ),
@@ -173,20 +177,25 @@ class _AdvancedSettingState extends State<AdvancedSetting> {
             SettingsTile.switchTile(
               title: Text(L10n.of(context).settingsAdvancedHttpProxyEnabled),
               leading: const Icon(Icons.wifi_tethering),
-              initialValue: Prefs().httpProxyEnabled,
+              initialValue:
+                  ref.watch(httpProxyNotifierProvider).valueOrNull?.enabled ??
+                      false,
               onToggle: (value) {
-                Prefs().httpProxyEnabled = value;
-                setState(() {});
+                ref.read(httpProxyNotifierProvider.notifier).setEnabled(value);
               },
             ),
             SettingsTile.navigation(
               title: Text(L10n.of(context).settingsAdvancedHttpProxyConfig),
               leading: const Icon(Icons.http),
-              value: Text(Prefs().httpProxyHost.isEmpty
-                  ? L10n.of(context).settingsAdvancedHttpProxyNotConfigured
-                  : Prefs().httpProxyEnabled
-                      ? '${Prefs().httpProxyHost}:${Prefs().httpProxyPort} (Test: ${Prefs().httpProxyTestUrl})'
-                      : '${Prefs().httpProxyHost}:${Prefs().httpProxyPort}'),
+              value: Text(() {
+                final proxy = ref.watch(httpProxyNotifierProvider).valueOrNull;
+                if (proxy == null || proxy.host.isEmpty) {
+                  return L10n.of(context).settingsAdvancedHttpProxyNotConfigured;
+                }
+                return proxy.enabled
+                    ? '${proxy.host}:${proxy.port} (Test: ${proxy.testUrl})'
+                    : '${proxy.host}:${proxy.port}';
+              }()),
               onPressed: _showHttpProxyDialog,
             ),
           ],
@@ -198,8 +207,8 @@ class _AdvancedSettingState extends State<AdvancedSetting> {
               title: Text(L10n.of(context).showAllHintsAgain),
               leading: const Icon(Icons.lightbulb_outline),
               onPressed: (_) {
-                Prefs().resetHints();
-                AnxToast.show(L10n.of(context).allHintsWillBeShownAgain);
+                ReadingUiPrefs.resetHints();
+                SjToast.show(L10n.of(context).allHintsWillBeShownAgain);
               },
             ),
             SettingsTile.navigation(
@@ -222,7 +231,7 @@ class _AdvancedSettingState extends State<AdvancedSetting> {
     if (_isCalculating) return;
 
     if (_md5Stats?.localFilesWithoutMd5 == 0) {
-      AnxToast.show(L10n.of(context).md5NoCalculationNeeded);
+      SjToast.show(L10n.of(context).md5NoCalculationNeeded);
       return;
     }
 
@@ -346,7 +355,7 @@ class _AdvancedSettingState extends State<AdvancedSetting> {
       });
 
       if (context.mounted) {
-        AnxToast.show(L10n.of(context).md5CalculationError(e.toString()));
+        SjToast.show(L10n.of(context).md5CalculationError(e.toString()));
       }
     }
   }
@@ -355,26 +364,20 @@ class _AdvancedSettingState extends State<AdvancedSetting> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return _HttpProxyDialog(
-          onSaved: () {
-            setState(() {});
-          },
-        );
+        return const _HttpProxyDialog();
       },
     );
   }
 }
 
-class _HttpProxyDialog extends StatefulWidget {
-  final VoidCallback onSaved;
-
-  const _HttpProxyDialog({required this.onSaved});
+class _HttpProxyDialog extends ConsumerStatefulWidget {
+  const _HttpProxyDialog();
 
   @override
-  State<_HttpProxyDialog> createState() => _HttpProxyDialogState();
+  ConsumerState<_HttpProxyDialog> createState() => _HttpProxyDialogState();
 }
 
-class _HttpProxyDialogState extends State<_HttpProxyDialog> {
+class _HttpProxyDialogState extends ConsumerState<_HttpProxyDialog> {
   late final TextEditingController hostController;
   late final TextEditingController portController;
   late final TextEditingController testUrlController;
@@ -382,10 +385,12 @@ class _HttpProxyDialogState extends State<_HttpProxyDialog> {
   @override
   void initState() {
     super.initState();
-    hostController = TextEditingController(text: Prefs().httpProxyHost);
+    final proxy = ref.read(httpProxyNotifierProvider).valueOrNull;
+    hostController = TextEditingController(text: proxy?.host ?? '');
     portController =
-        TextEditingController(text: Prefs().httpProxyPort.toString());
-    testUrlController = TextEditingController(text: Prefs().httpProxyTestUrl);
+        TextEditingController(text: (proxy?.port ?? 7890).toString());
+    testUrlController =
+        TextEditingController(text: proxy?.testUrl ?? 'https://google.com');
   }
 
   @override
@@ -402,7 +407,7 @@ class _HttpProxyDialogState extends State<_HttpProxyDialog> {
     final testUrl = testUrlController.text.trim();
 
     if (host.isEmpty || port == null || port <= 0 || port > 65535) {
-      AnxToast.show(L10n.of(context).settingsAdvancedHttpProxyInvalidInput);
+      SjToast.show(L10n.of(context).settingsAdvancedHttpProxyInvalidInput);
       return;
     }
 
@@ -411,7 +416,7 @@ class _HttpProxyDialogState extends State<_HttpProxyDialog> {
         hostLower.startsWith('socks5://') ||
         hostLower.startsWith('socks4://') ||
         hostLower.startsWith('socks://')) {
-      AnxToast.show(L10n.of(context).settingsAdvancedHttpProxyInvalidInput);
+      SjToast.show(L10n.of(context).settingsAdvancedHttpProxyInvalidInput);
       return;
     }
 
@@ -420,20 +425,20 @@ class _HttpProxyDialogState extends State<_HttpProxyDialog> {
     }
 
     if (testUrl.isEmpty) {
-      AnxToast.show(L10n.of(context).commonInputCannotBeEmpty);
+      SjToast.show(L10n.of(context).commonInputCannotBeEmpty);
       return;
     }
 
-    AnxToast.show(L10n.of(context).settingsAdvancedHttpProxyTesting);
+    SjToast.show(L10n.of(context).settingsAdvancedHttpProxyTesting);
 
-    final success = await AnxHttpProxyOverrides.testProxy(host, port, testUrl);
+    final success = await SjHttpProxyOverrides.testProxy(host, port, testUrl);
 
     if (!mounted) return;
 
     if (success) {
-      AnxToast.show(L10n.of(context).settingsAdvancedHttpProxyTestSuccess);
+      SjToast.show(L10n.of(context).settingsAdvancedHttpProxyTestSuccess);
     } else {
-      AnxToast.show(L10n.of(context).settingsAdvancedHttpProxyTestFailed);
+      SjToast.show(L10n.of(context).settingsAdvancedHttpProxyTestFailed);
     }
   }
 
@@ -483,12 +488,12 @@ class _HttpProxyDialogState extends State<_HttpProxyDialog> {
           child: Text(L10n.of(context).commonCancel),
         ),
         TextButton(
-          onPressed: () {
+          onPressed: () async {
             var host = hostController.text.trim();
             final port = int.tryParse(portController.text.trim());
             final testUrl = testUrlController.text.trim();
             if (host.isEmpty || port == null || port <= 0 || port > 65535) {
-              AnxToast.show(
+              SjToast.show(
                   L10n.of(context).settingsAdvancedHttpProxyInvalidInput);
               return;
             }
@@ -498,7 +503,7 @@ class _HttpProxyDialogState extends State<_HttpProxyDialog> {
                 hostLower.startsWith('socks5://') ||
                 hostLower.startsWith('socks4://') ||
                 hostLower.startsWith('socks://')) {
-              AnxToast.show(
+              SjToast.show(
                   L10n.of(context).settingsAdvancedHttpProxyInvalidInput);
               return;
             }
@@ -507,11 +512,11 @@ class _HttpProxyDialogState extends State<_HttpProxyDialog> {
               host = host.substring(7);
             }
 
-            Prefs().httpProxyHost = host;
-            Prefs().httpProxyPort = port;
-            Prefs().httpProxyTestUrl =
-                testUrl.isEmpty ? 'https://google.com' : testUrl;
-            widget.onSaved();
+            await ref.read(httpProxyNotifierProvider.notifier).saveConfig(
+                  host: host,
+                  port: port,
+                  testUrl: testUrl,
+                );
             Navigator.of(context).pop();
           },
           child: Text(L10n.of(context).commonSave),
@@ -523,7 +528,7 @@ class _HttpProxyDialogState extends State<_HttpProxyDialog> {
 
 Future<void> _showChangelog(BuildContext context) async {
   final currentVersion = await getAppVersion();
-  final lastVersion = Prefs().lastAppVersion ?? currentVersion;
+  final lastVersion = AppMiscPrefs.lastAppVersion ?? currentVersion;
 
   showCupertinoSheet(
     context: navigatorKey.currentContext ?? context,
@@ -531,7 +536,7 @@ Future<void> _showChangelog(BuildContext context) async {
       lastVersion: lastVersion,
       currentVersion: currentVersion,
       onComplete: () {
-        Prefs().lastAppVersion = currentVersion;
+        AppMiscPrefs.lastAppVersion = currentVersion;
         Navigator.pop(sheetContext);
       },
     ),
@@ -546,7 +551,7 @@ Future<void> _showOnboarding(BuildContext context) async {
     builder: (sheetContext) => Scaffold(
       body: OnboardingScreen(
         onComplete: () {
-          Prefs().lastAppVersion = currentVersion;
+          AppMiscPrefs.lastAppVersion = currentVersion;
           Navigator.pop(sheetContext);
         },
       ),

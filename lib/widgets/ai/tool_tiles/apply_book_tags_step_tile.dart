@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/tag.dart';
@@ -277,13 +277,13 @@ class _ApplyBookTagsStepTileState extends State<ApplyBookTagsStepTile> {
         _isApplying = false;
         _applied = true;
       });
-      AnxToast.show('Tags updated');
+      SjToast.show('Tags updated');
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isApplying = false;
       });
-      AnxToast.show('Failed to apply tag changes: $e');
+      SjToast.show('Failed to apply tag changes: $e');
     }
   }
 }

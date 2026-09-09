@@ -1,24 +1,24 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:songjiang_reader/utils/platform_utils.dart';
 
 import 'package:sqflite/sqflite.dart';
 
 import 'get_base_path.dart';
 
-Future<String> getAnxDataBasesPath() async {
-  switch (AnxPlatform.type) {
-    case AnxPlatformEnum.android:
-    case AnxPlatformEnum.ohos:
+Future<String> getSjDatabasesPath() async {
+  switch (SjPlatform.type) {
+    case SjPlatformEnum.android:
+    case SjPlatformEnum.ohos:
       final path = await getDatabasesPath();
       return path;
-    case AnxPlatformEnum.windows:
-    case AnxPlatformEnum.macos:
-    case AnxPlatformEnum.ios:
-      final documentsPath = await getAnxDocumentsPath();
+    case SjPlatformEnum.windows:
+    case SjPlatformEnum.macos:
+    case SjPlatformEnum.ios:
+      final documentsPath = await getSjDocumentsPath();
       return '$documentsPath${Platform.pathSeparator}databases';
   }
 }
 
-Future<Directory> getAnxDataBasesDir() async {
-  return Directory(await getAnxDataBasesPath());
+Future<Directory> getSjDatabasesDir() async {
+  return Directory(await getSjDatabasesPath());
 }

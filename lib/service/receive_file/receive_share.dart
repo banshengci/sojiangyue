@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/service/book.dart';
@@ -11,14 +11,14 @@ void receiveShareIntent(WidgetRef ref) {
 
   // receive sharing intent
   Future<void> handleShare(SharedMedia? media) async {
-    AnxLog.info('share: Receive share intent called, ${media?.content}');
+    SjLog.info('share: Receive share intent called, ${media?.content}');
     if (media == null ||
         media.attachments == null ||
         media.attachments!.isEmpty) {
-      AnxLog.info('share: Receive share intent: no media or empty');
+      SjLog.info('share: Receive share intent: no media or empty');
       return;
     }
-    AnxLog.info(
+    SjLog.info(
         'share: Receive share intent: ${media.attachments!.map((e) => e?.path).join(', ')}');
 
     List<File> files = [];
@@ -35,12 +35,12 @@ void receiveShareIntent(WidgetRef ref) {
   handler.sharedMediaStream.listen((SharedMedia media) {
     handleShare(media);
   }, onError: (err) {
-    AnxLog.severe('share: Receive share intent');
+    SjLog.severe('share: Receive share intent');
   });
 
   handler.getInitialSharedMedia().then((media) {
     handleShare(media);
   }, onError: (err) {
-    AnxLog.severe('share: Receive share intent');
+    SjLog.severe('share: Receive share intent');
   });
 }

@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/models/current_reading_state.dart';
+﻿import 'package:songjiang_reader/models/current_reading_state.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -38,7 +38,7 @@ class CurrentReading extends _$CurrentReading {
 
   void finish() {
     state = state.copyWith(isReading: false);
-    AnxLog.info('CurrentReading: finish reading ${state.book?.title}');
+    SjLog.info('CurrentReading: finish reading ${state.book?.title}');
   }
 
   bool get isReading => state.isReading;

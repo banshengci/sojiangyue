@@ -1,6 +1,8 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/notes_prefs.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/widgets/common/axis_flex.dart';
 import 'package:songjiang_reader/widgets/context_menu/excerpt_menu.dart';
@@ -28,10 +30,10 @@ Future<void> showContextMenu(
   if (playerKey == null) return;
   bool isNewNote = false;
 
-  if (Prefs().autoMarkSelection && annoId == null) {
+  if (ReadingUiPrefs.autoMarkSelection && annoId == null) {
     // Auto-highlight logic
-    final String type = Prefs().annotationType;
-    final String color = Prefs().annotationColor;
+    final String type = NotesPrefs.annotationType;
+    final String color = NotesPrefs.annotationColor;
 
     final BookNote bookNote = BookNote(
       bookId: playerKey.book.id,
@@ -118,19 +120,19 @@ Future<void> showContextMenu(
   }
 
   final decoration = BoxDecoration(
-    color: Prefs().eInkMode
+    color: ThemePrefs.eInkMode
         ? Colors.white
         : Theme.of(context).colorScheme.secondaryContainer,
     borderRadius: BorderRadius.circular(10),
     boxShadow: [
-      if (!Prefs().eInkMode)
+      if (!ThemePrefs.eInkMode)
         BoxShadow(
           color: Colors.black.withOpacity(0.1),
           spreadRadius: 5,
           blurRadius: 7,
           offset: const Offset(0, 3),
         ),
-      if (Prefs().eInkMode)
+      if (ThemePrefs.eInkMode)
         const BoxShadow(
           color: Colors.black,
           spreadRadius: 1,
@@ -153,7 +155,7 @@ Future<void> showContextMenu(
       onClose: onClose,
       menuConstraints: menuConstraints,
       initialPlacement: initialPlacement,
-      showTranslationDefault: !isNewNote && Prefs().autoTranslateSelection,
+      showTranslationDefault: !isNewNote && ReadingUiPrefs.autoTranslateSelection,
       horizontalMargin: horizontalMargin,
       verticalMargin: verticalMargin,
       gap: gap,

@@ -1,6 +1,6 @@
-import 'dart:io';
+﻿import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/models/chapter_split_presets.dart';
 import 'package:songjiang_reader/service/convert_to_epub/create_epub.dart';
 import 'package:songjiang_reader/service/convert_to_epub/encoding_utils.dart';
@@ -86,7 +86,7 @@ Future<File> convertFromTxt(File file) async {
   final authorString =
       RegExp(r'(?<=作者：).*').firstMatch(filename)?.group(0) ?? 'Unknown';
 
-  AnxLog.info('convert from txt. title: $titleString, author: $authorString');
+  SjLog.info('convert from txt. title: $titleString, author: $authorString');
 
   // read file
   String content = readFileWithEncoding(file);
@@ -94,43 +94,43 @@ Future<File> convertFromTxt(File file) async {
 
   // content = content.replaceAll(RegExp(r'(\n*|^)(\s|　)+'), '\n');
 
-  AnxLog.info('convert from txt. content: ${content.length}');
+  SjLog.info('convert from txt. content: ${content.length}');
 
-  final rule = Prefs().activeChapterSplitRule;
+  final rule = AppMiscPrefs.activeChapterSplitRule;
   RegExp patternStr;
   try {
     patternStr = rule.buildRegExp();
   } catch (error) {
-    AnxLog.warning(
+    SjLog.warning(
         'Convert: Invalid chapter split rule ${rule.name}, using default. $error');
     patternStr = getDefaultChapterSplitRule().buildRegExp();
   }
 
   final matches = patternStr.allMatches(content).toList();
-  AnxLog.info('matches: ${matches.length}');
+  SjLog.info('matches: ${matches.length}');
 
   List<Section> sections;
   if (matches.isEmpty) {
-    AnxLog.info('Convert: No chapters matched, using fallback chunking');
+    SjLog.info('Convert: No chapters matched, using fallback chunking');
     sections = _fallbackChunking(filename, content);
-    AnxLog.info('Convert: Created ${sections.length} sections via fallback');
+    SjLog.info('Convert: Created ${sections.length} sections via fallback');
   } else {
-    AnxLog.info('Convert: Building ${matches.length} sections from matches');
+    SjLog.info('Convert: Building ${matches.length} sections from matches');
     sections = _buildSectionsFromMatches(
       content: content,
       matches: matches,
       fallbackTitle: filename,
     );
-    AnxLog.info('Convert: Created ${sections.length} sections');
+    SjLog.info('Convert: Created ${sections.length} sections');
   }
 
-  AnxLog.info('Convert: Starting EPUB creation...');
+  SjLog.info('Convert: Starting EPUB creation...');
   try {
     final epubFile = await createEpub(titleString, authorString, sections);
-    AnxLog.info('Convert: EPUB created successfully at ${epubFile.path}');
+    SjLog.info('Convert: EPUB created successfully at ${epubFile.path}');
     return epubFile;
   } catch (e) {
-    AnxLog.severe('Convert: Failed to create EPUB: $e');
+    SjLog.severe('Convert: Failed to create EPUB: $e');
     rethrow;
   }
 }

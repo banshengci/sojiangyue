@@ -1,7 +1,7 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:songjiang_reader/utils/platform_utils.dart';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
 import 'package:songjiang_reader/service/tts/models/tts_voice.dart';
@@ -39,35 +39,35 @@ class SystemTts extends BaseTts {
     ttsStateNotifier.value = newState;
   }
 
-  bool get isIOS => AnxPlatform.isIOS;
-  bool get isAndroid => AnxPlatform.isAndroid;
-  bool get isWindows => AnxPlatform.isWindows;
+  bool get isIOS => SjPlatform.isIOS;
+  bool get isAndroid => SjPlatform.isAndroid;
+  bool get isWindows => SjPlatform.isWindows;
   bool get isWeb => kIsWeb;
 
   @override
-  double get volume => Prefs().ttsVolume;
+  double get volume => TtsPrefs.volume;
 
   @override
   set volume(double volume) {
-    Prefs().ttsVolume = volume;
+    TtsPrefs.volume = volume;
     restart();
   }
 
   @override
-  double get pitch => Prefs().ttsPitch;
+  double get pitch => TtsPrefs.pitch;
 
   @override
   set pitch(double pitch) {
-    Prefs().ttsPitch = pitch;
+    TtsPrefs.pitch = pitch;
     restart();
   }
 
   @override
-  double get rate => Prefs().ttsRate;
+  double get rate => TtsPrefs.rate;
 
   @override
   set rate(double rate) {
-    Prefs().ttsRate = rate;
+    TtsPrefs.rate = rate;
     restart();
   }
 

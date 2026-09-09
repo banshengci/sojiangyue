@@ -87,7 +87,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
 /// 松江阅品牌头图
 ///
-/// 取代上游 Anx 那个巨大的纯文字标题，改成带松绿渐变、水印字与
+/// 取代上游 anx-reader 那个巨大的纯文字标题，改成带松绿渐变、水印字与
 /// 版本号的品牌卡片；点击打开「关于」。
 class _BrandHero extends StatelessWidget {
   const _BrandHero();

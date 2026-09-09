@@ -1,4 +1,5 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/page/settings_page/ai.dart';
 import 'package:songjiang_reader/page/settings_page/advanced.dart';
@@ -7,7 +8,7 @@ import 'package:songjiang_reader/page/settings_page/developer/developer_options_
 import 'package:songjiang_reader/page/settings_page/narrate.dart';
 import 'package:songjiang_reader/page/settings_page/reading.dart';
 import 'package:songjiang_reader/page/settings_page/settings_page.dart';
-import 'package:songjiang_reader/page/settings_page/storege.dart';
+import 'package:songjiang_reader/page/settings_page/storage.dart';
 import 'package:songjiang_reader/page/settings_page/sync.dart';
 import 'package:songjiang_reader/page/settings_page/translate.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
@@ -58,7 +59,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
     return AnimatedBuilder(
       animation: Prefs(),
       builder: (context, _) {
-        final showDeveloperEntry = Prefs().developerOptionsEnabled;
+        final showDeveloperEntry = DeveloperPrefs.developerOptionsEnabled;
         return Scaffold(
           appBar: AppBar(
             leading: IconButton(

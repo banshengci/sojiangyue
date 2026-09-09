@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
+﻿import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/utils/get_current_language_code.dart';
 import 'package:songjiang_reader/widgets/markdown/styled_markdown.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +43,7 @@ class _ChangelogScreenState extends State<ChangelogScreen> {
           await rootBundle.loadString('assets/CHANGELOG.md');
       _changelogContent = _extractVersionChangelog(fullChangelog);
     } catch (e) {
-      AnxLog.warning('Failed to load changelog from assets: $e');
+      SjLog.warning('Failed to load changelog from assets: $e');
       _changelogContent = _getDefaultChangelog();
     } finally {
       _changelogContent = processChangelogContent(_changelogContent);
@@ -96,7 +96,7 @@ class _ChangelogScreenState extends State<ChangelogScreen> {
     final startIndex = lines.indexWhere((line) => line.trim() == versionHeader);
 
     if (startIndex == -1) {
-      AnxLog.warning('Version $version not found in changelog');
+      SjLog.warning('Version $version not found in changelog');
       return _getDefaultChangelog();
     }
 

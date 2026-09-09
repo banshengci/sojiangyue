@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
-/// Defines a single segment item used by [AnxSegmentedButton].
+/// Defines a single segment item used by [SjSegmentedButton].
 class SegmentButtonItem<T> {
   const SegmentButtonItem({
     required this.value,
@@ -21,8 +21,8 @@ class SegmentButtonItem<T> {
 
 /// A thin wrapper around [SegmentedButton] that accepts [SegmentButtonItem]
 /// definitions to keep segment construction consistent across the app.
-class AnxSegmentedButton<T> extends StatelessWidget {
-  const AnxSegmentedButton({
+class SjSegmentedButton<T> extends StatelessWidget {
+  const SjSegmentedButton({
     super.key,
     required this.segments,
     required this.selected,

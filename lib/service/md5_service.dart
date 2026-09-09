@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/models/import_file_check.dart';
@@ -19,7 +19,7 @@ class MD5Service {
       final digest = md5.convert(bytes);
       return digest.toString();
     } catch (e) {
-      AnxLog.severe('Error calculating MD5 for $filePath: $e');
+      SjLog.severe('Error calculating MD5 for $filePath: $e');
       return null;
     }
   }

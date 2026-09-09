@@ -1,6 +1,6 @@
-import 'dart:io';
+﻿import 'dart:io';
 
-import 'package:songjiang_reader/models/storege_info_model.dart';
+import 'package:songjiang_reader/models/storage_info_model.dart';
 import 'package:songjiang_reader/providers/font_list.dart';
 import 'package:songjiang_reader/utils/get_path/databases_path.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
@@ -16,11 +16,11 @@ class StorageInfo extends _$StorageInfo {
   @override
   Future<StorageInfoModel> build() async {
     return StorageInfoModel(
-      databaseSize: await calculatePathSize(await getAnxDataBasesDir()),
+      databaseSize: await calculatePathSize(await getSjDatabasesDir()),
       booksSize: await calculatePathSize(getFileDir()),
       fontSize: await calculatePathSize(getFontDir()),
       cacheSize: await calculatePathSize(
-        await getAnxCacheDir(),
+        await getSjCacheDir(),
         recursive: true,
       ),
       logSize: await calsulateFileSize(await getLogFile()),
@@ -30,7 +30,7 @@ class StorageInfo extends _$StorageInfo {
 
   Future<bool> clearCache() async {
     try {
-      final cacheDir = await getAnxCacheDir();
+      final cacheDir = await getSjCacheDir();
       if (!cacheDir.existsSync()) {
         return true;
       }
@@ -50,7 +50,7 @@ class StorageInfo extends _$StorageInfo {
 
       return true;
     } catch (e) {
-      AnxLog.severe('StorageInfo clearCache error: $e');
+      SjLog.severe('StorageInfo clearCache error: $e');
       return false;
     }
   }

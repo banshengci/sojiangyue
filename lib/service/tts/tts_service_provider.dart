@@ -1,6 +1,6 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/service/config/service_provider.dart';
 import 'package:songjiang_reader/service/tts/models/tts_voice.dart';
 import 'package:flutter/widgets.dart';
@@ -53,12 +53,12 @@ abstract class TtsServiceProvider extends ServiceProvider<dynamic> {
 
   /// Get the currently selected voice for this service.
   String getSelectedVoice() {
-    return Prefs().getTtsVoiceModel(serviceId);
+    return TtsPrefs.getVoiceModel(serviceId);
   }
 
   /// Persist the selected voice for this service.
   void setSelectedVoice(String voice) {
-    Prefs().setTtsVoiceModel(serviceId, voice);
+    TtsPrefs.setVoiceModel(serviceId, voice);
   }
 
   /// Resolve the voice to use, optionally overriding the saved selection.

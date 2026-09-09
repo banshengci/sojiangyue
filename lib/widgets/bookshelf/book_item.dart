@@ -1,4 +1,5 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/sync_prefs.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/enums/book_sync_status.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/providers/sync_status.dart';
@@ -66,7 +67,7 @@ class BookItem extends ConsumerWidget {
               child: Container(
                 decoration: BoxDecoration(
                   boxShadow: [
-                    if (!Prefs().eInkMode)
+                    if (!ThemePrefs.eInkMode)
                       BoxShadow(
                         color: Colors.grey.withAlpha(100),
                         spreadRadius: 5,
@@ -104,7 +105,7 @@ class BookItem extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    if (Prefs().webdavStatus)
+                    if (SyncPrefs.webdavStatus)
                       SizedBox(
                         height: 20,
                         width: 20,

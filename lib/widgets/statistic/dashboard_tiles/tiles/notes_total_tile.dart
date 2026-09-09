@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/providers/statictics_summary_value.dart';
+import 'package:songjiang_reader/providers/statistics_summary_value.dart';
 import 'package:songjiang_reader/widgets/common/async_skeleton_wrapper.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_base.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_metadata.dart';
@@ -26,7 +26,7 @@ class NotesTotalTile extends StatisticsDashboardTileBase {
   @override
   Widget buildContent(BuildContext context, WidgetRef ref) {
     final asyncValue =
-        ref.watch(StaticticsSummaryValueProvider(StatisticType.totalNotes));
+        ref.watch(StatisticsSummaryValueProvider(StatisticType.totalNotes));
 
     return AsyncSkeletonWrapper<int>(
       asyncValue: asyncValue,

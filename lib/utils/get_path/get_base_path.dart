@@ -1,5 +1,5 @@
-import 'dart:io';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'dart:io';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/platform_utils.dart';
 
@@ -20,44 +20,44 @@ Future<bool> _isPathAccessible(String path) async {
     await testFile.delete();
     return true;
   } catch (e) {
-    AnxLog.warning('Path not accessible: $path, error: $e');
+    SjLog.warning('Path not accessible: $path, error: $e');
     return false;
   }
 }
 
-Future<String> getAnxDocumentsPath() async {
+Future<String> getSjDocumentsPath() async {
   // Windows only: Check for custom storage path first
-  if (AnxPlatform.isWindows) {
-    final customPath = Prefs().customStoragePath;
+  if (SjPlatform.isWindows) {
+    final customPath = AppMiscPrefs.customStoragePath;
     if (customPath != null) {
       // Verify the path is still accessible (permission may have been revoked)
       if (await _isPathAccessible(customPath)) {
         return customPath;
       } else {
         // Permission lost, clear the custom path
-        AnxLog.warning(
+        SjLog.warning(
             'Custom storage path no longer accessible, resetting to default');
-        Prefs().customStoragePath = null;
+        AppMiscPrefs.customStoragePath = null;
       }
     }
   }
 
   final directory = await getApplicationDocumentsDirectory();
-  switch (AnxPlatform.type) {
-    case AnxPlatformEnum.android:
-    case AnxPlatformEnum.ohos:
+  switch (SjPlatform.type) {
+    case SjPlatformEnum.android:
+    case SjPlatformEnum.ohos:
       return directory.path;
-    case AnxPlatformEnum.windows:
+    case SjPlatformEnum.windows:
       return (await getApplicationSupportDirectory()).path;
-    case AnxPlatformEnum.macos:
+    case SjPlatformEnum.macos:
       return (await getApplicationSupportDirectory()).path;
-    case AnxPlatformEnum.ios:
+    case SjPlatformEnum.ios:
       return (await getApplicationSupportDirectory()).path;
   }
 }
 
-Future<Directory> getAnxDocumentDir() async {
-  return Directory(await getAnxDocumentsPath());
+Future<Directory> getSjDocumentDir() async {
+  return Directory(await getSjDocumentsPath());
 }
 
 /// 初始化文档根目录与子目录。
@@ -66,7 +66,7 @@ Future<Directory> getAnxDocumentDir() async {
 /// 调用方无法等待其完成，随后立刻调用 [getBasePath] 会拿到空的
 /// documentPath，在安卓上表现为导入/保存书籍失败。
 Future<void> initBasePath() async {
-  Directory appDocDir = await getAnxDocumentDir();
+  Directory appDocDir = await getSjDocumentDir();
   documentPath = appDocDir.path;
   debugPrint('documentPath: $documentPath');
   final fileDir = getFileDir();

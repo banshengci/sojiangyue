@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,7 +10,7 @@ import 'package:songjiang_reader/service/book_player/book_player_server.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/webView/gererate_url.dart';
 import 'package:songjiang_reader/utils/webView/webview_console_message.dart';
-import 'package:songjiang_reader/utils/webView/anx_headless_webview.dart';
+import 'package:songjiang_reader/utils/webView/sj_headless_webview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
@@ -36,7 +36,7 @@ class BookContentSearchRepository {
     }
 
     final book = await _resolveBook(input.bookId);
-    AnxLog.info(
+    SjLog.info(
         'BookContentSearchRepository: Starting search for book=${book.id}, keyword="$keyword"');
 
     final session = await _getOrCreateSession(book);
@@ -66,7 +66,7 @@ class BookContentSearchRepository {
         'completed': response.completed,
       };
     } on Object catch (error, stackTrace) {
-      AnxLog.severe(
+      SjLog.severe(
           'BookContentSearchRepository: Search failed for book=${book.id}, keyword="$keyword": $error\n$stackTrace');
       rethrow;
     } finally {
@@ -123,7 +123,7 @@ class _HeadlessSearchSession {
   final Book book;
   final VoidCallback idleCallback;
 
-  AnxHeadlessWebView? _webView;
+  SjHeadlessWebView? _webView;
   InAppWebViewController? _controller;
   final _AsyncLock _lock = _AsyncLock();
   Completer<void>? _readyCompleter;
@@ -153,7 +153,7 @@ class _HeadlessSearchSession {
     final loadCompleter = Completer<void>();
     _readyCompleter = Completer<void>();
 
-    final headless = AnxHeadlessWebView(
+    final headless = SjHeadlessWebView(
       webViewEnvironment: webViewEnvironment,
       initialUrlRequest: URLRequest(url: WebUri(url)),
       initialSettings: InAppWebViewSettings(
@@ -323,7 +323,7 @@ class _HeadlessSearchSession {
       try {
         await webView.dispose();
       } catch (error, stackTrace) {
-        AnxLog.warning(
+        SjLog.warning(
             'HeadlessSearchSession(${book.id}): Failed to dispose webview: $error\n$stackTrace');
       }
     }

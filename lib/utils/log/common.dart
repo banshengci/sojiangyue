@@ -1,13 +1,13 @@
-import 'dart:io';
+﻿import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/utils/log/string_to_level.dart';
 import 'package:songjiang_reader/utils/get_path/log_file.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
-class AnxLog {
+class SjLog {
   static final log = Logger('SongJiang');
   static late File? logFile;
 
@@ -15,7 +15,7 @@ class AnxLog {
   DateTime time;
   String message;
 
-  AnxLog(this.level, this.time, this.message);
+  SjLog(this.level, this.time, this.message);
 
   get color => level == Level.SEVERE
       ? Colors.red
@@ -23,15 +23,15 @@ class AnxLog {
           ? Colors.orange
           : Colors.grey;
 
-  static AnxLog parse(String log) {
+  static SjLog parse(String log) {
     try {
       final logParts = log.split('^*^');
       final level = stringToLevel(logParts[0]);
       final time = DateTime.parse(logParts[1].trim());
       final message = logParts[2];
-      return AnxLog(level, time, message);
+      return SjLog(level, time, message);
     } catch (e) {
-      return AnxLog(Level.SEVERE, DateTime.now(), 'Parse log error: $e');
+      return SjLog(Level.SEVERE, DateTime.now(), 'Parse log error: $e');
     }
   }
 
@@ -63,7 +63,7 @@ class AnxLog {
           '${'${record.level.name}^*^ ${record.time}^*^ [${record.message}]$error,${record.stackTrace}'.replaceAll('\n', ' ')}\n',
           mode: FileMode.append);
     });
-    if (Prefs().clearLogWhenStart) {
+    if (DeveloperPrefs.clearLogWhenStart) {
       clear();
     }
     info('Log file: ${logFile!.path}');

@@ -1,6 +1,6 @@
-import 'dart:async';
+﻿import 'dart:async';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/iap_prefs.dart';
 import 'package:songjiang_reader/models/iap_state.dart';
 import 'package:songjiang_reader/service/iap/iap_service.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -23,7 +23,7 @@ class Iap extends _$Iap {
     _subscription ??= _iapService.purchaseUpdates.listen(
       _handlePurchaseUpdates,
       onError: (Object error, StackTrace stack) {
-        AnxLog.severe('IAP: purchase stream error: $error', stack);
+        SjLog.severe('IAP: purchase stream error: $error', stack);
         _updateState((current) => current.copyWith(
               purchaseFlowStatus: IapPurchaseFlowStatus.error,
               errorMessage: error.toString(),
@@ -35,11 +35,11 @@ class Iap extends _$Iap {
     final available = await _iapService.isAvailable();
     final snapshot = await _iapService.loadSnapshot();
 
-    final cachedPurchased = Prefs().iapPurchaseStatus;
-    final lastCheck = Prefs().iapLastCheckTime;
+    final cachedPurchased = IapPrefs.purchased;
+    final lastCheck = IapPrefs.lastCheckTime;
     final cacheFresh = _isCacheFresh(lastCheck);
 
-    AnxLog.info(
+    SjLog.info(
       'IAP: initialized. available=$available, '
       'snapshot.hasPurchase=${snapshot.hasPurchase}, '
       'cachedPurchased=$cachedPurchased, '
@@ -134,7 +134,7 @@ class Iap extends _$Iap {
         ),
       );
     } catch (e, stack) {
-      AnxLog.severe('IAP: loadProducts error: $e', stack);
+      SjLog.severe('IAP: loadProducts error: $e', stack);
       _updateState(
         (c) => c.copyWith(
           errorMessage: 'Error loading product information: $e',
@@ -172,7 +172,7 @@ class Iap extends _$Iap {
     try {
       await _iapService.buy(products.first);
     } catch (e, stack) {
-      AnxLog.severe('IAP: buy error: $e', stack);
+      SjLog.severe('IAP: buy error: $e', stack);
       _updateState((c) => c.copyWith(
             isPurchasing: false,
             purchaseFlowStatus: IapPurchaseFlowStatus.error,
@@ -206,7 +206,7 @@ class Iap extends _$Iap {
           afterState.isRestoring &&
           afterState.purchaseFlowStatus == IapPurchaseFlowStatus.idle) {
         // No purchase update received after restore - no purchases found
-        AnxLog.warning('IAP: Restore completed but no purchases found');
+        SjLog.warning('IAP: Restore completed but no purchases found');
         _updateState(
           (c) => c.copyWith(
             isRestoring: false,
@@ -217,7 +217,7 @@ class Iap extends _$Iap {
         );
       }
     } catch (e, stack) {
-      AnxLog.severe('IAP: restore error: $e', stack);
+      SjLog.severe('IAP: restore error: $e', stack);
       _updateState(
         (c) => c.copyWith(
           isRestoring: false,
@@ -248,7 +248,7 @@ class Iap extends _$Iap {
     try {
       await _refreshEntitlement(policy: policy);
     } catch (e, stack) {
-      AnxLog.severe('IAP: refresh error: $e', stack);
+      SjLog.severe('IAP: refresh error: $e', stack);
       _updateState(
         (c) => c.copyWith(
           isRefreshing: false,
@@ -261,13 +261,13 @@ class Iap extends _$Iap {
   }
 
   bool cachedFeatureAvailable() {
-    if (Prefs().iapPurchaseStatus) {
+    if (IapPrefs.purchased) {
       return true;
     }
 
-    final lastCheck = Prefs().iapLastCheckTime;
+    final lastCheck = IapPrefs.lastCheckTime;
     final trialStart =
-        lastCheck.year == 1970 ? DateTime.now() : Prefs().iapLastCheckTime;
+        lastCheck.year == 1970 ? DateTime.now() : IapPrefs.lastCheckTime;
     final trialLeft = _trialDaysLeft(trialStart);
     return trialLeft > 0;
   }
@@ -276,7 +276,7 @@ class Iap extends _$Iap {
     required bool cachedPurchased,
     required bool cacheFresh,
   }) async {
-    AnxLog.info(
+    SjLog.info(
       'IAP: priming refresh. cachedPurchased=$cachedPurchased, cacheFresh=$cacheFresh',
     );
 
@@ -305,9 +305,9 @@ class Iap extends _$Iap {
     final now = DateTime.now();
 
     var purchased = current.isPurchased;
-    final cachedPurchased = Prefs().iapPurchaseStatus;
+    final cachedPurchased = IapPrefs.purchased;
 
-    AnxLog.info(
+    SjLog.info(
       'IAP: refreshEntitlement: policy=$policy, '
       'snapshot.hasPurchase=${snapshot.hasPurchase}, '
       'isPurchaseStatusReliable=${snapshot.isPurchaseStatusReliable}, '
@@ -322,7 +322,7 @@ class Iap extends _$Iap {
     } else if (snapshot.receiptRefreshFailed && cachedPurchased) {
       // Receipt refresh failed but user has cached purchase - trust the cache
       // and attempt restore to verify. Don't clear their purchase status.
-      AnxLog.info(
+      SjLog.info(
           'IAP: Receipt refresh failed, trusting cached purchase status');
       purchased = true;
       // Don't update cache timestamp to trigger another check later
@@ -346,7 +346,7 @@ class Iap extends _$Iap {
         trialDaysLeft: trialDaysLeft,
         purchaseDate: snapshot.purchaseDate ?? c.purchaseDate,
         isOriginalUser: snapshot.isOriginalUser,
-        lastChecked: Prefs().iapLastCheckTime,
+        lastChecked: IapPrefs.lastCheckTime,
         isRefreshing: false,
       ),
     );
@@ -380,16 +380,16 @@ class Iap extends _$Iap {
     try {
       await _iapService.restorePurchases();
     } catch (e, stack) {
-      AnxLog.warning('IAP: silent restore error: $e', stack);
+      SjLog.warning('IAP: silent restore error: $e', stack);
     }
   }
 
   void _handlePurchaseUpdates(List<PurchaseDetails> purchaseDetailsList) async {
-    AnxLog.info(
+    SjLog.info(
       'IAP: Received ${purchaseDetailsList.length} purchase update(s)',
     );
     for (final purchaseDetails in purchaseDetailsList) {
-      AnxLog.info('IAP: Processing purchase update:'
+      SjLog.info('IAP: Processing purchase update:'
           'pendingCompletePurchase: ${purchaseDetails.pendingCompletePurchase},'
           'productID: ${purchaseDetails.productID},'
           'status: ${purchaseDetails.status.name},'
@@ -468,7 +468,7 @@ class Iap extends _$Iap {
       (c) => c.copyWith(
         status: status,
         purchaseDate: purchaseDate ?? c.purchaseDate,
-        lastChecked: Prefs().iapLastCheckTime,
+        lastChecked: IapPrefs.lastCheckTime,
         isPurchasing: false,
         isRestoring: false,
         isRefreshing: false,
@@ -479,8 +479,8 @@ class Iap extends _$Iap {
   }
 
   void _writePurchaseCache(bool purchased, DateTime timestamp) {
-    Prefs().iapPurchaseStatus = purchased;
-    Prefs().iapLastCheckTime = timestamp;
+    IapPrefs.purchased = purchased;
+    IapPrefs.lastCheckTime = timestamp;
   }
 
   bool _isCacheFresh(DateTime lastCheck) {

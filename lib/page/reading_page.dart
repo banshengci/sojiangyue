@@ -1,7 +1,9 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/bookshelf_prefs.dart';
+import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/dao/reading_time.dart';
 import 'package:songjiang_reader/dao/theme.dart';
 import 'package:songjiang_reader/enums/ai_panel_position.dart';
@@ -94,22 +96,22 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     _readerFocusNode = FocusNode(debugLabel: 'reading_page_focus');
 
     // Initialize AI panel sizes from persistent storage
-    _aiChatWidth = Prefs().aiPanelWidth;
-    _aiChatHeight = Prefs().aiPanelHeight;
+    _aiChatWidth = AiPrefs.aiPanelWidth;
+    _aiChatHeight = AiPrefs.aiPanelHeight;
 
     if (widget.book.isDeleted) {
       Navigator.pop(context);
-      AnxToast.show(L10n.of(context).bookDeleted);
+      SjToast.show(L10n.of(context).bookDeleted);
       return;
     }
-    if (Prefs().hideStatusBar) {
+    if (ReadingUiPrefs.hideStatusBar) {
       hideStatusBar();
     }
 
     WidgetsBinding.instance.addObserver(this);
     _readTimeWatch.start();
     _sessionStart = DateTime.now();
-    setAwakeTimer(Prefs().awakeTime);
+    setAwakeTimer(ReadingUiPrefs.awakeTime);
 
     _book = widget.book;
     heroTag = widget.heroTag ?? 'preventHeroWhenStart';
@@ -184,7 +186,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
   // }
 
   // void _handleVolumeKeyEvent(VolumeKey key) {
-  //   if (!Prefs().volumeKeyTurnPage || !_readerFocusNode.hasFocus) {
+  //   if (!ReadingUiPrefs.volumeKeyTurnPage || !_readerFocusNode.hasFocus) {
   //     return;
   //   }
 
@@ -227,7 +229,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     }
 
     // Handle Ctrl+[ and Ctrl+] for page turning when keyboard shortcut is enabled
-    if (Prefs().keyboardShortcutTurnPage) {
+    if (ReadingUiPrefs.keyboardShortcutTurnPage) {
       final isControlPressed = HardwareKeyboard.instance.isControlPressed;
       if (isControlPressed && logicalKey == LogicalKeyboardKey.bracketLeft) {
         epubPlayerKey.currentState?.prevPage();
@@ -249,7 +251,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
       }
     }
 
-    if (Prefs().volumeKeyTurnPage) {
+    if (ReadingUiPrefs.volumeKeyTurnPage) {
       if (event.physicalKey == PhysicalKeyboardKey.audioVolumeUp) {
         epubPlayerKey.currentState?.prevPage();
         return KeyEventResult.handled;
@@ -313,7 +315,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
   }
 
   void resetAwakeTimer() {
-    setAwakeTimer(Prefs().awakeTime);
+    setAwakeTimer(ReadingUiPrefs.awakeTime);
   }
 
   void showBottomBar() {
@@ -328,7 +330,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     setState(() {
       _currentPage = empty;
       bottomBarOffstage = true;
-      if (Prefs().hideStatusBar) {
+      if (ReadingUiPrefs.hideStatusBar) {
         hideStatusBar();
       }
       _requestReaderFocus();
@@ -426,8 +428,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
         _isResizingAiChat = false;
       });
       // Save the panel sizes to persistent storage
-      Prefs().aiPanelWidth = _aiChatWidth;
-      Prefs().aiPanelHeight = _aiChatHeight;
+      AiPrefs.aiPanelWidth = _aiChatWidth;
+      AiPrefs.aiPanelHeight = _aiChatHeight;
     }
   }
 
@@ -449,7 +451,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
   }
 
   Future<void> onLoadEnd() async {
-    if (Prefs().autoSummaryPreviousContent) {
+    if (ReadingUiPrefs.autoSummaryPreviousContent) {
       final previousContent =
           await epubPlayerKey.currentState!.previousContent(2000);
       final prompt = generatePromptSummaryThePreviousContent(previousContent);
@@ -472,8 +474,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
       IconButton(
         onPressed: () {
           setState(() {
-            Prefs().aiPanelPosition =
-                Prefs().aiPanelPosition == AiPanelPositionEnum.right
+            AiPrefs.aiPanelPosition =
+                AiPrefs.aiPanelPosition == AiPanelPositionEnum.right
                     ? AiPanelPositionEnum.bottom
                     : AiPanelPositionEnum.right;
             // Rebuild the _aiChat widget to update the button
@@ -481,11 +483,11 @@ class ReadingPageState extends ConsumerState<ReadingPage>
           });
         },
         icon: Icon(
-          Prefs().aiPanelPosition == AiPanelPositionEnum.right
+          AiPrefs.aiPanelPosition == AiPanelPositionEnum.right
               ? Icons.arrow_downward
               : Icons.arrow_forward,
         ),
-        tooltip: Prefs().aiPanelPosition == AiPanelPositionEnum.right
+        tooltip: AiPrefs.aiPanelPosition == AiPanelPositionEnum.right
             ? L10n.of(context).aiShowAtBottom
             : L10n.of(context).aiShowAtRight,
       ),
@@ -540,8 +542,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
         prompt: generatePromptMindmap().buildString(),
       ),
       // User custom prompts (enabled only)
-      ...Prefs()
-          .userPrompts
+      ...AiPrefs.userPrompts
           .where((p) => p.enabled)
           .map((userPrompt) => AiQuickPromptChip(
                 icon: Icons.person_outline,
@@ -558,7 +559,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     List<AiQuickPromptChip> quickPrompts = _getAiQuickPromptChips();
 
     // Determine display mode
-    final displayMode = Prefs().aiChatDisplayMode;
+    final displayMode = AiPrefs.aiChatDisplayMode;
     final screenWidth = MediaQuery.of(navigatorKey.currentContext!).size.width;
 
     bool shouldShowAsPopup = false;
@@ -640,7 +641,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
       icon: const Icon(Icons.auto_awesome),
       onPressed: () async {
         // Determine if should show as split based on display mode
-        final displayMode = Prefs().aiChatDisplayMode;
+        final displayMode = AiPrefs.aiChatDisplayMode;
         final screenWidth = MediaQuery.of(context).size.width;
 
         bool shouldShowAsSplit = false;
@@ -711,10 +712,10 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                             await Clipboard.setData(
                                 ClipboardData(text: content!));
                           }
-                          AnxToast.show(L10n.of(context)
+                          SjToast.show(L10n.of(context)
                               .readingPageCopiedCharacters(len));
                         } catch (e) {
-                          AnxToast.show(
+                          SjToast.show(
                               L10n.of(context).readingPageErrorCopyingContent);
                         }
                       },
@@ -833,7 +834,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
       resizeToAvoidBottomInset: false,
       body: Hero(
         tag: widget.heroTag ??
-            (Prefs().openBookAnimation ? _book.coverFullPath : heroTag),
+            (BookshelfPrefs.openBookAnimation ? _book.coverFullPath : heroTag),
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: SizedBox(
@@ -862,7 +863,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
               body: Stack(
                 children: [
                   AxisFlex(
-                    axis: Prefs().aiPanelPosition == AiPanelPositionEnum.right
+                    axis: AiPrefs.aiPanelPosition == AiPanelPositionEnum.right
                         ? Axis.horizontal
                         : Axis.vertical,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -870,7 +871,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                       Expanded(
                         child: MouseRegion(
                           onHover: (PointerHoverEvent detail) {
-                            if (!Prefs().showMenuOnHover) return;
+                            if (!ReadingUiPrefs.showMenuOnHover) return;
                             var y = detail.position.dy;
                             if (y < 30 ||
                                 y > MediaQuery.of(context).size.height - 30) {
@@ -909,13 +910,13 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                       if (_aiChat != null)
                         GestureDetector(
                           behavior: HitTestBehavior.translucent,
-                          onHorizontalDragStart: Prefs().aiPanelPosition ==
+                          onHorizontalDragStart: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.right
                               ? (details) {
                                   _beginAiChatResize(details.globalPosition.dx);
                                 }
                               : null,
-                          onHorizontalDragUpdate: Prefs().aiPanelPosition ==
+                          onHorizontalDragUpdate: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.right
                               ? (details) {
                                   _applyAiChatResizeDelta(
@@ -924,26 +925,26 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                                   );
                                 }
                               : null,
-                          onHorizontalDragEnd: Prefs().aiPanelPosition ==
+                          onHorizontalDragEnd: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.right
                               ? (_) {
                                   _endAiChatResize();
                                 }
                               : null,
-                          onHorizontalDragCancel: Prefs().aiPanelPosition ==
+                          onHorizontalDragCancel: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.right
                               ? () {
                                   _endAiChatResize();
                                 }
                               : null,
-                          onVerticalDragStart: Prefs().aiPanelPosition ==
+                          onVerticalDragStart: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.bottom
                               ? (details) {
                                   _beginAiChatResizeVertical(
                                       details.globalPosition.dy);
                                 }
                               : null,
-                          onVerticalDragUpdate: Prefs().aiPanelPosition ==
+                          onVerticalDragUpdate: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.bottom
                               ? (details) {
                                   _applyAiChatResizeDeltaVertical(
@@ -952,24 +953,24 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                                   );
                                 }
                               : null,
-                          onVerticalDragEnd: Prefs().aiPanelPosition ==
+                          onVerticalDragEnd: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.bottom
                               ? (_) {
                                   _endAiChatResize();
                                 }
                               : null,
-                          onVerticalDragCancel: Prefs().aiPanelPosition ==
+                          onVerticalDragCancel: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.bottom
                               ? () {
                                   _endAiChatResize();
                                 }
                               : null,
                           child: MouseRegion(
-                            cursor: Prefs().aiPanelPosition ==
+                            cursor: AiPrefs.aiPanelPosition ==
                                     AiPanelPositionEnum.right
                                 ? SystemMouseCursors.resizeColumn
                                 : SystemMouseCursors.resizeRow,
-                            child: Prefs().aiPanelPosition ==
+                            child: AiPrefs.aiPanelPosition ==
                                     AiPanelPositionEnum.right
                                 ? VerticalDivider(
                                     width: 2,
@@ -984,11 +985,11 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                       if (_aiChat != null)
                         SizedBox(
                           key: const ValueKey('ai-chat-panel'),
-                          width: Prefs().aiPanelPosition ==
+                          width: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.right
                               ? _aiChatWidth
                               : null,
-                          height: Prefs().aiPanelPosition ==
+                          height: AiPrefs.aiPanelPosition ==
                                   AiPanelPositionEnum.bottom
                               ? _aiChatHeight
                               : null,

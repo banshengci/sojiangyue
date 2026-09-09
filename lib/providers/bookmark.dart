@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/dao/database.dart';
+﻿import 'package:songjiang_reader/dao/database.dart';
 import 'package:songjiang_reader/models/bookmark.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -88,7 +88,7 @@ class Bookmark extends _$Bookmark {
       final key = epubPlayerKey.currentState;
       key?.removeAnnotation(cfi!);
     } catch (e) {
-      AnxLog.info('Bookmark already removed: $e');
+      SjLog.info('Bookmark already removed: $e');
     }
   }
 }

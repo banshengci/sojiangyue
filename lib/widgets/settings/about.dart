@@ -1,7 +1,7 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:songjiang_reader/config/remote_config.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/page/settings_page/developer/developer_options_page.dart';
@@ -64,15 +64,15 @@ void _handleDeveloperUnlockTap(BuildContext context) {
   _developerUnlockResetTimer =
       Timer(const Duration(seconds: 2), () => _developerUnlockTapCount = 0);
 
-  final alreadyEnabled = Prefs().developerOptionsEnabled;
+  final alreadyEnabled = DeveloperPrefs.developerOptionsEnabled;
   if (_developerUnlockTapCount < _developerUnlockTapThreshold) {
     return;
   }
 
   _developerUnlockTapCount = 0;
   if (!alreadyEnabled) {
-    Prefs().developerOptionsEnabled = true;
-    AnxToast.show('Developer options enabled');
+    DeveloperPrefs.developerOptionsEnabled = true;
+    SjToast.show('Developer options enabled');
   }
 
   final navigator = Navigator.of(context, rootNavigator: true);
@@ -235,7 +235,7 @@ Future<void> openAboutDialog() async {
                   subtitle: Text(version + (kDebugMode ? ' (debug)' : '')),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: version));
-                    AnxToast.show(L10n.of(context).notesPageCopied);
+                    SjToast.show(L10n.of(context).notesPageCopied);
                     _handleDeveloperUnlockTap(context);
                   },
                 ),

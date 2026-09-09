@@ -1,4 +1,5 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/translate_prefs.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/enums/lang_list.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/translate/index.dart';
@@ -24,9 +25,9 @@ class _TranslateSettingState extends State<TranslateSetting> {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       trailing: Switch(
-        value: Prefs().autoTranslateSelection,
+        value: ReadingUiPrefs.autoTranslateSelection,
         onChanged: (bool value) => setState(() {
-          Prefs().autoTranslateSelection = value;
+          ReadingUiPrefs.autoTranslateSelection = value;
         }),
       ),
       title: Text(L10n.of(context).readingPageAutoTranslateSelection),
@@ -158,7 +159,7 @@ class TranslationConfig extends StatelessWidget {
                 });
               },
               child: Text(
-                Prefs().translateService.getLabel(context),
+                TranslatePrefs.service.getLabel(context),
                 style: currentServiceTextStyle,
               ),
             ),
@@ -180,7 +181,7 @@ class TranslationConfig extends StatelessWidget {
                     setState();
                   });
                 },
-                child: Text(Prefs().translateFrom.getNative(context)),
+                child: Text(TranslatePrefs.from.getNative(context)),
               ),
             ),
             const Icon(Icons.arrow_forward_ios),
@@ -196,7 +197,7 @@ class TranslationConfig extends StatelessWidget {
                   });
                 },
                 child: Text(
-                  Prefs().translateTo.getNative(context),
+                  TranslatePrefs.to.getNative(context),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -235,7 +236,7 @@ class FullTextTranslationConfig extends StatelessWidget {
                 });
               },
               child: Text(
-                Prefs().fullTextTranslateService.getLabel(context),
+                TranslatePrefs.fullTextService.getLabel(context),
                 style: currentServiceTextStyle,
               ),
             ),
@@ -257,7 +258,7 @@ class FullTextTranslationConfig extends StatelessWidget {
                     setState();
                   });
                 },
-                child: Text(Prefs().fullTextTranslateFrom.getNative(context)),
+                child: Text(TranslatePrefs.fullTextFrom.getNative(context)),
               ),
             ),
             const Icon(Icons.arrow_forward_ios),
@@ -273,7 +274,7 @@ class FullTextTranslationConfig extends StatelessWidget {
                   });
                 },
                 child: Text(
-                  Prefs().fullTextTranslateTo.getNative(context),
+                  TranslatePrefs.fullTextTo.getNative(context),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -297,7 +298,7 @@ class TranslateServicePicker extends StatelessWidget {
         return ListTile(
           title: Text(service.getLabel(context)),
           onTap: () {
-            Prefs().translateService = service;
+            TranslatePrefs.service = service;
             Navigator.pop(context);
           },
         );
@@ -319,7 +320,7 @@ class FullTextTranslateServicePicker extends StatelessWidget {
       itemBuilder: (context, index) => ListTile(
         title: Text(services[index].getLabel(context)),
         onTap: () {
-          Prefs().fullTextTranslateService = services[index];
+          TranslatePrefs.fullTextService = services[index];
           Navigator.pop(context);
         },
       ),
@@ -345,15 +346,15 @@ class TranslateLangPicker extends StatelessWidget {
         onTap: () {
           if (isWebView) {
             if (isFrom) {
-              Prefs().fullTextTranslateFrom = LangListEnum.values[index];
+              TranslatePrefs.fullTextFrom = LangListEnum.values[index];
             } else {
-              Prefs().fullTextTranslateTo = LangListEnum.values[index];
+              TranslatePrefs.fullTextTo = LangListEnum.values[index];
             }
           } else {
             if (isFrom) {
-              Prefs().translateFrom = LangListEnum.values[index];
+              TranslatePrefs.from = LangListEnum.values[index];
             } else {
-              Prefs().translateTo = LangListEnum.values[index];
+              TranslatePrefs.to = LangListEnum.values[index];
             }
           }
           Navigator.pop(context);
@@ -406,9 +407,9 @@ class _TranslateSettingItemState extends State<TranslateSettingItem> {
   void _saveConfig() {
     try {
       saveTranslateServiceConfig(widget.service, _currentConfig);
-      AnxToast.show(L10n.of(context).commonSaved);
+      SjToast.show(L10n.of(context).commonSaved);
     } catch (e) {
-      AnxToast.show(L10n.of(context).commonFailed);
+      SjToast.show(L10n.of(context).commonFailed);
     }
   }
 
@@ -474,14 +475,12 @@ class _TranslateSettingItemState extends State<TranslateSettingItem> {
                                               MainAxisAlignment.center,
                                           children: [
                                             languageText(
-                                              Prefs()
-                                                  .translateFrom
+                                              TranslatePrefs.from
                                                   .getNative(context),
                                             ),
                                             const Icon(Icons.arrow_forward_ios),
                                             languageText(
-                                              Prefs()
-                                                  .translateTo
+                                              TranslatePrefs.to
                                                   .getNative(context),
                                             ),
                                           ],

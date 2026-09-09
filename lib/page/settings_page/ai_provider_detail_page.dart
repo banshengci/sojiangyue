@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/enums/ai_reasoning_effort.dart';
+﻿import 'package:songjiang_reader/enums/ai_reasoning_effort.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/ai_provider.dart';
 import 'package:songjiang_reader/providers/ai_providers.dart';
@@ -6,8 +6,8 @@ import 'package:songjiang_reader/service/ai/ai_model_service.dart';
 import 'package:songjiang_reader/service/ai/index.dart';
 import 'package:songjiang_reader/service/ai/prompt_generate.dart';
 import 'package:songjiang_reader/widgets/ai/ai_stream.dart';
-import 'package:songjiang_reader/widgets/common/anx_button.dart';
-import 'package:songjiang_reader/widgets/common/anx_segmented_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -110,7 +110,7 @@ class _AiProviderDetailPageState extends ConsumerState<AiProviderDetailPage> {
             Text(l10n.settingsAiProviderProtocol,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            AnxSegmentedButton<AiProtocol>(
+            SjSegmentedButton<AiProtocol>(
               selected: {_selectedProtocol},
               segments: [
                 SegmentButtonItem(
@@ -162,7 +162,7 @@ class _AiProviderDetailPageState extends ConsumerState<AiProviderDetailPage> {
                 ),
                 if (_selectedProtocol == AiProtocol.openai) ...[
                   const SizedBox(width: 8),
-                  AnxButton(
+                  SjButton(
                     key: _fetchButtonKey,
                     onPressed: _isFetchingModels ? null : _fetchModels,
                     isLoading: _isFetchingModels,
@@ -217,7 +217,7 @@ class _AiProviderDetailPageState extends ConsumerState<AiProviderDetailPage> {
                             ),
                         textAlign: TextAlign.center,
                       ),
-                      AnxButton.icon(
+                      SjButton.icon(
                         onPressed: _addApiKey,
                         icon: const Icon(Icons.add),
                         label: Text(l10n.settingsAiProviderAddKey),
@@ -239,7 +239,7 @@ class _AiProviderDetailPageState extends ConsumerState<AiProviderDetailPage> {
             if (provider != null)
               SizedBox(
                 width: double.infinity,
-                child: AnxButton.outlined(
+                child: SjButton.outlined(
                   onPressed: _testConnection,
                   child: Text(l10n.settingsAiProviderTestConnection),
                 ),

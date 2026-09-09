@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/translate_prefs.dart';
 import 'package:songjiang_reader/enums/lang_list.dart';
 import 'package:songjiang_reader/service/translate/index.dart';
 import 'package:songjiang_reader/widgets/common/axis_flex.dart';
@@ -83,9 +83,9 @@ class _TranslationMenuState extends State<TranslationMenu> {
               child: MenuItemButton(
                 onPressed: () {
                   if (isFrom) {
-                    Prefs().translateFrom = lang;
+                    TranslatePrefs.from = lang;
                   } else {
-                    Prefs().translateTo = lang;
+                    TranslatePrefs.to = lang;
                   }
                 },
                 child: Text(lang.getNative(context)),
@@ -103,8 +103,8 @@ class _TranslationMenuState extends State<TranslationMenu> {
             },
             child: Text(
               isFrom
-                  ? Prefs().translateFrom.getNative(context)
-                  : Prefs().translateTo.getNative(context),
+                  ? TranslatePrefs.from.getNative(context)
+                  : TranslatePrefs.to.getNative(context),
             ),
           );
         },

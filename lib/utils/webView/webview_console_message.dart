@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
+﻿import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/utils/platform_utils.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:flutter/material.dart';
@@ -42,7 +42,7 @@ void handleWebviewVersion(String message) {
     int appleWebkitVersion =
         int.tryParse(message.split('AppleWebKit/')[1].split('.')[0]) ?? -1;
 
-    bool isApple = AnxPlatform.isIOS || AnxPlatform.isMacOS;
+    bool isApple = SjPlatform.isIOS || SjPlatform.isMacOS;
 
     if ((!isApple && (webviewVersion < minWebviewVersion)) ||
         (isApple && (appleWebkitVersion < 605))) {
@@ -52,7 +52,7 @@ void handleWebviewVersion(String message) {
     if (e.toString().contains("Invalid value: Only valid value is 0: 1")) {
       return;
     }
-    AnxLog.severe('Webview: $e');
+    SjLog.severe('Webview: $e');
   }
 }
 
@@ -69,13 +69,13 @@ void webviewConsoleMessage(
   }
 
   if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG) {
-    AnxLog.info('Webview: ${consoleMessage.message}');
-    if (consoleMessage.message.contains("AnxUA")) {
+    SjLog.info('Webview: ${consoleMessage.message}');
+    if (consoleMessage.message.contains("SjUA")) {
       handleWebviewVersion(consoleMessage.message);
     }
   } else if (consoleMessage.messageLevel == ConsoleMessageLevel.WARNING) {
-    AnxLog.warning('Webview: ${consoleMessage.message}');
+    SjLog.warning('Webview: ${consoleMessage.message}');
   } else if (consoleMessage.messageLevel == ConsoleMessageLevel.ERROR) {
-    AnxLog.severe('Webview: ${consoleMessage.message}');
+    SjLog.severe('Webview: ${consoleMessage.message}');
   }
 }

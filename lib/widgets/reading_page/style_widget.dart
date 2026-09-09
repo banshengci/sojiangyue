@@ -1,6 +1,7 @@
-import 'dart:io';
+﻿import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/book_style.dart';
 import 'package:songjiang_reader/models/font_model.dart';
@@ -57,8 +58,8 @@ class StyleWidget extends StatefulWidget {
 }
 
 class StyleWidgetState extends State<StyleWidget> {
-  BookStyle bookStyle = Prefs().bookStyle;
-  int? currentThemeId = Prefs().readTheme.id;
+  BookStyle bookStyle = ReadingStylePrefs.bookStyle;
+  int? currentThemeId = AppMiscPrefs.readTheme.id;
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +143,7 @@ class StyleWidgetState extends State<StyleWidget> {
 
   Widget fontAndPageTurn() {
     FontModel? font = fonts().firstWhere(
-        (element) => element.path == Prefs().font.path,
+        (element) => element.path == AppMiscPrefs.font.path,
         orElse: () => FontModel(
             label: L10n.of(context).followBook, name: 'book', path: 'book'));
 
@@ -159,7 +160,7 @@ class StyleWidgetState extends State<StyleWidget> {
       Expanded(
         child: DropdownMenu<PageTurn>(
           label: Text(L10n.of(context).readingPagePageTurningMethod),
-          initialSelection: Prefs().pageTurnStyle,
+          initialSelection: ReadingStylePrefs.pageTurnStyle,
           expandedInsets: const EdgeInsets.only(right: 5),
           inputDecorationTheme: InputDecorationTheme(
             border: OutlineInputBorder(
@@ -168,7 +169,7 @@ class StyleWidgetState extends State<StyleWidget> {
           ),
           onSelected: (PageTurn? value) {
             if (value != null) {
-              Prefs().pageTurnStyle = value;
+              ReadingStylePrefs.pageTurnStyle = value;
               epubPlayerKey.currentState!.changePageTurnStyle(value);
             }
           },
@@ -206,7 +207,7 @@ class StyleWidgetState extends State<StyleWidget> {
               return;
             } else {
               epubPlayerKey.currentState!.changeFont(font);
-              Prefs().font = font;
+              AppMiscPrefs.font = font;
             }
           },
           dropdownMenuEntries: fonts()
@@ -234,7 +235,7 @@ class StyleWidgetState extends State<StyleWidget> {
   }
 
   Row lineHeightAndParagraphSpacingSlider() {
-    bool enabled = !Prefs().useBookStyles;
+    bool enabled = !ReadingStylePrefs.useBookStyles;
     return Row(
       children: [
         IconAndText(
@@ -251,7 +252,7 @@ class StyleWidgetState extends State<StyleWidget> {
                         bookStyle.lineHeight = value;
                         widget.epubPlayerKey.currentState!
                             .changeStyle(bookStyle);
-                        Prefs().saveBookStyleToPrefs(bookStyle);
+                        ReadingStylePrefs.saveBookStyle(bookStyle);
                       });
                     }
                   : null,
@@ -273,7 +274,7 @@ class StyleWidgetState extends State<StyleWidget> {
                     setState(() {
                       bookStyle.paragraphSpacing = value;
                       widget.epubPlayerKey.currentState!.changeStyle(bookStyle);
-                      Prefs().saveBookStyleToPrefs(bookStyle);
+                      ReadingStylePrefs.saveBookStyle(bookStyle);
                     });
                   }
                 : null,
@@ -288,7 +289,7 @@ class StyleWidgetState extends State<StyleWidget> {
   }
 
   Row fontSizeSlider() {
-    bool enabled = !Prefs().useBookStyles;
+    bool enabled = !ReadingStylePrefs.useBookStyles;
     return Row(
       children: [
         IconAndText(
@@ -303,7 +304,7 @@ class StyleWidgetState extends State<StyleWidget> {
                     setState(() {
                       bookStyle.fontSize = value;
                       widget.epubPlayerKey.currentState!.changeStyle(bookStyle);
-                      Prefs().saveBookStyleToPrefs(bookStyle);
+                      ReadingStylePrefs.saveBookStyle(bookStyle);
                     });
                   }
                 : null,
@@ -420,7 +421,7 @@ class StyleWidgetState extends State<StyleWidget> {
                     width: size,
                     child: InkWell(
                       onTap: () {
-                        Prefs().saveReadThemeToPrefs(theme);
+                        AppMiscPrefs.saveReadTheme(theme);
                         widget.epubPlayerKey.currentState!.changeTheme(theme);
                         setState(() {
                           currentThemeId = theme.id;

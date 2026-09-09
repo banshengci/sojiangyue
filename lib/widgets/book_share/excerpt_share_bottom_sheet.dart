@@ -1,7 +1,7 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/excerpt_share_prefs.dart';
 import 'package:songjiang_reader/enums/excerpt_share_template.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/font_model.dart';
@@ -49,33 +49,33 @@ class _ExcerptShareBottomSheetState
   // String? _backgroundImage;
 
   set _template(ExcerptShareTemplateEnum template) {
-    Prefs().excerptShareTemplate = template;
+    ExcerptSharePrefs.template = template;
   }
 
   set _font(FontModel font) {
-    Prefs().excerptShareFont = font;
+    ExcerptSharePrefs.font = font;
   }
 
-  ExcerptShareTemplateEnum get _template => Prefs().excerptShareTemplate;
+  ExcerptShareTemplateEnum get _template => ExcerptSharePrefs.template;
 
-  FontModel get _font => Prefs().excerptShareFont;
+  FontModel get _font => ExcerptSharePrefs.font;
 
   set _colorIndex(int index) {
-    Prefs().excerptShareColorIndex = index;
+    ExcerptSharePrefs.colorIndex = index;
   }
 
   set _bgimgIndex(int index) {
-    Prefs().excerptShareBgimgIndex = index;
+    ExcerptSharePrefs.bgimgIndex = index;
   }
 
   Color get _textColor =>
-      _colorSchemes[Prefs().excerptShareColorIndex]['text']!;
+      _colorSchemes[ExcerptSharePrefs.colorIndex]['text']!;
 
   Color get _backgroundColor =>
-      _colorSchemes[Prefs().excerptShareColorIndex]['background']!;
+      _colorSchemes[ExcerptSharePrefs.colorIndex]['background']!;
 
   String? get _backgroundImage =>
-      _backgroundImages[Prefs().excerptShareBgimgIndex];
+      _backgroundImages[ExcerptSharePrefs.bgimgIndex];
 
   // final List<String> _fonts = ['default', 'serif', 'sans-serif', 'monospace'];
 
@@ -111,8 +111,8 @@ class _ExcerptShareBottomSheetState
           await image.toByteData(format: ui.ImageByteFormat.png);
       return byteData?.buffer.asUint8List();
     } catch (e) {
-      AnxToast.show('Capture card error');
-      AnxLog.severe('Capture card error: $e');
+      SjToast.show('Capture card error');
+      SjLog.severe('Capture card error: $e');
       return null;
     }
   }
@@ -124,7 +124,7 @@ class _ExcerptShareBottomSheetState
       return;
     }
 
-    final tempDir = (await getAnxTempDir()).path;
+    final tempDir = (await getSjTempDir()).path;
     final file = File('$tempDir/anx_excerpt_share.png');
     await file.writeAsBytes(imageData);
 
@@ -383,7 +383,7 @@ class _ExcerptShareBottomSheetState
                 text: L10n.of(context).commonCopy,
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: widget.excerpt));
-                  AnxToast.show(L10n.of(context).notesPageCopied);
+                  SjToast.show(L10n.of(context).notesPageCopied);
                 },
               ),
             ],

@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart';
 import 'package:songjiang_reader/providers/total_reading_time.dart';
@@ -81,7 +81,7 @@ class _TotalTimeContent extends StatelessWidget {
           ],
         ),
         Text(
-          '${Prefs().beginDate?.toString().substring(0, 10) ?? ''} '
+          '${AppMiscPrefs.beginDate?.toString().substring(0, 10) ?? ''} '
           '${L10n.of(context).statisticToPresent}',
           style: Theme.of(context).textTheme.bodySmall,
         ),

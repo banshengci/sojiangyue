@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:html/parser.dart';
 import 'package:path/path.dart' as path;
@@ -97,7 +97,7 @@ Future<File> convertHtmlToEpub(File file, {Directory? tempDir}) async {
       .map((c) => c.copyWith(html: embedLocalImages(c.html, baseDir)))
       .toList();
 
-  AnxLog.info('Convert: HTML 解析得到 ${embedded.length} 个章节');
+  SjLog.info('Convert: HTML 解析得到 ${embedded.length} 个章节');
   return buildEpubFromHtml(
     title: title,
     author: author,

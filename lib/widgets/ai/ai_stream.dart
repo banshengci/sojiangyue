@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
+﻿import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/ai/index.dart';
 import 'package:songjiang_reader/service/ai/prompt_generate.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
@@ -113,7 +113,7 @@ class AiStreamState extends ConsumerState<AiStream> {
                     TextButton(
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: data));
-                        AnxToast.show(l10n.notesPageCopied);
+                        SjToast.show(l10n.notesPageCopied);
                       },
                       child: Text(l10n.commonCopy),
                     ),

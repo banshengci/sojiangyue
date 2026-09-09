@@ -1,9 +1,9 @@
-import 'package:songjiang_reader/enums/sync_direction.dart';
+﻿import 'package:songjiang_reader/enums/sync_direction.dart';
 import 'package:songjiang_reader/enums/sync_trigger.dart';
 import 'package:songjiang_reader/enums/sync_protocol.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/sync.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/service/sync/sync_connection_tester.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 Future<bool> testEnableWebdav() async {
-  final webdavInfo = Prefs().getSyncInfo(SyncProtocol.webdav);
+  final webdavInfo = SyncPrefs.getSyncInfo(SyncProtocol.webdav);
   if (webdavInfo['url'] != null &&
       webdavInfo['username'] != null &&
       webdavInfo['password'] != null) {
@@ -26,11 +26,11 @@ Future<bool> testEnableWebdav() async {
     if (result.isSuccess) {
       return true;
     } else {
-      AnxToast.show(
+      SjToast.show(
           L10n.of(navigatorKey.currentContext!).webdavConnectionFailed);
     }
   } else {
-    AnxToast.show(L10n.of(navigatorKey.currentContext!).webdavSetInfoFirst);
+    SjToast.show(L10n.of(navigatorKey.currentContext!).webdavSetInfoFirst);
   }
   return false;
 }

@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/sync.dart';
 import 'package:songjiang_reader/utils/webdav/test_webdav.dart';
@@ -10,16 +10,16 @@ AbstractSettingsTile webdavSwitch(
     BuildContext context, Function setState, WidgetRef ref) {
   return SettingsTile.switchTile(
     leading: const Icon(Icons.cached),
-    initialValue: Prefs().webdavStatus,
+    initialValue: SyncPrefs.webdavStatus,
     onToggle: (bool value) async {
       setState(() {
-        Prefs().saveWebdavStatus(value);
+        SyncPrefs.saveWebdavStatus(value);
       });
       if (value) {
         bool result = await testEnableWebdav();
         if (!result) {
           setState(() {
-            Prefs().saveWebdavStatus(!value);
+            SyncPrefs.saveWebdavStatus(!value);
           });
         } else {
           Sync().init();

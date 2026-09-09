@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/utils/save_file_to_download.dart';
@@ -83,7 +83,7 @@ class _LogPageState extends State<LogPage> {
 
   Future<void> clearLog() async {
     Navigator.pop(context);
-    AnxLog.clear();
+    SjLog.clear();
     initData();
   }
 
@@ -101,12 +101,12 @@ class _LogPageState extends State<LogPage> {
         fileName: fileName,
         mimeType: 'text/plain');
 
-    AnxToast.show("saved $filePath");
+    SjToast.show("saved $filePath");
   }
 }
 
 Widget logItem(String logStr, BuildContext context) {
-  final log = AnxLog.parse(logStr);
+  final log = SjLog.parse(logStr);
   return SelectionArea(
       child: Container(
     padding: const EdgeInsets.all(20),

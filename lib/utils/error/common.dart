@@ -1,17 +1,17 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:flutter/material.dart';
 
-class AnxError {
+class SjError {
   static Future<void> init() async {
-    AnxLog.info('AnxError init');
+    SjLog.info('SjError init');
     FlutterError.onError = (details) {
       FlutterError.presentError(details);
-      AnxLog.severe(details.exceptionAsString(), details.stack);
+      SjLog.severe(details.exceptionAsString(), details.stack);
     };
     PlatformDispatcher.instance.onError = (error, stack) {
-      AnxLog.severe(error.toString(), stack);
+      SjLog.severe(error.toString(), stack);
       return false;
     };
   }

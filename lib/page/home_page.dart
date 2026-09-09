@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 
 import 'package:songjiang_reader/dao/database.dart';
 import 'package:songjiang_reader/enums/sync_direction.dart';
@@ -19,7 +19,9 @@ import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/platform_utils.dart';
 import 'package:songjiang_reader/providers/sync.dart';
 import 'package:songjiang_reader/providers/iap.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/bookshelf_prefs.dart';
+import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
@@ -49,12 +51,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => initAnx());
+    WidgetsBinding.instance.addPostFrameCallback((_) => initHome());
   }
 
   Future<void> _checkWindowsWebview() async {
     final availableVersion = await WebViewEnvironment.getAvailableVersion();
-    AnxLog.info('WebView2 version: $availableVersion');
+    SjLog.info('WebView2 version: $availableVersion');
 
     if (availableVersion == null) {
       SmartDialog.show(
@@ -77,7 +79,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     } else {
       webViewEnvironment = await WebViewEnvironment.create(
         settings: WebViewEnvironmentSettings(
-            userDataFolder: (await getAnxTempDir()).path),
+            userDataFolder: (await getSjTempDir()).path),
       );
     }
   }
@@ -100,24 +102,24 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Future<void> initAnx() async {
+  Future<void> initHome() async {
     if (EnvVar.enableInAppPurchase) {
       ref.read(iapProvider.future);
     }
-    AnxToast.init(context);
+    SjToast.init(context);
     checkUpdate(false);
     InitializationCheck.check();
-    if (Prefs().webdavStatus) {
+    if (SyncPrefs.webdavStatus) {
       await Sync().init();
       await Sync().syncData(SyncDirection.both, ref, trigger: SyncTrigger.auto);
     }
     loadDefaultFont();
 
-    if (AnxPlatform.isWindows) {
+    if (SjPlatform.isWindows) {
       await _checkWindowsWebview();
     }
 
-    if (AnxPlatform.isAndroid || AnxPlatform.isIOS || AnxPlatform.isOhos) {
+    if (SjPlatform.isAndroid || SjPlatform.isIOS || SjPlatform.isOhos) {
       receiveShareIntent(ref);
     }
 
@@ -136,13 +138,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         'label': L10n.of(context).navBarBookshelf,
         'identifier': 'bookshelf'
       },
-      if (Prefs().bottomNavigatorShowStatistics)
+      if (BookshelfPrefs.bottomNavShowStatistics)
         {
           'icon': Icons.show_chart,
           'label': L10n.of(context).navBarStatistics,
           'identifier': 'statistics'
         },
-      if (Prefs().bottomNavigatorShowNote)
+      if (BookshelfPrefs.bottomNavShowNote)
         {
           'icon': Icons.note,
           'label': L10n.of(context).navBarNotes,
@@ -169,9 +171,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     ) {
       final page = [
         BookshelfPage(controller: controller),
-        if (Prefs().bottomNavigatorShowStatistics)
+        if (BookshelfPrefs.bottomNavShowStatistics)
           StatisticPage(controller: controller),
-        if (Prefs().bottomNavigatorShowNote) NotesPage(controller: controller),
+        if (BookshelfPrefs.bottomNavShowNote) NotesPage(controller: controller),
         SettingsPage(controller: controller),
       ];
       return page[index];
@@ -256,12 +258,12 @@ class _HomePageState extends ConsumerState<HomePage> {
               width: 330,
               body: (_, controller) =>
                   pages(currentIndex, constraints, controller),
-              hideOnScroll: Prefs().autoHideBottomBar,
+              hideOnScroll: ReadingUiPrefs.autoHideBottomBar,
               scrollOpposite: false,
               curve: Curves.easeIn,
               barColor: Colors.transparent,
               iconDecoration: BoxDecoration(
-                color: Prefs().autoHideBottomBar
+                color: ReadingUiPrefs.autoHideBottomBar
                     ? Theme.of(context).colorScheme.primary
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(500),

@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as path;
@@ -32,7 +32,7 @@ Future<File> convertDocToEpub(File file, {Directory? tempDir}) async {
   try {
     wd = ole.readStream('WordDocument');
   } catch (e) {
-    AnxLog.warning('Convert: 找不到 WordDocument 流，$filename: $e');
+    SjLog.warning('Convert: 找不到 WordDocument 流，$filename: $e');
   }
 
   final text = wd == null ? '' : _scanDocText(wd);
@@ -51,7 +51,7 @@ Future<File> convertDocToEpub(File file, {Directory? tempDir}) async {
   final html = paragraphs.map((p) => '<p>${_escapeHtml(p)}</p>').join('\n');
   final chapter = ChapterDraft(title: filename, level: 1, html: html);
 
-  AnxLog.info(
+  SjLog.info(
       'Convert: .doc 转换完成，文件名=$filename，段落数=${paragraphs.length}（best-effort 文本提取）');
   return buildEpubFromHtml(
     title: filename,

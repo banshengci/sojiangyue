@@ -1,8 +1,8 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/dashboard_tiles_provider.dart';
 import 'package:songjiang_reader/providers/total_reading_time.dart';
-import 'package:songjiang_reader/widgets/common/anx_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_button.dart';
 import 'package:songjiang_reader/widgets/common/async_skeleton_wrapper.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/highlight_digit.dart';
@@ -194,7 +194,7 @@ class _AddTileSheetContentState extends ConsumerState<AddTileSheetContent> {
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
               width: double.infinity,
-              child: AnxButton.icon(
+              child: SjButton.icon(
                 disabled:
                     notifier.workingTiles.contains(availableTiles[validIndex]),
                 onPressed: () {
@@ -260,7 +260,7 @@ class TotalReadTime extends ConsumerWidget {
                 ],
               ),
               Text(
-                '${Prefs().beginDate.toString().substring(0, 10)} ${L10n.of(context).statisticToPresent}',
+                '${AppMiscPrefs.beginDate.toString().substring(0, 10)} ${L10n.of(context).statisticToPresent}',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[600],

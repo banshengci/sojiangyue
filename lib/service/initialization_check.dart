@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/enums/version_check_type.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/utils/app_version.dart';
@@ -28,7 +28,7 @@ class InitializationCheck {
 
   static Future<void> check() async {
     final result = await _checkVersion();
-    AnxLog.info('Version check result: $result');
+    SjLog.info('Version check result: $result');
     if (result == VersionCheckType.firstLaunch) {
       _handleFirstLaunch();
     } else if (result == VersionCheckType.updated) {
@@ -39,7 +39,7 @@ class InitializationCheck {
   }
 
   static Future<VersionCheckType> _checkVersion() async {
-    _lastVersion = Prefs().lastAppVersion;
+    _lastVersion = AppMiscPrefs.lastAppVersion;
     _currentVersion = await getAppVersion();
     if (_lastVersion == null) {
       return VersionCheckType.firstLaunch;
@@ -53,7 +53,7 @@ class InitializationCheck {
   }
 
   static Future<void> _handleFirstLaunch() async {
-    AnxLog.info('First launch detected, showing onboarding');
+    SjLog.info('First launch detected, showing onboarding');
     final cv = await currentVersion;
     // wait 0.8 seconds to ensure the app is ready
     Future.delayed(const Duration(milliseconds: 800), () {
@@ -62,7 +62,7 @@ class InitializationCheck {
         builder: (context) => Scaffold(
           body: OnboardingScreen(
             onComplete: () async {
-              Prefs().lastAppVersion = cv;
+              AppMiscPrefs.lastAppVersion = cv;
               Navigator.pop(context);
             },
           ),
@@ -74,7 +74,7 @@ class InitializationCheck {
   static Future<void> _handleUpdateAvailable() async {
     final lv = await lastVersion;
     final cv = await currentVersion;
-    AnxLog.info('Version update detected: $lv -> $cv');
+    SjLog.info('Version update detected: $lv -> $cv');
     Future.delayed(const Duration(milliseconds: 800), () {
       showCupertinoSheet(
         context: navigatorKey.currentContext!,
@@ -82,7 +82,7 @@ class InitializationCheck {
           lastVersion: lv,
           currentVersion: cv,
           onComplete: () {
-            Prefs().lastAppVersion = cv;
+            AppMiscPrefs.lastAppVersion = cv;
             Navigator.pop(context);
           },
         ),
@@ -91,6 +91,6 @@ class InitializationCheck {
   }
 
   static void _handleNormalStartup() {
-    AnxLog.info('Normal startup, proceeding to main app');
+    SjLog.info('Normal startup, proceeding to main app');
   }
 }

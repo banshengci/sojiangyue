@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:songjiang_reader/config/remote_config.dart';
@@ -96,7 +96,7 @@ class FontDownloads extends _$FontDownloads {
 
   Future<void> startDownload(RemoteFontModel font) async {
     final fontId = font.id;
-    final tempDir = await getAnxTempDir();
+    final tempDir = await getSjTempDir();
     final fontDir = getFontDir();
     final dio = Dio();
 

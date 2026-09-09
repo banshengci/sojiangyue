@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:songjiang_reader/utils/save_img.dart';
@@ -62,7 +62,7 @@ class _ImageViewerState extends State<ImageViewer> {
       imageBytes = base64Decode(base64);
       imgType = parts[0].split('/')[1].split(';')[0];
     } catch (e) {
-      AnxLog.severe('Error decoding image: $e');
+      SjLog.severe('Error decoding image: $e');
       return const Center(child: Text('Error'));
     }
 
@@ -114,7 +114,7 @@ class _ImageViewerState extends State<ImageViewer> {
                           onPressed: () async {
                             final path = await saveB64ImageToPath(
                               widget.image,
-                              (await getAnxTempDir()).path,
+                              (await getSjTempDir()).path,
                               "SongJiang_${widget.bookName}",
                             );
 

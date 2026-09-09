@@ -1,5 +1,5 @@
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/providers/statictics_summary_value.dart';
+import 'package:songjiang_reader/providers/statistics_summary_value.dart';
 import 'package:songjiang_reader/widgets/common/async_skeleton_wrapper.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_base.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_metadata.dart';
@@ -32,9 +32,9 @@ class LibraryTotalsTile extends StatisticsDashboardTileBase {
 
     return AsyncSkeletonWrapper<List>(
         asyncValue: combineAsyncValues([
-          ref.watch(StaticticsSummaryValueProvider(StatisticType.totalBooks)),
-          ref.watch(StaticticsSummaryValueProvider(StatisticType.totalDates)),
-          ref.watch(StaticticsSummaryValueProvider(StatisticType.totalNotes)),
+          ref.watch(StatisticsSummaryValueProvider(StatisticType.totalBooks)),
+          ref.watch(StatisticsSummaryValueProvider(StatisticType.totalDates)),
+          ref.watch(StatisticsSummaryValueProvider(StatisticType.totalNotes)),
         ]),
         mock: [0, 0, 0],
         builder: (data, _) {

@@ -1,7 +1,7 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/utils/get_path/get_cache_dir.dart';
@@ -64,7 +64,7 @@ class AiCache {
   static const String cacheFileName = 'ai_cache.json';
 
   static Future<Map<String, dynamic>> readCache() async {
-    final cacheDir = await getAnxCacheDir();
+    final cacheDir = await getSjCacheDir();
     final file = File('${cacheDir.path}/$cacheFileName');
 
     if (await file.exists()) {
@@ -85,7 +85,7 @@ class AiCache {
     String identifier,
     List<ChatMessage> conversation,
   ) async {
-    final cacheDir = await getAnxCacheDir();
+    final cacheDir = await getSjCacheDir();
     final file = File('${cacheDir.path}/$cacheFileName');
     final cache = await readCache();
 
@@ -119,7 +119,7 @@ class AiCache {
   }
 
   static Future<void> cleanCache() async {
-    final maxCount = Prefs().maxAiCacheCount;
+    final maxCount = AiPrefs.maxCacheCount;
     var cache = await readCache();
     if (cache.length > maxCount) {
       final keys = cache.keys.toList();
@@ -137,7 +137,7 @@ class AiCache {
       final keysToRemove = keys.sublist(0, cache.length - maxCount);
       cache.removeWhere((key, _) => keysToRemove.contains(key));
 
-      final cacheDir = await getAnxCacheDir();
+      final cacheDir = await getSjCacheDir();
       final file = File('${cacheDir.path}/$cacheFileName');
       await file.writeAsString(json.encode(cache), mode: FileMode.writeOnly);
     }
@@ -149,7 +149,7 @@ class AiCache {
   }
 
   static Future<void> clearCache() async {
-    final cacheDir = await getAnxCacheDir();
+    final cacheDir = await getSjCacheDir();
     final file = File('${cacheDir.path}/$cacheFileName');
     if (await file.exists()) {
       await file.delete();

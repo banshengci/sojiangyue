@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/remote_config.dart';
+﻿import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/iap_state.dart';
 import 'package:songjiang_reader/service/iap/iap_service.dart';
@@ -26,7 +26,7 @@ class IAPPage extends ConsumerWidget {
         body: const Center(child: CircularProgressIndicator()),
       ),
       error: (error, s) {
-        AnxLog.severe('IAP: Error loading IAP state: $error', s);
+        SjLog.severe('IAP: Error loading IAP state: $error', s);
 
         return Scaffold(
           appBar: AppBar(
@@ -127,9 +127,9 @@ class IAPPage extends ConsumerWidget {
                     );
                   }),
                   const SizedBox(height: 30),
-                  if (AnxPlatform.isMacOS || AnxPlatform.isIOS)
+                  if (SjPlatform.isMacOS || SjPlatform.isIOS)
                     Text(L10n.of(context).iapPageRestoreHint),
-                  if (AnxPlatform.isAndroid)
+                  if (SjPlatform.isAndroid)
                     Text(L10n.of(context).iapPageRestoreHintPlayStore),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,

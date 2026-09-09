@@ -282,28 +282,5 @@
     "settingsAdvancedHttpProxyTesting",
     "settingsAdvancedHttpProxyTestSuccess",
     "settingsAdvancedHttpProxyTestFailed"
-  ],
-
-  "zh_TW": [
-    "settingsAiProviderReasoningEffort",
-    "settingsAiProviderReasoningEffortHelp",
-    "settingsAiProviderReasoningEffortAuto",
-    "settingsAiProviderReasoningEffortLow",
-    "settingsAiProviderReasoningEffortMedium",
-    "settingsAiProviderReasoningEffortHigh",
-    "settingsAdvancedNetwork",
-    "settingsAdvancedHttpProxyEnabled",
-    "settingsAdvancedHttpProxyConfig",
-    "settingsAdvancedHttpProxyHost",
-    "settingsAdvancedHttpProxyHostHint",
-    "settingsAdvancedHttpProxyPort",
-    "settingsAdvancedHttpProxyPortHint",
-    "settingsAdvancedHttpProxyNotConfigured",
-    "settingsAdvancedHttpProxyInvalidInput",
-    "settingsAdvancedHttpProxyTestUrl",
-    "settingsAdvancedHttpProxyTest",
-    "settingsAdvancedHttpProxyTesting",
-    "settingsAdvancedHttpProxyTestSuccess",
-    "settingsAdvancedHttpProxyTestFailed"
   ]
 }

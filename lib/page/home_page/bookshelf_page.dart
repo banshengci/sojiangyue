@@ -1,7 +1,8 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:math';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/bookshelf_prefs.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/enums/hint_key.dart';
 import 'package:songjiang_reader/enums/sort_field.dart';
 import 'package:songjiang_reader/enums/sort_order.dart';
@@ -23,7 +24,7 @@ import 'package:songjiang_reader/widgets/bookshelf/sync_button.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/common/tag_chip.dart';
 import 'package:songjiang_reader/widgets/hint/hint_banner.dart';
-import 'package:songjiang_reader/widgets/common/anx_segmented_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:songjiang_reader/widgets/tips/bookshelf_tips.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
@@ -63,7 +64,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
     required String sourcePath,
     required String fileName,
   }) async {
-    final tempDir = await getAnxTempDir();
+    final tempDir = await getSjTempDir();
     final targetPath = p.join(tempDir.path, fileName);
     final targetFile = File(targetPath);
     if (await targetFile.exists()) {
@@ -83,7 +84,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
     }
 
     List<PlatformFile> files = result.files;
-    AnxLog.info('importBook files: ${files.toString()}');
+    SjLog.info('importBook files: ${files.toString()}');
 
     // 统一从 file.bytes 写入我们自己的临时目录，
     // 不依赖 file_picker 在各平台返回的路径（安卓上该路径
@@ -94,7 +95,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
         return _writeToTemp(bytes: bytes, fileName: file.name);
       }
       // bytes 为 null 时兜底：从 file.path 复制（可能在某些平台失效）
-      AnxLog.warning(
+      SjLog.warning(
           'importBook: file.bytes 为空，尝试从路径读取: ${file.path}');
       return _copyToTempFile(sourcePath: file.path!, fileName: file.name);
     }).toList());
@@ -107,7 +108,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
     required List<int> bytes,
     required String fileName,
   }) async {
-    final tempDir = await getAnxTempDir();
+    final tempDir = await getSjTempDir();
     var targetPath = p.join(tempDir.path, fileName);
     // 同名文件加序号避免覆盖
     var i = 1;
@@ -117,7 +118,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
     }
     final targetFile = File(targetPath);
     await targetFile.writeAsBytes(bytes, flush: true);
-    AnxLog.info('importBook: 已写入临时文件 $targetPath (${bytes.length} 字节)');
+    SjLog.info('importBook: 已写入临时文件 $targetPath (${bytes.length} 字节)');
     return targetFile;
   }
 
@@ -472,7 +473,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: constraints.maxWidth ~/
-                                      Prefs().bookCoverWidth,
+                                      BookshelfPrefs.coverWidth,
                                   childAspectRatio: 1 / 2.1,
                                   mainAxisSpacing: 30,
                                   crossAxisSpacing: 20,
@@ -603,13 +604,13 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                         child: Text(
                           sortField.getL10n(context),
                           style: TextStyle(
-                            color: sortField == Prefs().sortField
+                            color: sortField == BookshelfPrefs.sortField
                                 ? Theme.of(context).colorScheme.primary
                                 : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         onTap: () {
-                          Prefs().sortField = sortField;
+                          BookshelfPrefs.sortField = sortField;
                           ref.read(bookListProvider.notifier).refresh();
                         }),
                   PopupMenuItem(
@@ -618,9 +619,9 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                       return Row(
                         children: [
                           Expanded(
-                            child: AnxSegmentedButton<SortOrderEnum>(
+                            child: SjSegmentedButton<SortOrderEnum>(
                               onSelectionChanged: (value) {
-                                Prefs().sortOrder = value.first;
+                                BookshelfPrefs.sortOrder = value.first;
                                 ref.read(bookListProvider.notifier).refresh();
                                 setState(() {});
                               },
@@ -633,7 +634,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                                     ),
                                   )
                                   .toList(),
-                              selected: {Prefs().sortOrder},
+                              selected: {BookshelfPrefs.sortOrder},
                             ),
                           ),
                         ],
@@ -647,7 +648,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
     );
 
     return Container(
-        decoration: Prefs().eInkMode
+        decoration: ThemePrefs.eInkMode
             ? null
             : BoxDecoration(
                 gradient: RadialGradient(

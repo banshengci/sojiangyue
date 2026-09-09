@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/models/ai_provider.dart';
 import 'package:songjiang_reader/service/ai/ai_services.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -10,7 +10,7 @@ part 'ai_providers.g.dart';
 class AiProviders extends _$AiProviders {
   @override
   List<AiProvider> build() {
-    final rawProviders = Prefs().getAiProviders();
+    final rawProviders = AiPrefs.getProviders();
 
     // If empty, initialize with built-in providers migrated from old config
     if (rawProviders.isEmpty) {
@@ -35,7 +35,7 @@ class AiProviders extends _$AiProviders {
 
     final providers = defaultServices.map((option) {
       // Try to migrate from old config
-      final oldConfig = Prefs().getAiConfig(option.identifier);
+      final oldConfig = AiPrefs.getConfig(option.identifier);
       final url = oldConfig['url'] ?? option.defaultUrl;
       final model = oldConfig['model'] ?? option.defaultModel;
       final apiKey = oldConfig['api_key'] ?? option.defaultApiKey;
@@ -79,14 +79,14 @@ class AiProviders extends _$AiProviders {
     }).toList();
 
     // Save to storage
-    Prefs().saveAiProviders(providers);
+    AiPrefs.saveProviders(providers);
 
     return providers;
   }
 
   /// Get the currently selected provider
   AiProvider? getSelectedProvider() {
-    final selectedId = Prefs().selectedAiService;
+    final selectedId = AiPrefs.selectedServiceId;
     try {
       return state.firstWhere((p) => p.id == selectedId);
     } catch (_) {
@@ -107,7 +107,7 @@ class AiProviders extends _$AiProviders {
 
   /// Set the selected provider
   void setSelectedProvider(String providerId) {
-    Prefs().selectedAiService = providerId;
+    AiPrefs.selectedServiceId = providerId;
     ref.notifyListeners();
   }
 
@@ -121,7 +121,7 @@ class AiProviders extends _$AiProviders {
     );
 
     state = [...state, newProvider];
-    Prefs().saveAiProviders(state);
+    AiPrefs.saveProviders(state);
   }
 
   /// Update an existing provider
@@ -133,7 +133,7 @@ class AiProviders extends _$AiProviders {
       for (final p in state)
         if (p.id == provider.id) updatedProvider else p
     ];
-    Prefs().saveAiProviders(state);
+    AiPrefs.saveProviders(state);
   }
 
   /// Delete a provider (only custom providers can be deleted)
@@ -145,10 +145,10 @@ class AiProviders extends _$AiProviders {
     }
 
     state = state.where((p) => p.id != providerId).toList();
-    Prefs().saveAiProviders(state);
+    AiPrefs.saveProviders(state);
 
     // If deleted provider was selected, select another
-    if (Prefs().selectedAiService == providerId) {
+    if (AiPrefs.selectedServiceId == providerId) {
       final enabled = state.where((p) => p.enabled).toList();
       if (enabled.isNotEmpty) {
         setSelectedProvider(enabled.first.id);
@@ -162,7 +162,7 @@ class AiProviders extends _$AiProviders {
       for (final p in state)
         if (p.id == providerId) p.copyWith(enabled: enabled) else p
     ];
-    Prefs().saveAiProviders(state);
+    AiPrefs.saveProviders(state);
   }
 
   /// Advance the key index for round-robin (called after successful API call)
@@ -174,7 +174,7 @@ class AiProviders extends _$AiProviders {
         else
           p
     ];
-    Prefs().saveAiProviders(state);
+    AiPrefs.saveProviders(state);
   }
 
   /// Add API key to a provider
@@ -236,7 +236,7 @@ class AiProviders extends _$AiProviders {
 
   /// Refresh providers (reload from storage)
   void refresh() {
-    final providers = Prefs().getAiProviders();
+    final providers = AiPrefs.getProviders();
     state = providers
         .map((json) => AiProvider.fromJson(json as Map<String, dynamic>))
         .toList();

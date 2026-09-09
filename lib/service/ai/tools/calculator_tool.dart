@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
@@ -54,7 +54,7 @@ class CalculatorTool
   }
 
   String _evaluateExpression(String expression) {
-    AnxLog.info('Evaluating expression: $expression');
+    SjLog.info('Evaluating expression: $expression');
     final parser = ShuntingYardParser();
     final parsed = parser.parse(expression);
     final evaluation = parsed.evaluate(EvaluationType.REAL, ContextModel());

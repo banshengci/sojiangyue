@@ -1,5 +1,5 @@
-import 'package:songjiang_reader/config/remote_config.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/remote_config.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/utils/app_version.dart';
@@ -26,18 +26,18 @@ Future<void> checkUpdate(bool manualCheck) async {
     if (manualCheck) {
       final ctx = navigatorKey.currentContext;
       if (ctx != null) {
-        AnxToast.show(L10n.of(ctx).commonFailed);
+        SjToast.show(L10n.of(ctx).commonFailed);
       }
     }
     return;
   }
   // if is today
   if (!manualCheck &&
-      DateTime.now().difference(Prefs().lastShowUpdate) <
+      DateTime.now().difference(AppMiscPrefs.lastShowUpdate) <
           const Duration(days: 1)) {
     return;
   }
-  Prefs().lastShowUpdate = DateTime.now();
+  AppMiscPrefs.lastShowUpdate = DateTime.now();
 
   BuildContext context = navigatorKey.currentContext!;
   Response response;
@@ -45,9 +45,9 @@ Future<void> checkUpdate(bool manualCheck) async {
     response = await Dio().get(apiUrl);
   } catch (e) {
     if (manualCheck) {
-      AnxToast.show(L10n.of(context).commonFailed);
+      SjToast.show(L10n.of(context).commonFailed);
     }
-    AnxLog.severe('Update: Failed to check for updates $e');
+    SjLog.severe('Update: Failed to check for updates $e');
     return;
   }
 
@@ -60,8 +60,8 @@ Future<void> checkUpdate(bool manualCheck) async {
     body = (data['body'] ?? '').toString();
   }
   if (newVersion == null || newVersion.isEmpty) {
-    AnxLog.severe('Update: invalid response payload');
-    if (manualCheck) AnxToast.show(L10n.of(context).commonFailed);
+    SjLog.severe('Update: invalid response payload');
+    if (manualCheck) SjToast.show(L10n.of(context).commonFailed);
     return;
   }
 
@@ -70,7 +70,7 @@ Future<void> checkUpdate(bool manualCheck) async {
     newVersion = newVersion.substring(1);
   }
   String currentVersion = (await getAppVersion()).split('+').first;
-  AnxLog.info('Update: new version $newVersion');
+  SjLog.info('Update: new version $newVersion');
 
   List<String> newVersionList = newVersion.split('.');
   List<String> currentVersionList = currentVersion.split('.');
@@ -81,7 +81,7 @@ Future<void> checkUpdate(bool manualCheck) async {
   while (currentVersionList.length < newVersionList.length) {
     currentVersionList.add('0');
   }
-  AnxLog.info(
+  SjLog.info(
       'Current version: $currentVersionList, New version: $newVersionList');
   bool needUpdate = false;
   for (int i = 0; i < newVersionList.length; i++) {
@@ -136,7 +136,7 @@ $cleanBody'''),
     );
   } else {
     if (manualCheck) {
-      AnxToast.show(L10n.of(context).commonNoNewVersion);
+      SjToast.show(L10n.of(context).commonNoNewVersion);
     }
   }
 }

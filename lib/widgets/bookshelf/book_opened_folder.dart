@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/providers/book_list.dart';
@@ -115,7 +115,7 @@ class _BookOpenedFolderState extends ConsumerState<BookOpenedFolder> {
         child: GridView.builder(
             shrinkWrap: true,
             gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: Prefs().bookCoverWidth,
+              maxCrossAxisExtent: BookshelfPrefs.coverWidth,
               childAspectRatio: 1 / 2.2,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,

@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/service/tts/models/tts_voice.dart';
 import 'package:songjiang_reader/service/tts/tts_factory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,11 +10,11 @@ part 'tts_providers.g.dart';
 class TtsService extends _$TtsService {
   @override
   String build() {
-    return Prefs().ttsService;
+    return TtsPrefs.serviceId;
   }
 
   void setService(String serviceId) {
-    Prefs().ttsService = serviceId;
+    TtsPrefs.serviceId = serviceId;
     state = serviceId;
   }
 }
@@ -24,14 +24,7 @@ Future<List<TtsVoice>> ttsVoices(Ref ref) async {
   // Watch service change to trigger refresh
   ref.watch(ttsServiceProvider);
 
-  // Also watch system tts toggle if we want to support switching between system/online here?
-  // Current design in SettingsPage separates System vs Online via a switch.
   // The voice list usually depends on what is currently active or selected.
-
-  // Use TtsFactory to get the right instance.
-  // Note: TtsFactory.current depends on Prefs().isSystemTts which is not watched here directly.
-  // But NarrateSettings usually toggles isSystemTts.
-
   final tts = TtsFactory().current;
   return await tts.getVoices();
 }
@@ -40,13 +33,13 @@ Future<List<TtsVoice>> ttsVoices(Ref ref) async {
 class OnlineTtsConfig extends _$OnlineTtsConfig {
   @override
   Map<String, dynamic> build(String serviceId) {
-    return Prefs().getOnlineTtsConfig(serviceId);
+    return TtsPrefs.getOnlineConfig(serviceId);
   }
 
   void updateConfig(String key, dynamic value) {
     final current = Map<String, dynamic>.from(state);
     current[key] = value;
-    Prefs().saveOnlineTtsConfig(serviceId, current);
+    TtsPrefs.saveOnlineConfig(serviceId, current);
     state = current;
   }
 }

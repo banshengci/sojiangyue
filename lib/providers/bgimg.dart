@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/enums/bgimg_alignment.dart';
 import 'package:songjiang_reader/enums/bgimg_type.dart';
@@ -116,7 +116,7 @@ class Bgimg extends _$Bgimg {
 
     File image = File(result.files.single.path!);
 
-    AnxLog.info('BookDetail: Image path: ${image.path}');
+    SjLog.info('BookDetail: Image path: ${image.path}');
 
     final extName = image.path.split('.').last;
     final newName = '${DateTime.now().millisecondsSinceEpoch}.$extName';
@@ -138,7 +138,7 @@ class Bgimg extends _$Bgimg {
     }
 
     File image = File(result.files.single.path!);
-    AnxLog.info('Bgimg: Import night image for $dayImagePath');
+    SjLog.info('Bgimg: Import night image for $dayImagePath');
 
     final nightName = _getNightImageName(dayImagePath);
     final newPath = '${getBgimgDir().path}${Platform.pathSeparator}$nightName';

@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/utils/platform_utils.dart';
+﻿import 'package:songjiang_reader/utils/platform_utils.dart';
 
 import 'package:in_app_purchase/in_app_purchase.dart';
 
@@ -69,13 +69,13 @@ class IAPService {
   BaseIAPService get delegate => _delegate;
 
   static BaseIAPService _buildDelegate() {
-    if (AnxPlatform.isIOS || AnxPlatform.isMacOS) {
+    if (SjPlatform.isIOS || SjPlatform.isMacOS) {
       return AppStoreIAPService(
         trialDays: kTrialDays,
       );
     }
 
-    if (AnxPlatform.isAndroid) {
+    if (SjPlatform.isAndroid) {
       return PlayStoreIAPService(
         trialDays: kTrialDays,
       );

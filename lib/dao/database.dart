@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:songjiang_reader/utils/get_path/get_cache_dir.dart';
 import 'package:songjiang_reader/utils/platform_utils.dart';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/service/book.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
@@ -143,11 +144,11 @@ class DBHelper {
 
   Future<Database> initDB() async {
     int dbVersion = currentDbVersion;
-    switch (AnxPlatform.type) {
-      case AnxPlatformEnum.macos:
-      case AnxPlatformEnum.android:
-      case AnxPlatformEnum.ohos:
-        final databasePath = await getAnxDataBasesPath();
+    switch (SjPlatform.type) {
+      case SjPlatformEnum.macos:
+      case SjPlatformEnum.android:
+      case SjPlatformEnum.ohos:
+        final databasePath = await getSjDatabasesPath();
         final path = join(databasePath, 'app_database.db');
         return await openDatabase(
           path,
@@ -157,13 +158,13 @@ class DBHelper {
           },
           onUpgrade: onUpgradeDatabase,
         );
-      case AnxPlatformEnum.ios:
-      case AnxPlatformEnum.windows:
+      case SjPlatformEnum.ios:
+      case SjPlatformEnum.windows:
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
 
-        final databasePath = await getAnxDataBasesPath();
-        AnxLog.info('Database: database path: $databasePath');
+        final databasePath = await getSjDatabasesPath();
+        SjLog.info('Database: database path: $databasePath');
         final path = join(databasePath, 'app_database.db');
 
         return await databaseFactory.openDatabase(
@@ -192,10 +193,10 @@ class DBHelper {
       // Use rawQuery instead of execute for PRAGMA wal_checkpoint
       // because it returns a result row which can cause issues with execute()
       await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
-      AnxLog.info('Database: WAL checkpoint completed');
+      SjLog.info('Database: WAL checkpoint completed');
       return true;
     } catch (e) {
-      AnxLog.warning('Database: WAL checkpoint failed: $e');
+      SjLog.warning('Database: WAL checkpoint failed: $e');
       return false;
     }
   }
@@ -219,9 +220,9 @@ class DBHelper {
       final shmFile = File(getShmPath(dbPath));
       if (walFile.existsSync()) await walFile.delete();
       if (shmFile.existsSync()) await shmFile.delete();
-      AnxLog.info('Database: WAL files cleaned up');
+      SjLog.info('Database: WAL files cleaned up');
     } catch (e) {
-      AnxLog.warning('Database: Failed to cleanup WAL files: $e');
+      SjLog.warning('Database: Failed to cleanup WAL files: $e');
     }
   }
 
@@ -230,7 +231,7 @@ class DBHelper {
   static Future<String> prepareUploadSnapshot() async {
     try {
       final db = await DBHelper().database;
-      final cacheDir = await getAnxCacheDir();
+      final cacheDir = await getSjCacheDir();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final snapshotPath = join(cacheDir.path, 'snapshot_aaaa_$timestamp.db');
 
@@ -248,22 +249,22 @@ class DBHelper {
         final escapedPath = snapshotPath.replaceAll("'", "''");
         await db.execute("VACUUM INTO '$escapedPath'");
       } catch (e) {
-        AnxLog.warning('Database: VACUUM INTO failed ($e)');
+        SjLog.warning('Database: VACUUM INTO failed ($e)');
 
         // Fallback strategy for platforms with older SQLite versions
         // (SQLite 3.27.0+ required for VACUUM INTO support)
-        AnxLog.info('Database: Using fallback strategy (Checkpoint+Copy)');
+        SjLog.info('Database: Using fallback strategy (Checkpoint+Copy)');
 
         // 1. Force Checkpoint to ensure all WAL data is written to main DB file
         await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
 
         // 2. Copy file manually
-        final databasePath = await getAnxDataBasesPath();
+        final databasePath = await getSjDatabasesPath();
         final dbPath = join(databasePath, 'app_database.db');
         await File(dbPath).copy(snapshotPath);
       }
 
-      AnxLog.info('Database: Created snapshot at $snapshotPath');
+      SjLog.info('Database: Created snapshot at $snapshotPath');
 
       // Ensure the snapshot has a clean header (Legacy mode)
       // This guarantees the uploaded file is compatible with all platforms
@@ -271,7 +272,7 @@ class DBHelper {
 
       return snapshotPath;
     } catch (e) {
-      AnxLog.severe('Database: Failed to create snapshot: $e');
+      SjLog.severe('Database: Failed to create snapshot: $e');
       rethrow;
     }
   }
@@ -295,7 +296,7 @@ class DBHelper {
 
           if (writeVersion == 2 || readVersion == 2) {
             needsPatch = true;
-            AnxLog.info(
+            SjLog.info(
                 'Database: Detected WAL mode in header (v$writeVersion/v$readVersion), patching to Legacy mode');
           }
         }
@@ -311,11 +312,11 @@ class DBHelper {
           bytes[19] = 1; // Read version: 1 (Legacy)
 
           await file.writeAsBytes(bytes, flush: true);
-          AnxLog.info('Database: patched header 18, 19 to 1 successfully');
+          SjLog.info('Database: patched header 18, 19 to 1 successfully');
         }
       }
     } catch (e) {
-      AnxLog.warning('Database: Failed to patch database header: $e');
+      SjLog.warning('Database: Failed to patch database header: $e');
     }
   }
 
@@ -341,10 +342,10 @@ class DBHelper {
 
   Future<void> onUpgradeDatabase(
       Database db, int oldVersion, int newVersion) async {
-    AnxLog.info('Database: upgrade database from $oldVersion to $newVersion');
+    SjLog.info('Database: upgrade database from $oldVersion to $newVersion');
     switch (oldVersion) {
       case 0:
-        AnxLog.info('Database: create database version $newVersion');
+        SjLog.info('Database: create database version $newVersion');
         await db.execute(createBookSQL);
         await db.execute(createNoteSQL);
         await db.execute(createThemeSQL);
@@ -410,7 +411,7 @@ class DBHelper {
       case3:
       case 3:
         // remove former book style
-        Prefs().removeBookStyle();
+        ReadingStylePrefs.removeBookStyle();
         bookDao.selectBooks().then((books) {
           for (var book in books) {
             if (!File(book.coverFullPath).existsSync()) {
@@ -475,7 +476,7 @@ class DBHelper {
         }
     }
 
-    if (oldVersion != 0 && Prefs().webdavStatus) {
+    if (oldVersion != 0 && SyncPrefs.webdavStatus) {
       updatedDB = true;
     }
   }

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -62,16 +62,16 @@ abstract class RepositoryTool<I extends Object, O> {
 
   Future<String> _execute(I input) async {
     try {
-      AnxLog.info(
+      SjLog.info(
           'AiTool: Executing tool $name with input: ${jsonEncode(input)}');
       final result = await _runWithTimeout(() => run(input));
       final serialized = serializeSuccess(result);
       final resultJson = jsonEncode(serialized);
-      AnxLog.info('AiTool: Tool $name completed with result: $resultJson');
+      SjLog.info('AiTool: Tool $name completed with result: $resultJson');
       return resultJson;
     } catch (error, stack) {
       if (shouldLogError(error)) {
-        AnxLog.severe('Tool $name failed: $error\n$stack');
+        SjLog.severe('Tool $name failed: $error\n$stack');
       }
       final serialized = serializeError(error);
       return jsonEncode(serialized);

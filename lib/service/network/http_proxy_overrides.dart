@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/http_proxy_prefs.dart';
 
-class AnxHttpProxyOverrides extends HttpOverrides {
+class SjHttpProxyOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
@@ -12,12 +12,12 @@ class AnxHttpProxyOverrides extends HttpOverrides {
         return 'DIRECT';
       }
 
-      if (!Prefs().httpProxyEnabled) {
+      if (!HttpProxyPrefs.enabled) {
         return 'DIRECT';
       }
 
-      final proxyHost = Prefs().httpProxyHost.trim();
-      final proxyPort = Prefs().httpProxyPort;
+      final proxyHost = HttpProxyPrefs.host.trim();
+      final proxyPort = HttpProxyPrefs.port;
       if (proxyHost.isEmpty || proxyPort <= 0) {
         return 'DIRECT';
       }

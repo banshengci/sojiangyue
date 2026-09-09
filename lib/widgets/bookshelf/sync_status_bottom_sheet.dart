@@ -1,6 +1,6 @@
-import 'dart:io';
+﻿import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/enums/book_sync_status.dart';
 import 'package:songjiang_reader/enums/sync_direction.dart';
 import 'package:songjiang_reader/enums/sync_trigger.dart';
@@ -19,7 +19,7 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 
 Future<void> showSyncStatusBottomSheet(BuildContext context) async {
-  final dbPath = await getAnxDataBasesPath();
+  final dbPath = await getSjDatabasesPath();
   showModalBottomSheet(
     useSafeArea: true,
     context: navigatorKey.currentContext!,
@@ -59,7 +59,7 @@ class SyncStatusBottomSheet extends ConsumerWidget {
     File localDb = File(join((dbPath), 'app_database.db'));
     final DateTime localUpdateTime = localDb.lastModifiedSync();
 
-    final DateTime? lastUploadTime = Prefs().lastUploadBookDate;
+    final DateTime? lastUploadTime = AppMiscPrefs.lastUploadBookDate;
 
     return Container(
       padding: const EdgeInsets.all(16.0),
@@ -321,9 +321,9 @@ class SyncStatusBottomSheet extends ConsumerWidget {
                   ref
                       .read(syncProvider.notifier)
                       .downloadMultipleBooks(remoteOnlyIds);
-                  AnxToast.show('');
+                  SjToast.show('');
                 } else {
-                  AnxToast.show(l10n.allBooksAreDownloaded);
+                  SjToast.show(l10n.allBooksAreDownloaded);
                 }
               },
             ),
@@ -335,7 +335,7 @@ class SyncStatusBottomSheet extends ConsumerWidget {
                 onPressed: () {
                   final isSyncing = ref.watch(syncProvider).isSyncing;
                   if (isSyncing) {
-                    AnxToast.show(l10n.webdavSyncing);
+                    SjToast.show(l10n.webdavSyncing);
                   } else {
                     ref.read(syncProvider.notifier).syncData(
                         SyncDirection.both, ref,

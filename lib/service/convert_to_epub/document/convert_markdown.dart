@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
@@ -54,7 +54,7 @@ Future<File> convertMarkdownToEpub(File file, {Directory? tempDir}) async {
           ))
       .toList();
 
-  AnxLog.info('Convert: Markdown 转换完成，书名=$title，章节数=${htmlChapters.length}');
+  SjLog.info('Convert: Markdown 转换完成，书名=$title，章节数=${htmlChapters.length}');
   return buildEpubFromHtml(
     title: title,
     author: author,

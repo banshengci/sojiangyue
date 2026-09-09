@@ -1,26 +1,26 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-enum AnxPlatformEnum { android, ios, macos, windows, ohos }
+enum SjPlatformEnum { android, ios, macos, windows, ohos }
 
-class AnxPlatform {
-  static AnxPlatformEnum get type {
+class SjPlatform {
+  static SjPlatformEnum get type {
     if (Platform.isAndroid && !kIsWeb) {
-      return AnxPlatformEnum.android;
+      return SjPlatformEnum.android;
     }
     if (Platform.isIOS && !kIsWeb) {
-      return AnxPlatformEnum.ios;
+      return SjPlatformEnum.ios;
     }
     if (Platform.isMacOS && !kIsWeb) {
-      return AnxPlatformEnum.macos;
+      return SjPlatformEnum.macos;
     }
     if (Platform.isWindows && !kIsWeb) {
-      return AnxPlatformEnum.windows;
+      return SjPlatformEnum.windows;
     }
     try {
       if (Platform.operatingSystem == 'ohos') {
-        return AnxPlatformEnum.ohos;
+        return SjPlatformEnum.ohos;
       }
     } catch (_) {
       // Platform.operatingSystem might throw if not available in some environments
@@ -28,11 +28,11 @@ class AnxPlatform {
     throw UnsupportedError('Unsupported platform');
   }
 
-  static bool get isAndroid => type == AnxPlatformEnum.android;
-  static bool get isIOS => type == AnxPlatformEnum.ios;
-  static bool get isMacOS => type == AnxPlatformEnum.macos;
-  static bool get isWindows => type == AnxPlatformEnum.windows;
-  static bool get isOhos => type == AnxPlatformEnum.ohos;
+  static bool get isAndroid => type == SjPlatformEnum.android;
+  static bool get isIOS => type == SjPlatformEnum.ios;
+  static bool get isMacOS => type == SjPlatformEnum.macos;
+  static bool get isWindows => type == SjPlatformEnum.windows;
+  static bool get isOhos => type == SjPlatformEnum.ohos;
 
   static bool get isMobile => isAndroid || isIOS || isOhos;
 

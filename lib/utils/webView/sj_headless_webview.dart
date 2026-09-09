@@ -1,11 +1,11 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-class AnxHeadlessWebView {
+class SjHeadlessWebView {
   HeadlessInAppWebView? _headlessWebView;
   OverlayEntry? _overlayEntry;
 
@@ -22,7 +22,7 @@ class AnxHeadlessWebView {
       int statusCode, String description)? onLoadHttpError;
   final WebViewEnvironment? webViewEnvironment;
 
-  AnxHeadlessWebView({
+  SjHeadlessWebView({
     required this.initialUrlRequest,
     this.initialSettings,
     this.onWebViewCreated,
@@ -44,8 +44,8 @@ class AnxHeadlessWebView {
     }
 
     if (Platform.isWindows && webViewEnvironment == null) {
-      AnxLog.severe(
-          'AnxHeadlessWebView: webViewEnvironment is null on Windows, falling back to Overlay');
+      SjLog.severe(
+          'SjHeadlessWebView: webViewEnvironment is null on Windows, falling back to Overlay');
       _runOverlay();
       return;
     }
@@ -66,7 +66,7 @@ class AnxHeadlessWebView {
       try {
         await _headlessWebView?.run();
       } catch (e) {
-        AnxLog.info(
+        SjLog.info(
             "HeadlessInAppWebView failed to run, falling back to Overlay: $e");
         _headlessWebView = null;
         _runOverlay();
@@ -77,7 +77,7 @@ class AnxHeadlessWebView {
   void _runOverlay() {
     final context = navigatorKey.currentContext;
     if (context == null) {
-      AnxLog.severe("No context available for AnxHeadlessWebView overlay");
+      SjLog.severe("No context available for SjHeadlessWebView overlay");
       return;
     }
 

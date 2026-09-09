@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/dao/base_dao.dart';
+﻿import 'package:songjiang_reader/dao/base_dao.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
@@ -26,7 +26,7 @@ class ThemeDao extends BaseDao {
       mapper: ReadTheme.fromDb,
     );
     if (currentThemes.length <= 2) {
-      AnxToast.show(
+      SjToast.show(
           L10n.of(navigatorKey.currentContext!).readingPageAtLeastTwoThemes);
       return;
     }

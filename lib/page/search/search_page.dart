@@ -1,7 +1,7 @@
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
+﻿import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'dart:async';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/search_note_group.dart';
 import 'package:songjiang_reader/providers/search.dart';
@@ -185,7 +185,7 @@ class _SearchBookResult extends ConsumerWidget {
     final isMany = books.length > 6;
     final manyFactor = isMany ? 2 : 1;
 
-    final coverWidth = Prefs().bookCoverWidth / 1.5;
+    final coverWidth = BookshelfPrefs.coverWidth / 1.5;
     final tileHeight = coverWidth * 2.1 + 55;
     final booksSectionHeight = tileHeight * manyFactor + 32;
 

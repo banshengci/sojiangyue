@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
 import 'package:songjiang_reader/service/tts/tts_factory.dart';
@@ -45,7 +45,7 @@ class TtsHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> _initAudioSession() async {
     final session = await AudioSession.instance;
 
-    final allowMix = Prefs().allowMixWithOtherAudio;
+    final allowMix = TtsPrefs.allowMixWithOtherAudio;
 
     await session.configure(AudioSessionConfiguration(
       avAudioSessionCategory: AVAudioSessionCategory.playback,

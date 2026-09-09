@@ -1,4 +1,4 @@
-import 'dart:io' as io;
+﻿import 'dart:io' as io;
 
 import 'package:songjiang_reader/models/remote_file.dart';
 import 'package:songjiang_reader/service/sync/sync_client_base.dart';
@@ -47,10 +47,10 @@ class WebdavClient extends SyncClientBase {
         await _client.ping();
         return;
       } catch (e) {
-        AnxLog.warning('WebDAV ping failed, retrying... ($count)');
+        SjLog.warning('WebDAV ping failed, retrying... ($count)');
         count++;
         if (count >= 3) {
-          AnxLog.severe('WebDAV ping failed after 3 attempts: $e');
+          SjLog.severe('WebDAV ping failed after 3 attempts: $e');
           rethrow;
         }
       }
@@ -65,36 +65,36 @@ class WebdavClient extends SyncClientBase {
     io.File? downloadTestFile;
 
     try {
-      AnxLog.info('WebDAV full test: Starting comprehensive test');
+      SjLog.info('WebDAV full test: Starting comprehensive test');
 
       // 1. Create local temporary test file
-      final tempDir = await getAnxTempDir();
+      final tempDir = await getSjTempDir();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       localTestFile = io.File('${tempDir.path}/webdav_test_$timestamp.txt');
 
       final testContent = 'SongJiang Reader WebDAV Test\n'
           'Test Time: ${DateTime.now()}\n'
-          'Platform: ${AnxPlatform.type.name}\n'
+          'Platform: ${SjPlatform.type.name}\n'
           'Timestamp: $timestamp\n';
 
       await localTestFile.writeAsString(testContent);
-      AnxLog.info('WebDAV full test: Created local test file');
+      SjLog.info('WebDAV full test: Created local test file');
 
       // 2. Create remote test directory
       try {
         await mkdirAll(testDir);
-        AnxLog.info('WebDAV full test: Created remote directory');
+        SjLog.info('WebDAV full test: Created remote directory');
       } catch (e) {
-        AnxLog.severe('WebDAV full test: Failed to create directory: $e');
+        SjLog.severe('WebDAV full test: Failed to create directory: $e');
         throw Exception('Failed to create test directory');
       }
 
       // 3. Upload test file
       try {
         await uploadFile(localTestFile.path, testFile, replace: true);
-        AnxLog.info('WebDAV full test: Uploaded test file');
+        SjLog.info('WebDAV full test: Uploaded test file');
       } catch (e) {
-        AnxLog.severe('WebDAV full test: Failed to upload file: $e');
+        SjLog.severe('WebDAV full test: Failed to upload file: $e');
         throw Exception('Failed to upload test file');
       }
 
@@ -104,37 +104,37 @@ class WebdavClient extends SyncClientBase {
             io.File('${tempDir.path}/webdav_download_test_$timestamp.txt');
         await downloadFile(testFile, downloadTestFile.path);
         final downloadedContent = await downloadTestFile.readAsString();
-        AnxLog.info('WebDAV full test: Downloaded test file');
+        SjLog.info('WebDAV full test: Downloaded test file');
 
         if (downloadedContent != testContent) {
-          AnxLog.severe(
+          SjLog.severe(
               'WebDAV full test: Content mismatch\nExpected: $testContent\nGot: $downloadedContent');
           throw Exception('Test file content mismatch, data integrity issue');
         }
-        AnxLog.info('WebDAV full test: Content verification passed');
+        SjLog.info('WebDAV full test: Content verification passed');
       } catch (e) {
         if (e.toString().contains('content mismatch')) {
           rethrow;
         }
-        AnxLog.severe('WebDAV full test: Failed to download file: $e');
+        SjLog.severe('WebDAV full test: Failed to download file: $e');
         throw Exception('Failed to download test file');
       }
 
       // 5. Delete remote test file
       try {
         await remove(testFile);
-        AnxLog.info('WebDAV full test: Deleted remote test file');
+        SjLog.info('WebDAV full test: Deleted remote test file');
       } catch (e) {
-        AnxLog.warning('WebDAV full test: Failed to delete test file: $e');
+        SjLog.warning('WebDAV full test: Failed to delete test file: $e');
         // Don't throw here, test is essentially successful
       }
 
       // 6. Try to delete test directory (may fail if not empty, that's ok)
       try {
         await remove(testDir);
-        AnxLog.info('WebDAV full test: Deleted test directory');
+        SjLog.info('WebDAV full test: Deleted test directory');
       } catch (e) {
-        AnxLog.info(
+        SjLog.info(
             'WebDAV full test: Could not delete test directory (may not be empty)');
         // Ignore error - directory might not be empty or already deleted
       }
@@ -147,7 +147,7 @@ class WebdavClient extends SyncClientBase {
         await downloadTestFile.delete();
       }
 
-      AnxLog.info('WebDAV full test: All tests passed successfully');
+      SjLog.info('WebDAV full test: All tests passed successfully');
     } catch (e) {
       // Clean up resources on error
       try {
@@ -158,7 +158,7 @@ class WebdavClient extends SyncClientBase {
           await downloadTestFile.delete();
         }
       } catch (cleanupError) {
-        AnxLog.warning('WebDAV full test: Cleanup error: $cleanupError');
+        SjLog.warning('WebDAV full test: Cleanup error: $cleanupError');
       }
       rethrow;
     }
@@ -209,7 +209,7 @@ class WebdavClient extends SyncClientBase {
       try {
         await remove(_safeEncodePath(remotePath));
       } catch (e) {
-        AnxLog.severe('Failed to remove file\n$e');
+        SjLog.severe('Failed to remove file\n$e');
       }
     }
 

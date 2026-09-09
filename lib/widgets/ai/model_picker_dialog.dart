@@ -1,7 +1,7 @@
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
+﻿import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/ai_provider.dart';
 import 'package:songjiang_reader/service/ai/ai_model_service.dart';
-import 'package:songjiang_reader/widgets/common/anx_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_button.dart';
 import 'package:flutter/material.dart';
 
 /// A dialog that lets the user either type a model name manually or pick one
@@ -123,7 +123,7 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
                 ),
                 if (_canFetch) ...[
                   const SizedBox(width: 8),
-                  AnxButton(
+                  SjButton(
                     onPressed: _isFetching ? null : _fetchModels,
                     isLoading: _isFetching,
                     child: Text(l10n.settingsAiProviderFetchModels),

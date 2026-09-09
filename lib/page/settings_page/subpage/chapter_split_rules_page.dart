@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/chapter_split_presets.dart';
 import 'package:songjiang_reader/models/chapter_split_rule.dart';
@@ -31,9 +31,8 @@ class _ChapterSplitRulesPageState extends State<ChapterSplitRulesPage> {
   }
 
   Future<void> _refreshRules() async {
-    final prefs = Prefs();
-    final activeRule = prefs.activeChapterSplitRule;
-    final storedId = prefs.chapterSplitSelectedRuleId;
+    final activeRule = AppMiscPrefs.activeChapterSplitRule;
+    final storedId = AppMiscPrefs.chapterSplitSelectedRuleId;
 
     setState(() {
       _selectedRuleId = storedId ?? activeRule.id;
@@ -43,7 +42,7 @@ class _ChapterSplitRulesPageState extends State<ChapterSplitRulesPage> {
                 evaluation: rule.evaluateSamples(),
               ))
           .toList(growable: false);
-      _customRules = prefs.chapterSplitCustomRules
+      _customRules = AppMiscPrefs.chapterSplitCustomRules
           .map((rule) => _RuleEntry(
                 rule: rule,
                 evaluation: rule.evaluateSamples(),
@@ -63,7 +62,7 @@ class _ChapterSplitRulesPageState extends State<ChapterSplitRulesPage> {
       return;
     }
 
-    Prefs().saveCustomChapterSplitRule(rule);
+    AppMiscPrefs.saveCustomChapterSplitRule(rule);
     await _refreshRules();
   }
 
@@ -78,7 +77,7 @@ class _ChapterSplitRulesPageState extends State<ChapterSplitRulesPage> {
       return;
     }
 
-    Prefs().saveCustomChapterSplitRule(updatedRule);
+    AppMiscPrefs.saveCustomChapterSplitRule(updatedRule);
     await _refreshRules();
   }
 
@@ -108,12 +107,12 @@ class _ChapterSplitRulesPageState extends State<ChapterSplitRulesPage> {
       return;
     }
 
-    Prefs().deleteCustomChapterSplitRule(rule.id);
+    AppMiscPrefs.deleteCustomChapterSplitRule(rule.id);
     await _refreshRules();
   }
 
   void _onSelectRule(String id) {
-    Prefs().selectChapterSplitRule(id);
+    AppMiscPrefs.selectChapterSplitRule(id);
     setState(() {
       _selectedRuleId = id;
     });

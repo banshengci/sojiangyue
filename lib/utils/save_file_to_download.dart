@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:songjiang_reader/utils/platform_utils.dart';
 
 import 'package:songjiang_reader/utils/get_path/get_download_path.dart';
@@ -14,10 +14,10 @@ Future<String?> saveFileToDownload(
   String downloadPath = await getDownloadPath();
   String fileSavePath = '$downloadPath/$fileName';
 
-  switch (AnxPlatform.type) {
-    case AnxPlatformEnum.android:
-    case AnxPlatformEnum.ios:
-    case AnxPlatformEnum.ohos:
+  switch (SjPlatform.type) {
+    case SjPlatformEnum.android:
+    case SjPlatformEnum.ios:
+    case SjPlatformEnum.ohos:
       SaveFileDialogParams params = SaveFileDialogParams(
         sourceFilePath: sourceFilePath,
         data: bytes,
@@ -26,7 +26,7 @@ Future<String?> saveFileToDownload(
       );
       final filePath = await FlutterFileDialog.saveFile(params: params);
       return filePath;
-    case AnxPlatformEnum.macos:
+    case SjPlatformEnum.macos:
       String? outputFile = await FilePicker.platform.saveFile(
         fileName: fileName,
       );
@@ -37,7 +37,7 @@ Future<String?> saveFileToDownload(
         return outputFile;
       }
       return outputFile;
-    case AnxPlatformEnum.windows:
+    case SjPlatformEnum.windows:
       final file = File(fileSavePath);
 
       if (!await file.exists()) {

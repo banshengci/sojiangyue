@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/remote_config.dart';
+﻿import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/enums/lang_list.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/config/config_item.dart';
@@ -82,7 +82,7 @@ class MicrosoftApiTranslateProvider extends TranslateServiceProvider {
         yield* Stream.error(Exception('Microsoft API Error: ${response.data}'));
       }
     } catch (e) {
-      AnxLog.severe("Translate Microsoft API Error: error=$e");
+      SjLog.severe("Translate Microsoft API Error: error=$e");
       yield* Stream.error(Exception(e));
     }
   }

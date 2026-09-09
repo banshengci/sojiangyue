@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:songjiang_reader/config/remote_config.dart';
@@ -19,6 +19,7 @@ import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/sync_test_helper.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/utils/webdav/test_webdav.dart';
 import 'package:songjiang_reader/widgets/settings/settings_title.dart';
 import 'package:songjiang_reader/widgets/settings/webdav_switch.dart';
@@ -54,9 +55,9 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
             SettingsTile.navigation(
                 title: Text(L10n.of(context).settingsSyncWebdav),
                 leading: const Icon(Icons.cloud),
-                value: Text(Prefs().getSyncInfo(SyncProtocol.webdav)['url'] ??
+                value: Text(SyncPrefs.getSyncInfo(SyncProtocol.webdav)['url'] ??
                     'Not set'),
-                // enabled: Prefs().webdavStatus,
+                // enabled: SyncPrefs.webdavStatus,
                 onPressed: (context) async {
                   showWebdavDialog(context);
                 }),
@@ -70,7 +71,7 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
                     if (!await launchUrl(
                         Uri.parse(helpUrl),
                         mode: LaunchMode.externalApplication)) {
-                      AnxToast.show(L10n.of(context).commonFailed);
+                      SjToast.show(L10n.of(context).commonFailed);
                     }
                   },
                   child: Text(
@@ -88,36 +89,36 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
                 title: Text(L10n.of(context).settingsSyncWebdavSyncNow),
                 leading: const Icon(Icons.sync_alt),
                 // value: Text(Prefs().syncDirection),
-                enabled: Prefs().webdavStatus,
+                enabled: SyncPrefs.webdavStatus,
                 onPressed: (context) {
                   chooseDirection(ref);
                 }),
             SettingsTile.switchTile(
                 title: Text(L10n.of(context).webdavOnlyWifi),
                 leading: const Icon(Icons.wifi),
-                initialValue: Prefs().onlySyncWhenWifi,
+                initialValue: SyncPrefs.onlySyncWhenWifi,
                 onToggle: (bool value) {
                   setState(() {
-                    Prefs().onlySyncWhenWifi = value;
+                    SyncPrefs.onlySyncWhenWifi = value;
                   });
                 }),
             SettingsTile.switchTile(
                 title: Text(L10n.of(context).settingsSyncCompletedToast),
                 leading: const Icon(Icons.notifications),
-                initialValue: Prefs().syncCompletedToast,
+                initialValue: SyncPrefs.syncCompletedToast,
                 onToggle: (bool value) {
                   setState(() {
-                    Prefs().syncCompletedToast = value;
+                    SyncPrefs.syncCompletedToast = value;
                   });
                 }),
             SettingsTile.switchTile(
                 title: Text(L10n.of(context).settingsSyncAutoSync),
                 leading: const Icon(Icons.sync),
-                initialValue: Prefs().autoSync,
-                enabled: Prefs().webdavStatus,
+                initialValue: SyncPrefs.autoSync,
+                enabled: SyncPrefs.webdavStatus,
                 onToggle: (bool value) {
                   setState(() {
-                    Prefs().autoSync = value;
+                    SyncPrefs.autoSync = value;
                   });
                 }),
             SettingsTile.navigation(
@@ -165,7 +166,7 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
   }
 
   Future<void> exportData(BuildContext context) async {
-    AnxLog.info('exportData: start');
+    SjLog.info('exportData: start');
     if (!mounted) return;
 
     _showDataDialog(L10n.of(context).exporting);
@@ -197,17 +198,17 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
       await file.delete();
 
       if (filePath != null) {
-        AnxLog.info('exportData: Saved to: $filePath');
-        AnxToast.show(L10n.of(navigatorKey.currentContext!).exportTo(filePath));
+        SjLog.info('exportData: Saved to: $filePath');
+        SjToast.show(L10n.of(navigatorKey.currentContext!).exportTo(filePath));
       } else {
-        AnxLog.info('exportData: Cancelled');
-        AnxToast.show(L10n.of(navigatorKey.currentContext!).commonCanceled);
+        SjLog.info('exportData: Cancelled');
+        SjToast.show(L10n.of(navigatorKey.currentContext!).commonCanceled);
       }
     }
   }
 
   Future<void> importData() async {
-    AnxLog.info('importData: start');
+    SjLog.info('importData: start');
     if (!mounted) return;
 
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -221,16 +222,16 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
 
     String? filePath = result.files.single.path;
     if (filePath == null) {
-      AnxLog.info('importData: cannot get file path');
-      AnxToast.show(
+      SjLog.info('importData: cannot get file path');
+      SjToast.show(
           L10n.of(navigatorKey.currentContext!).importCannotGetFilePath);
       return;
     }
 
     File zipFile = File(filePath);
     if (!await zipFile.exists()) {
-      AnxLog.info('importData: zip file not found');
-      AnxToast.show(
+      SjLog.info('importData: zip file not found');
+      SjToast.show(
           L10n.of(navigatorKey.currentContext!).importCannotGetFilePath);
       return;
     }
@@ -238,7 +239,7 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
 
     String pathSeparator = Platform.pathSeparator;
 
-    Directory cacheDir = await getAnxTempDir();
+    Directory cacheDir = await getSjTempDir();
     String cachePath = cacheDir.path;
     String extractPath = '$cachePath${pathSeparator}songjiang_reader_import';
 
@@ -250,7 +251,7 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
         'destinationPath': extractPath,
       });
 
-      String docPath = await getAnxDocumentsPath();
+      String docPath = await getSjDocumentsPath();
       _copyDirectorySync(Directory('$extractPath${pathSeparator}file'),
           getFileDir(path: docPath));
       _copyDirectorySync(Directory('$extractPath${pathSeparator}cover'),
@@ -262,17 +263,17 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
 
       DBHelper.close();
       _copyDirectorySync(Directory('$extractPath${pathSeparator}databases'),
-          await getAnxDataBasesDir());
+          await getSjDatabasesDir());
       DBHelper().initDB();
 
       await _restorePrefsFromBackup(extractPath);
 
-      AnxLog.info('importData: import success');
-      AnxToast.show(
+      SjLog.info('importData: import success');
+      SjToast.show(
           L10n.of(navigatorKey.currentContext!).importSuccessRestartApp);
     } catch (e) {
-      AnxLog.info('importData: error while unzipping or copying files: $e');
-      AnxToast.show(
+      SjLog.info('importData: error while unzipping or copying files: $e');
+      SjToast.show(
           L10n.of(navigatorKey.currentContext!).importFailed(e.toString()));
     } finally {
       SmartDialog.dismiss();
@@ -308,32 +309,32 @@ Future<String> createZipFile(Map<String, dynamic> params) async {
   BackgroundIsolateBinaryMessenger.ensureInitialized(token);
   final date =
       '${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}';
-  final zipPath = '${(await getAnxTempDir()).path}/SongJiang-Backup-$date.zip';
-  final docPath = await getAnxDocumentsPath();
+  final zipPath = '${(await getSjTempDir()).path}/SongJiang-Backup-$date.zip';
+  final docPath = await getSjDocumentsPath();
   final directoryList = [
     getFileDir(path: docPath),
     getCoverDir(path: docPath),
     getFontDir(path: docPath),
     getBgimgDir(path: docPath),
-    if (!AnxPlatform.isOhos) await getAnxDataBasesDir(),
-    // await getAnxSharedPrefsDir(),
-    // await getAnxShredPrefsFile(),
+    if (!SjPlatform.isOhos) await getSjDatabasesDir(),
+    // await getSjSharedPrefsDir(),
+    // await getSjSharedPrefsFile(),
     prefsBackupFile,
   ];
 
-  AnxLog.info('exportData: directoryList: $directoryList');
+  SjLog.info('exportData: directoryList: $directoryList');
 
   final encoder = ZipFileEncoder();
   encoder.create(zipPath);
 
-  if (AnxPlatform.isOhos) {
-    final dbDir = await getAnxDataBasesDir();
+  if (SjPlatform.isOhos) {
+    final dbDir = await getSjDatabasesDir();
     final dbFile = File('${dbDir.path}/app_database.db');
     if (await dbFile.exists()) {
       await encoder.addFile(dbFile, 'databases/app_database.db');
     }
   } else {
-    final dbDir = await getAnxDataBasesDir();
+    final dbDir = await getSjDatabasesDir();
     await encoder.addDirectory(dbDir);
   }
 
@@ -366,7 +367,7 @@ Future<void> extractZipFile(Map<String, String> params) async {
 }
 
 Future<File> _createPrefsBackupFile() async {
-  final Directory tempDir = await getAnxTempDir();
+  final Directory tempDir = await getSjTempDir();
   final File backupFile = File('${tempDir.path}/$_prefsBackupFileName');
   final Map<String, dynamic> prefsMap = await Prefs().buildPrefsBackupMap();
   await backupFile.writeAsString(jsonEncode(prefsMap));
@@ -384,9 +385,9 @@ Future<bool> _restorePrefsFromBackup(String extractPath) async {
       await Prefs().applyPrefsBackupMap(decoded);
       return true;
     }
-    AnxLog.info('importData: prefs backup has unexpected format');
+    SjLog.info('importData: prefs backup has unexpected format');
   } catch (e) {
-    AnxLog.info('importData: failed to restore prefs backup: $e');
+    SjLog.info('importData: failed to restore prefs backup: $e');
   }
   return false;
 }
@@ -394,7 +395,7 @@ Future<bool> _restorePrefsFromBackup(String extractPath) async {
 void showWebdavDialog(BuildContext context) {
   final title = L10n.of(context).settingsSyncWebdav;
   // final prefs = Prefs().saveWebdavInfo;
-  final webdavInfo = Prefs().getSyncInfo(SyncProtocol.webdav);
+  final webdavInfo = SyncPrefs.getSyncInfo(SyncProtocol.webdav);
   final webdavUrlController = TextEditingController(text: webdavInfo['url']);
   final webdavUsernameController =
       TextEditingController(text: webdavInfo['username']);
@@ -450,7 +451,7 @@ void showWebdavDialog(BuildContext context) {
                   webdavInfo['url'] = webdavUrlController.text.trim();
                   webdavInfo['username'] = webdavUsernameController.text;
                   webdavInfo['password'] = webdavPasswordController.text;
-                  Prefs().setSyncInfo(SyncProtocol.webdav, webdavInfo);
+                  SyncPrefs.setSyncInfo(SyncProtocol.webdav, webdavInfo);
                   SyncClientFactory.initializeCurrentClient();
                   Navigator.pop(context);
                 },

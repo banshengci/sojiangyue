@@ -1,6 +1,6 @@
-import 'dart:io';
+﻿import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:flutter/material.dart';
@@ -62,8 +62,8 @@ class BookCover extends StatelessWidget {
           final backgroundColor = baseColor;
           final textColor = _getContrastColor(backgroundColor);
 
-          final showTitle = Prefs().showBookTitleOnDefaultCover;
-          final showAuthor = Prefs().showAuthorOnDefaultCover;
+          final showTitle = BookshelfPrefs.showTitleOnDefaultCover;
+          final showAuthor = BookshelfPrefs.showAuthorOnDefaultCover;
 
           return Container(
             decoration: BoxDecoration(

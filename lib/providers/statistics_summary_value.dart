@@ -1,7 +1,7 @@
 import 'package:songjiang_reader/dao/reading_time.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'statictics_summary_value.g.dart';
+part 'statistics_summary_value.g.dart';
 
 enum StatisticType {
   totalBooks,
@@ -10,7 +10,7 @@ enum StatisticType {
 }
 
 @riverpod
-class StaticticsSummaryValue extends _$StaticticsSummaryValue {
+class StatisticsSummaryValue extends _$StatisticsSummaryValue {
   @override
   Future<int> build(StatisticType type) async {
     return _getStatistic(type);

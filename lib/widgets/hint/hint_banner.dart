@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/enums/hint_key.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
@@ -35,7 +35,7 @@ class _HintBannerState extends State<HintBanner>
   void initState() {
     super.initState();
     _visible =
-        widget.hintKey == null ? true : Prefs().shouldShowHint(widget.hintKey!);
+        widget.hintKey == null ? true : ReadingUiPrefs.shouldShowHint(widget.hintKey!);
   }
 
   void _handleClose() {
@@ -44,10 +44,10 @@ class _HintBannerState extends State<HintBanner>
     widget.onClose?.call();
 
     if (widget.hintKey != null) {
-      Prefs().setShowHint(widget.hintKey!, false);
+      ReadingUiPrefs.setShowHint(widget.hintKey!, false);
     }
 
-    AnxToast.show(L10n.of(context).hintBannerRestoreToast);
+    SjToast.show(L10n.of(context).hintBannerRestoreToast);
 
     setState(() {
       _visible = false;

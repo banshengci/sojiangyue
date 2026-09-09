@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
@@ -23,6 +23,6 @@ Future<void> importFont() async {
     File newFile = File(file.path!);
     newFile.copy('${fontDir.path}/${file.name}');
 
-    AnxToast.show(L10n.of(navigatorKey.currentContext!).commonSuccess);
+    SjToast.show(L10n.of(navigatorKey.currentContext!).commonSuccess);
   }
 }

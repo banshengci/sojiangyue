@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
+﻿import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/utils/platform_utils.dart';
 import 'package:songjiang_reader/utils/save_file_to_download.dart';
@@ -94,8 +94,8 @@ class SaveImg {
       return true;
     } catch (err) {
       SmartDialog.dismiss();
-      AnxToast.show(L10n.of(navigatorKey.currentContext!).commonFailed);
-      AnxLog.severe("saveImage: saveImage error: $err");
+      SjToast.show(L10n.of(navigatorKey.currentContext!).commonFailed);
+      SjLog.severe("saveImage: saveImage error: $err");
       return true;
     }
   }
@@ -106,11 +106,11 @@ class SaveImg {
     String name,
   ) async {
     try {
-      if (!AnxPlatform.isAndroid) return true;
+      if (!SjPlatform.isAndroid) return true;
       final deviceInfoPlugin = DeviceInfoPlugin();
       final deviceInfo = await deviceInfoPlugin.androidInfo;
       final sdkInt = deviceInfo.version.sdkInt;
-      AnxLog.info('sdkInt: $sdkInt');
+      SjLog.info('sdkInt: $sdkInt');
 
       if (sdkInt < 29) {
         if (!await requestStoragePer()) {
@@ -120,8 +120,8 @@ class SaveImg {
       return await saveImg(img, extension, name);
     } catch (err) {
       SmartDialog.dismiss();
-      AnxToast.show(L10n.of(navigatorKey.currentContext!).commonFailed);
-      AnxLog.severe("saveImage: saveImage error: $err");
+      SjToast.show(L10n.of(navigatorKey.currentContext!).commonFailed);
+      SjLog.severe("saveImage: saveImage error: $err");
       return true;
     }
   }
@@ -140,7 +140,7 @@ class SaveImg {
     if (path == null) {
       return false;
     }
-    AnxToast.show(
+    SjToast.show(
         '「$name.$extension」${L10n.of(navigatorKey.currentContext!).commonSaved}');
     return true;
   }
@@ -160,14 +160,14 @@ class SaveImg {
   ) async {
     String picName =
         "SongJiang_${name}_${DateTime.now().toString().replaceAll(RegExp(r'[- :]'), '').split('.').first}";
-    switch (AnxPlatform.type) {
-      case AnxPlatformEnum.android:
+    switch (SjPlatform.type) {
+      case SjPlatformEnum.android:
         return await androidImgSaver(img, extension, picName);
-      case AnxPlatformEnum.windows:
-      case AnxPlatformEnum.macos:
+      case SjPlatformEnum.windows:
+      case SjPlatformEnum.macos:
         return await windowsImgSaver(img, extension, picName);
-      case AnxPlatformEnum.ohos:
-      case AnxPlatformEnum.ios:
+      case SjPlatformEnum.ohos:
+      case SjPlatformEnum.ios:
         return await iosImgSaver(img, extension, name);
     }
   }

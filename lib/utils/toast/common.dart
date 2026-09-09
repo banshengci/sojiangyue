@@ -1,9 +1,9 @@
-import 'package:songjiang_reader/main.dart';
+﻿import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
-class AnxToast {
+class SjToast {
   static FToast fToast = FToast();
 
   static void init(BuildContext context) {

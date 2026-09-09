@@ -1,6 +1,7 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/bgimg_prefs.dart';
 import 'package:songjiang_reader/enums/bgimg_fit.dart';
 import 'package:songjiang_reader/enums/bgimg_theme_mode.dart';
 import 'package:songjiang_reader/enums/bgimg_type.dart';
@@ -9,7 +10,7 @@ import 'package:songjiang_reader/models/bgimg.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/providers/bgimg.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
-import 'package:songjiang_reader/widgets/common/anx_segmented_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -44,7 +45,7 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
 
   void applyBgimg(BgimgModel bgimgModel, {bool useNight = false}) {
     // Save user's selected mode, preserve existing blur and opacity
-    final current = Prefs().bgimg;
+    final current = BgimgPrefs.bgimg;
     final updatedBgimg = bgimgModel.copyWith(
       selectedMode: useNight ? BgimgThemeMode.night : BgimgThemeMode.day,
       blur: (current.path == bgimgModel.path) ? current.blur : bgimgModel.blur,
@@ -52,7 +53,7 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
           ? current.opacity
           : bgimgModel.opacity,
     );
-    Prefs().bgimg = updatedBgimg;
+    BgimgPrefs.bgimg = updatedBgimg;
     epubPlayerKey.currentState?.changeStyle(null);
   }
 
@@ -90,7 +91,7 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
         ],
       ),
       onTap: () {
-        Prefs().bgimg = bgimgModel;
+        BgimgPrefs.bgimg = bgimgModel;
         epubPlayerKey.currentState?.changeStyle(null);
       },
     );
@@ -284,7 +285,7 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
                         await FileImage(File(nightPath)).evict();
 
                         // If this background is currently in use, re-apply to refresh display
-                        if (Prefs().bgimg.path == bgimgModel.path) {
+                        if (BgimgPrefs.bgimg.path == bgimgModel.path) {
                           epubPlayerKey.currentState?.changeStyle(null);
                         }
                       },
@@ -436,7 +437,7 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
   @override
   Widget build(BuildContext context) {
     final bgimgList = ref.watch(bgimgProvider);
-    final currentBgimg = Prefs().bgimg;
+    final currentBgimg = BgimgPrefs.bgimg;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: Column(
@@ -502,13 +503,13 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
             ),
           ),
           Expanded(
-            child: AnxSegmentedButton<BgimgFitEnum>(
+            child: SjSegmentedButton<BgimgFitEnum>(
               segments: items,
-              selected: {Prefs().bgimgFit},
+              selected: {BgimgPrefs.fit},
               showSelectedIcon: false,
               onSelectionChanged: (value) {
                 final fit = value.first;
-                Prefs().bgimgFit = fit;
+                BgimgPrefs.fit = fit;
                 epubPlayerKey.currentState?.changeBgimgEffect();
               },
             ),
@@ -519,7 +520,7 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
   }
 
   Widget _buildBlurOpacityControls(BuildContext context) {
-    final bgimg = Prefs().bgimg;
+    final bgimg = BgimgPrefs.bgimg;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 8.0),
       child: Column(
@@ -541,7 +542,7 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
                   divisions: 40,
                   label: bgimg.blur.toStringAsFixed(1),
                   onChanged: (value) {
-                    Prefs().bgimg = Prefs().bgimg.copyWith(blur: value);
+                    BgimgPrefs.bgimg = BgimgPrefs.bgimg.copyWith(blur: value);
                     epubPlayerKey.currentState?.changeBgimgEffect();
                   },
                 ),
@@ -573,7 +574,7 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
                   divisions: 18,
                   label: '${(bgimg.opacity * 100).round()}%',
                   onChanged: (value) {
-                    Prefs().bgimg = Prefs().bgimg.copyWith(opacity: value);
+                    BgimgPrefs.bgimg = BgimgPrefs.bgimg.copyWith(opacity: value);
                     epubPlayerKey.currentState?.changeBgimgEffect();
                   },
                 ),

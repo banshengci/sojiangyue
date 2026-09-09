@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/widgets/common/color_picker_sheet.dart';
 import 'package:songjiang_reader/widgets/delete_confirm.dart';
@@ -30,7 +30,7 @@ class TagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
-    final isEink = Prefs().eInkMode;
+    final isEink = ThemePrefs.eInkMode;
 
     final einkBgColor =
         selected ? theme.colorScheme.secondary : Colors.transparent;

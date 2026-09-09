@@ -1,7 +1,7 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 
 Map<String, int> fontCache = {
   'en': 1033,
@@ -20,7 +20,7 @@ String getFontNameFromFile(File file) {
   int count = _readUint16(fontData, nameTableOffset + 2);
   int stringOffset = _readUint16(fontData, nameTableOffset + 4);
   String languageCode =
-      Prefs().locale?.languageCode ?? Platform.localeName.split('_').first;
+      AppMiscPrefs.locale?.languageCode ?? Platform.localeName.split('_').first;
   int specifiedLanguageId = fontCache[languageCode] ?? fontCache['en']!;
 
   for (int i = 0; i < count; i++) {

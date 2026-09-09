@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/remote_config.dart';
+﻿import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/enums/lang_list.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/config/config_item.dart';
@@ -79,7 +79,7 @@ class GoogleApiTranslateProvider extends TranslateServiceProvider {
         yield* Stream.error(Exception('Google API Error: ${response.data}'));
       }
     } catch (e) {
-      AnxLog.severe("Translate Google API Error: error=$e");
+      SjLog.severe("Translate Google API Error: error=$e");
       yield* Stream.error(Exception(e));
     }
   }

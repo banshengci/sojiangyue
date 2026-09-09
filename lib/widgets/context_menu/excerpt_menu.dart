@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/notes_prefs.dart';
 import 'package:songjiang_reader/constants/note_annotations.dart';
 import 'package:songjiang_reader/dao/book_note.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
@@ -60,8 +60,8 @@ class ExcerptMenuState extends State<ExcerptMenu> {
   @override
   initState() {
     super.initState();
-    annoType = Prefs().annotationType;
-    annoColor = Prefs().annotationColor;
+    annoType = NotesPrefs.annotationType;
+    annoColor = NotesPrefs.annotationColor;
     _initializeExistingNote();
   }
 
@@ -176,7 +176,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
   }
 
   Future<void> onColorSelected(String color, {bool close = true}) async {
-    Prefs().annotationColor = color;
+    NotesPrefs.annotationColor = color;
     if (mounted) {
       setState(() {
         annoColor = color;
@@ -192,7 +192,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
   }
 
   Future<void> onTypeSelected(String type) async {
-    Prefs().annotationType = type;
+    NotesPrefs.annotationType = type;
     if (mounted) {
       setState(() {
         annoType = type;
@@ -269,7 +269,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
             compact: true,
             onTap: () {
               Clipboard.setData(ClipboardData(text: widget.annoContent));
-              AnxToast.show(L10n.of(context).notesPageCopied);
+              SjToast.show(L10n.of(context).notesPageCopied);
               widget.onClose();
             },
             icon: const Icon(EvaIcons.copy),

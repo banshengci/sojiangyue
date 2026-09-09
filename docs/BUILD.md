@@ -44,6 +44,22 @@ bash /d/xinxiangmu/flutterw3353.sh build apk --release \
   --dart-define=TERMS_URL=https://example.com/terms
 ```
 
+### Windows 一键脚本
+
+仓库根目录的 `build_apk.bat` / `build_windows.bat` 不再硬编码 Flutter 路径，
+按以下顺序解析 `flutter`：
+
+1. 环境变量 `FLUTTER_BIN`（完整到 `flutter.bat` 的路径）
+2. 环境变量 `FLUTTER_HOME`（SDK 根目录，内部拼 `bin\flutter.bat`）
+3. 系统 `PATH` 中的 `flutter`
+
+示例（PowerShell）：
+
+```powershell
+$env:FLUTTER_HOME = "D:\flutter_windows_3.35.3-stable\flutter"
+.\build_windows.bat
+```
+
 ---
 
 ## 3. Android 签名配置

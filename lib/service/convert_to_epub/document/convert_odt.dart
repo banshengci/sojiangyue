@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
@@ -54,7 +54,7 @@ Future<File> convertOdtToEpub(File file, {Directory? tempDir}) async {
   final cover = archiveImageCover(
       firstImageInArchive(archive, prefixes: const ['Pictures/']));
 
-  AnxLog.info('Convert: ODT 转换完成，书名=$title，章节数=${htmlChapters.length}');
+  SjLog.info('Convert: ODT 转换完成，书名=$title，章节数=${htmlChapters.length}');
   return buildEpubFromHtml(
     title: decodeXmlEntities(title),
     author: decodeXmlEntities(author),

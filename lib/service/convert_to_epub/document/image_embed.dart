@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -88,7 +88,7 @@ String embedLocalImages(String html, Directory baseDir) {
       return imageFile.existsSync() ? imageFile.readAsBytesSync() : null;
     });
     if (dataUri == null) {
-      AnxLog.info('Convert: 图片无法内嵌（跳过）：$src');
+      SjLog.info('Convert: 图片无法内嵌（跳过）：$src');
       return '${m.group(1)}${m.group(2)}${m.group(2)}';
     }
     return '${m.group(1)}${m.group(2)}$dataUri${m.group(2)}';
@@ -109,7 +109,7 @@ String embedArchiveImages(String html, Archive archive) {
     final target = _normalizeArchivePath(_decodeUriPath(src.trim()));
     final found = findArchiveFile(archive, target);
     if (found == null) {
-      AnxLog.info('Convert: 归档内找不到图片：$src');
+      SjLog.info('Convert: 归档内找不到图片：$src');
       return '${m.group(1)}${m.group(2)}${m.group(2)}';
     }
     final dataUri =
@@ -151,7 +151,7 @@ String? _readAsDataUri(String forMime, List<int>? Function() read) {
   final bytes = read();
   if (bytes == null || bytes.isEmpty) return null;
   if (bytes.length > maxEmbedImageBytes) {
-    AnxLog.warning('Convert: 图片过大（${bytes.length} 字节），跳过内嵌：$forMime');
+    SjLog.warning('Convert: 图片过大（${bytes.length} 字节），跳过内嵌：$forMime');
     return null;
   }
   return toDataUri(bytes, mime);
@@ -184,7 +184,7 @@ List<int>? readLocalImageBytes(Directory baseDir, String src) {
   if (!file.existsSync()) return null;
   final bytes = file.readAsBytesSync();
   if (bytes.length > maxEmbedImageBytes) {
-    AnxLog.warning('Convert: 封面图片过大（${bytes.length} 字节），跳过：$src');
+    SjLog.warning('Convert: 封面图片过大（${bytes.length} 字节），跳过：$src');
     return null;
   }
   return bytes;

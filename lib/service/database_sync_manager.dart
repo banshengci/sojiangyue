@@ -1,4 +1,4 @@
-import 'dart:io' as io;
+﻿import 'dart:io' as io;
 import 'package:songjiang_reader/utils/platform_utils.dart';
 import 'package:songjiang_reader/dao/database.dart';
 import 'package:songjiang_reader/service/sync/sync_client_base.dart';
@@ -33,10 +33,10 @@ class DatabaseSyncManager {
     required String remoteDbFileName,
     void Function(int received, int total)? onProgress,
   }) async {
-    final databasesPath = await getAnxDataBasesPath();
-    final cacheDir = AnxPlatform.isOhos
-        ? '${await getAnxDataBasesPath()}/cache'
-        : (await getAnxCacheDir()).path;
+    final databasesPath = await getSjDatabasesPath();
+    final cacheDir = SjPlatform.isOhos
+        ? '${await getSjDatabasesPath()}/cache'
+        : (await getSjCacheDir()).path;
     final localDbPath = join(databasesPath, 'app_database.db');
 
     // Generate temp file name (use timestamp to ensure uniqueness)
@@ -45,9 +45,9 @@ class DatabaseSyncManager {
     final tempDbPath = join(cacheDir, tempDbName);
 
     try {
-      AnxLog.info('DatabaseSync: Starting safe database download');
-      AnxLog.info('DatabaseSync: Remote file: $remoteDbFileName');
-      AnxLog.info('DatabaseSync: Temp file: $tempDbPath');
+      SjLog.info('DatabaseSync: Starting safe database download');
+      SjLog.info('DatabaseSync: Remote file: $remoteDbFileName');
+      SjLog.info('DatabaseSync: Temp file: $tempDbPath');
 
       // Step 1: Download to temp file
       await client.downloadFile(
@@ -56,7 +56,7 @@ class DatabaseSyncManager {
         onProgress: onProgress,
       );
 
-      AnxLog.info('DatabaseSync: Download completed, starting validation');
+      SjLog.info('DatabaseSync: Download completed, starting validation');
 
       // Step 2: Validate downloaded database
       final validationResult = await _validateDatabase(tempDbPath);
@@ -68,12 +68,12 @@ class DatabaseSyncManager {
         );
       }
 
-      AnxLog.info(
+      SjLog.info(
           'DatabaseSync: Validation passed, proceeding with replacement');
 
       // Step 3: Backup current database
       final backupPath = await _createBackup(localDbPath);
-      AnxLog.info('DatabaseSync: Created backup at: $backupPath');
+      SjLog.info('DatabaseSync: Created backup at: $backupPath');
 
       // Step 4: Atomic replace database
       await _atomicReplaceDatabase(tempDbPath, localDbPath);
@@ -81,7 +81,7 @@ class DatabaseSyncManager {
       // Step 5: Validate replaced database
       final finalValidation = await _validateDatabase(localDbPath);
       if (!finalValidation.isValid) {
-        AnxLog.severe(
+        SjLog.severe(
             'DatabaseSync: Final validation failed, recovering from backup');
         await _recoverFromBackup(backupPath, localDbPath);
         return DatabaseSyncResult.failure(
@@ -94,11 +94,11 @@ class DatabaseSyncManager {
       await _cleanupOldBackups();
       await _cleanupTempFile(tempDbPath);
 
-      AnxLog.info(
+      SjLog.info(
           'DatabaseSync: Safe database download completed successfully');
       return DatabaseSyncResult.success('Database synchronized successfully');
     } catch (e) {
-      AnxLog.severe('DatabaseSync: Error during safe download: $e');
+      SjLog.severe('DatabaseSync: Error during safe download: $e');
       await _cleanupTempFile(tempDbPath);
 
       return DatabaseSyncResult.failure(
@@ -128,7 +128,7 @@ class DatabaseSyncManager {
       // First, ensure the database is converted from WAL mode to DELETE mode
       // This is necessary because downloaded databases may be in WAL mode
       // and SQLite can't open them properly without the WAL files
-      if (!AnxPlatform.isOhos) {
+      if (!SjPlatform.isOhos) {
         await DBHelper.fixDatabaseHeader(dbPath);
       }
 
@@ -136,7 +136,7 @@ class DatabaseSyncManager {
       Database? db;
       try {
         // Platform-specific database opening
-        if (AnxPlatform.isWindows) {
+        if (SjPlatform.isWindows) {
           sqfliteFfiInit();
           db = await databaseFactoryFfi.openDatabase(
             dbPath,
@@ -188,7 +188,7 @@ class DatabaseSyncManager {
               'Database version ($dbVersion) is newer than current version ($currentDbVersion)');
         }
 
-        AnxLog.info(
+        SjLog.info(
             'DatabaseSync: Validation passed - $count books found, version $dbVersion');
         return DatabaseValidationResult.valid();
       } finally {
@@ -201,7 +201,7 @@ class DatabaseSyncManager {
 
   /// Create database backup
   static Future<String> _createBackup(String localDbPath) async {
-    final cacheDir = await getAnxCacheDir();
+    final cacheDir = await getSjCacheDir();
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
     final backupName = '$_backupDbPrefix$timestamp.db';
     final backupPath = join(cacheDir.path, backupName);
@@ -244,10 +244,10 @@ class DatabaseSyncManager {
       await io.File(backupPath).copy(localDbPath);
       await DBHelper().initDB();
 
-      AnxLog.info(
+      SjLog.info(
           'DatabaseSync: Successfully recovered from backup: $backupPath');
     } catch (e) {
-      AnxLog.severe('DatabaseSync: Failed to recover from backup: $e');
+      SjLog.severe('DatabaseSync: Failed to recover from backup: $e');
       rethrow;
     }
   }
@@ -258,17 +258,17 @@ class DatabaseSyncManager {
       final tempFile = io.File(tempDbPath);
       if (tempFile.existsSync()) {
         await tempFile.delete();
-        AnxLog.info('DatabaseSync: Cleaned up temp file: $tempDbPath');
+        SjLog.info('DatabaseSync: Cleaned up temp file: $tempDbPath');
       }
     } catch (e) {
-      AnxLog.warning('DatabaseSync: Failed to cleanup temp file: $e');
+      SjLog.warning('DatabaseSync: Failed to cleanup temp file: $e');
     }
   }
 
   /// Cleanup expired backup files
   static Future<void> _cleanupOldBackups() async {
     try {
-      final cacheDir = await getAnxCacheDir();
+      final cacheDir = await getSjCacheDir();
       final backupFiles = cacheDir
           .listSync()
           .where((file) => file.path.contains(_backupDbPrefix))
@@ -283,11 +283,11 @@ class DatabaseSyncManager {
         final filesToDelete = backupFiles.skip(_maxBackupCount);
         for (final file in filesToDelete) {
           await file.delete();
-          AnxLog.info('DatabaseSync: Cleaned up old backup: ${file.path}');
+          SjLog.info('DatabaseSync: Cleaned up old backup: ${file.path}');
         }
       }
     } catch (e) {
-      AnxLog.warning('DatabaseSync: Failed to cleanup old backups: $e');
+      SjLog.warning('DatabaseSync: Failed to cleanup old backups: $e');
     }
   }
 
@@ -349,7 +349,7 @@ class DatabaseSyncManager {
   /// Get available backup files
   static Future<List<String>> getAvailableBackups() async {
     try {
-      final cacheDir = await getAnxCacheDir();
+      final cacheDir = await getSjCacheDir();
       final backupFiles = cacheDir
           .listSync()
           .where((file) => file.path.contains(_backupDbPrefix))
@@ -360,7 +360,7 @@ class DatabaseSyncManager {
       backupFiles.sort((a, b) => b.compareTo(a));
       return backupFiles;
     } catch (e) {
-      AnxLog.warning('DatabaseSync: Failed to get available backups: $e');
+      SjLog.warning('DatabaseSync: Failed to get available backups: $e');
       return [];
     }
   }

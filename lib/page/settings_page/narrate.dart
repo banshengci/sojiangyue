@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/tts_providers.dart';
 import 'package:songjiang_reader/service/tts/models/tts_voice.dart';
@@ -9,7 +9,7 @@ import 'package:songjiang_reader/service/tts/tts_handler.dart';
 import 'package:songjiang_reader/service/tts/tts_service.dart' as tts_svc;
 import 'package:songjiang_reader/utils/get_current_language_code.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
-import 'package:songjiang_reader/widgets/common/anx_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_button.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/settings/service_config_form.dart';
 import 'package:songjiang_reader/widgets/settings/settings_section.dart';
@@ -75,7 +75,7 @@ class _NarrateSettingsState extends ConsumerState<NarrateSettings>
         }
       }
     } catch (e) {
-      AnxLog.severe('TTS Test Speak Error: $e');
+      SjLog.severe('TTS Test Speak Error: $e');
       if (mounted) {
         final errorColor = Theme.of(context).colorScheme.error;
         SmartDialog.show(
@@ -121,7 +121,7 @@ class _NarrateSettingsState extends ConsumerState<NarrateSettings>
       duration: const Duration(milliseconds: 1500),
     );
 
-    final serviceId = Prefs().ttsService;
+    final serviceId = TtsPrefs.serviceId;
     selectedVoiceModel =
         tts_svc.getTtsService(serviceId).provider.getSelectedVoice();
     _testTextController.text = "Hello, this is a test.";
@@ -351,9 +351,9 @@ class _NarrateSettingsState extends ConsumerState<NarrateSettings>
             SettingsTile.switchTile(
                 title: Text(L10n.of(context).allowMixing),
                 description: Text(L10n.of(context).enableMixTip),
-                initialValue: Prefs().allowMixWithOtherAudio,
+                initialValue: TtsPrefs.allowMixWithOtherAudio,
                 onToggle: (value) {
-                  Prefs().allowMixWithOtherAudio = value;
+                  TtsPrefs.allowMixWithOtherAudio = value;
                   setState(() {});
                 }),
           ],
@@ -379,7 +379,7 @@ class _NarrateSettingsState extends ConsumerState<NarrateSettings>
                         children: [..._buildVoiceListContent()],
                       )
                     : Center(
-                        child: AnxButton(
+                        child: SjButton(
                           onPressed: () async {
                             setState(() {
                               _showVoiceList = true;
@@ -514,8 +514,8 @@ class _NarrateSettingsState extends ConsumerState<NarrateSettings>
                 labelText: L10n.of(context).settingsNarrateTestText,
                 suffixIcon: Padding(
                   padding: const EdgeInsets.all(5.0),
-                  child: AnxButton.icon(
-                    type: AnxButtonType.text,
+                  child: SjButton.icon(
+                    type: SjButtonType.text,
                     isLoading: _mainTestLoading,
                     icon: Icon(Icons.play_arrow),
                     label: Text(L10n.of(context).commonTest),
@@ -730,16 +730,16 @@ class _NarrateSettingsState extends ConsumerState<NarrateSettings>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          AnxButton.icon(
-                            type: AnxButtonType.text,
+                          SjButton.icon(
+                            type: SjButtonType.text,
                             isLoading: _modelLoadingStates[shortName] ?? false,
                             icon: Icon(Icons.play_arrow),
                             label: Text(L10n.of(context).commonTest),
                             onPressed: () =>
                                 _testSpeak(_testTextController.text, shortName),
                           ),
-                          AnxButton(
-                            type: AnxButtonType.outlined,
+                          SjButton(
+                            type: SjButtonType.outlined,
                             child:
                                 Text(L10n.of(context).settingsNarrateUseVoice),
                             onPressed: () {

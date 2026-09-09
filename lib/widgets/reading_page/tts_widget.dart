@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
@@ -51,7 +51,7 @@ class _TtsWidgetState extends State<TtsWidget> {
   }
 
   String _getTtsServiceLabel(BuildContext context) {
-    final serviceId = Prefs().ttsService;
+    final serviceId = TtsPrefs.serviceId;
     if (serviceId == 'system') {
       return L10n.of(context).ttsTypeSystem;
     }

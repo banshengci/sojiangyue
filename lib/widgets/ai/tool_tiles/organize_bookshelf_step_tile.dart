@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/tb_groups.dart';
@@ -170,7 +170,7 @@ class _OrganizeBookshelfStepTileState
                   : () {
                       Clipboard.setData(
                           ClipboardData(text: widget.step.output!));
-                      AnxToast.show(L10n.of(context).planCopied);
+                      SjToast.show(L10n.of(context).planCopied);
                     },
               icon: const Icon(Icons.copy, size: 14),
               label: Text(L10n.of(context).copyJson),
@@ -356,13 +356,13 @@ class _OrganizeBookshelfStepTileState
         _isApplying = false;
         _applied = true;
       });
-      AnxToast.show(L10n.of(context).bookshelfUpdated);
+      SjToast.show(L10n.of(context).bookshelfUpdated);
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _isApplying = false;
       });
-      AnxToast.show(L10n.of(context).failedToApplyPlan(error));
+      SjToast.show(L10n.of(context).failedToApplyPlan(error));
     }
   }
 

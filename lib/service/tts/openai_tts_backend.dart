@@ -1,8 +1,8 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:songjiang_reader/config/remote_config.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/tts/models/tts_voice.dart';
 import 'package:songjiang_reader/service/tts/tts_service.dart';
@@ -81,7 +81,7 @@ class OpenAiTtsProvider extends TtsServiceProvider {
 
   @override
   Map<String, dynamic> getConfig() {
-    final config = Prefs().getOnlineTtsConfig(serviceId);
+    final config = TtsPrefs.getOnlineConfig(serviceId);
     if (config.isEmpty) {
       return {
         'url': _defaultUrl,
@@ -102,7 +102,7 @@ class OpenAiTtsProvider extends TtsServiceProvider {
 
   @override
   void saveConfig(Map<String, dynamic> config) {
-    Prefs().saveOnlineTtsConfig(serviceId, config);
+    TtsPrefs.saveOnlineConfig(serviceId, config);
   }
 
   @override

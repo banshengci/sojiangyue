@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
+﻿import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/enums/sync_protocol.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/service/sync/sync_client_factory.dart';
@@ -24,12 +24,12 @@ class SyncConnectionTester {
       // Execute ping test
       await client.ping();
 
-      AnxLog.info('${protocol.displayName} connection test successful');
+      SjLog.info('${protocol.displayName} connection test successful');
       return SyncTestResult.success(
           L10n.of(navigatorKey.currentContext!).connectionSuccessful);
     } catch (e) {
       final errorMessage = '${getErrorMessage(e)}\n$e';
-      AnxLog.severe(
+      SjLog.severe(
           '${protocol.displayName} connection test failed: $errorMessage');
       return SyncTestResult.failure(errorMessage);
     }
@@ -53,12 +53,12 @@ class SyncConnectionTester {
       // Execute full capabilities test
       await client.testFullCapabilities();
 
-      AnxLog.info('${protocol.displayName} full connection test successful');
+      SjLog.info('${protocol.displayName} full connection test successful');
       return SyncTestResult.success(
           L10n.of(navigatorKey.currentContext!).connectionSuccessful);
     } catch (e) {
       final errorMessage = '${getErrorMessage(e)}\n$e';
-      AnxLog.severe(
+      SjLog.severe(
           '${protocol.displayName} full connection test failed: $errorMessage');
       return SyncTestResult.failure(errorMessage);
     }

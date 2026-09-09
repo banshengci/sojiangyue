@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/theme.dart';
@@ -21,7 +21,7 @@ import 'package:songjiang_reader/service/convert_to_epub/txt/convert_from_txt.da
 import 'package:songjiang_reader/service/convert_to_epub/document/convert_document.dart';
 import 'package:songjiang_reader/service/import_file_normalizer.dart';
 import 'package:songjiang_reader/service/md5_service.dart';
-import 'package:songjiang_reader/utils/webView/anx_headless_webview.dart';
+import 'package:songjiang_reader/utils/webView/sj_headless_webview.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
@@ -38,7 +38,7 @@ import 'package:path/path.dart' as path;
 
 import 'book_player/book_player_server.dart';
 
-AnxHeadlessWebView? headlessInAppWebView;
+SjHeadlessWebView? headlessInAppWebView;
 // 导入白名单：这些扩展名会被导入流程接受。
 // - epub/mobi/azw3/fb2/txt/pdf 由 foliate-js 引擎原生渲染；
 // - cbz/fbz 由 foliate-js 的 comic-book 加载器原生渲染（漫画/连环画）；
@@ -86,13 +86,13 @@ Future<void> importBookList(
   BuildContext context,
   WidgetRef ref,
 ) async {
-  AnxLog.info('importBook fileList: ${fileList.toString()}');
+  SjLog.info('importBook fileList: ${fileList.toString()}');
 
   // 安卓上导入进来的路径经常不带正确扩展名（系统分享兜底会生成
   // `FILE_xxx.null`），直接按扩展名过滤会被判为不支持而静默丢弃，
   // 表现为「点了导入但书架没反应」。这里先按文件内容规范化。
   final normalizedFiles = await normalizeImportFiles(fileList);
-  AnxLog.info(
+  SjLog.info(
       'importBook normalized: ${normalizedFiles.map((f) => f.path).join(', ')}');
 
   List<File> supportedFiles = normalizedFiles.where((file) {
@@ -168,7 +168,7 @@ void _checkDuplicatesAndShowDialog(
     );
   } catch (e) {
     Navigator.of(navigatorKey.currentContext!).pop();
-    AnxLog.severe('MD5 check failed: $e');
+    SjLog.severe('MD5 check failed: $e');
     _showImportDialog(
       supportedFiles,
       [],
@@ -411,7 +411,7 @@ void _showImportDialog(
                       }
 
                       for (var file in filesToImport) {
-                        AnxToast.show(path.basename(file.path));
+                        SjToast.show(path.basename(file.path));
                         setState(() {
                           currentHandlingFile = file.path;
                         });
@@ -421,8 +421,8 @@ void _showImportDialog(
                             currentHandlingFile = '';
                           });
                         } catch (e, stackTrace) {
-                          AnxLog.severe('Failed to import ${file.path}: $e');
-                          AnxLog.severe('Stack trace: $stackTrace');
+                          SjLog.severe('Failed to import ${file.path}: $e');
+                          SjLog.severe('Stack trace: $stackTrace');
                           setState(() {
                             errorFiles.add(file.path);
                             errorMessages[file.path] = e.toString();
@@ -486,7 +486,7 @@ Future<void> pushToReadingPage(
   String? heroTag,
 }) async {
   if (book.isDeleted) {
-    AnxToast.show(L10n.of(context).bookDeleted);
+    SjToast.show(L10n.of(context).bookDeleted);
     return;
   }
 
@@ -536,11 +536,11 @@ Future<void> pushToReadingPage(
       ),
     ),
   ).then((_) {
-    AnxLog.info('ReadingPage: poped: ${book.title}');
+    SjLog.info('ReadingPage: poped: ${book.title}');
     currentReading.finish();
     chapterContentBridge.state = null;
     tocSearch.clear();
-    AnxLog.info('Pop successfully ReadingPage: ${book.title}');
+    SjLog.info('Pop successfully ReadingPage: ${book.title}');
   });
 }
 
@@ -587,16 +587,16 @@ Future<void> saveBook(
   // documentPath 由 initBasePath() 异步赋值，若尚未就绪会得到错误路径，
   // 在安卓上会直接导致 copy 失败且异常被上层吞掉。这里提前暴露问题。
   if (documentPath.isEmpty) {
-    AnxLog.severe('Import: documentPath 尚未初始化，无法保存书籍文件');
+    SjLog.severe('Import: documentPath 尚未初始化，无法保存书籍文件');
   }
-  AnxLog.info('Import: 复制书籍文件 ${file.path} -> $filePath');
+  SjLog.info('Import: 复制书籍文件 ${file.path} -> $filePath');
   await file.copy(filePath);
   // remove cached file
   try {
     await file.delete();
   } catch (e) {
     // 缓存文件清理失败不影响已入库的副本，仅记录
-    AnxLog.warning('Import: 清理缓存文件失败（可忽略）: $e');
+    SjLog.warning('Import: 清理缓存文件失败（可忽略）: $e');
   }
 
   dbCoverPath = await saveImageToLocal(cover, dbCoverPath);
@@ -619,7 +619,7 @@ Future<void> saveBook(
       updateTime: DateTime.now());
 
   book.id = await bookDao.insertBook(book);
-  AnxToast.show(L10n.of(navigatorKey.currentContext!).serviceImportSuccess);
+  SjToast.show(L10n.of(navigatorKey.currentContext!).serviceImportSuccess);
   await headlessInAppWebView?.dispose();
   headlessInAppWebView = null;
   return;
@@ -636,9 +636,9 @@ Future<void> getBookMetadata(
   String cfi = '';
 
   String bookUrl = "http://127.0.0.1:${Server().port}/$serverFileName";
-  AnxLog.info("import start: book url: $bookUrl");
+  SjLog.info("import start: book url: $bookUrl");
 
-  AnxHeadlessWebView webview = AnxHeadlessWebView(
+  SjHeadlessWebView webview = SjHeadlessWebView(
     webViewEnvironment: webViewEnvironment,
     initialUrlRequest: URLRequest(
         url: WebUri(generateUrl(
@@ -679,8 +679,8 @@ Future<void> getBookMetadata(
               );
               ref?.read(bookListProvider.notifier).refresh();
             } catch (e, stackTrace) {
-              AnxLog.severe('Import: 保存书籍失败: $e');
-              AnxLog.severe('Stack trace: $stackTrace');
+              SjLog.severe('Import: 保存书籍失败: $e');
+              SjLog.severe('Stack trace: $stackTrace');
               await headlessInAppWebView?.dispose();
               headlessInAppWebView = null;
             }

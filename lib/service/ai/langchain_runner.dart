@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:songjiang_reader/utils/ai_reasoning_parser.dart';
@@ -294,7 +294,7 @@ class CancelableLangchainRunner {
                 ),
               );
             } catch (error) {
-              AnxLog.severe(
+              SjLog.severe(
                   'Tool ${agentAction.tool} execution failed: $error');
               final message = error.toString();
               toolStep.status = ToolStepStatus.failed;

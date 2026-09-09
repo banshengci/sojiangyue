@@ -1,30 +1,29 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 
 ThemeData colorSchema(
-  Prefs prefsNotifier,
   BuildContext context,
   Brightness brightness,
 ) {
-  brightness = prefsNotifier.eInkMode
+  brightness = ThemePrefs.eInkMode
       ? Brightness.light
-      : switch (prefsNotifier.themeMode) {
+      : switch (ThemePrefs.themeMode) {
           ThemeMode.light => Brightness.light,
           ThemeMode.dark => Brightness.dark,
           ThemeMode.system => MediaQuery.platformBrightnessOf(context),
         };
-  Color seedColor = prefsNotifier.themeColor;
+  Color seedColor = ThemePrefs.themeColor;
   final isDark = brightness == Brightness.dark;
-  final isEinkMode = prefsNotifier.eInkMode;
+  final isEinkMode = ThemePrefs.eInkMode;
 
   // 松江阅自有底色：浅色取宣纸暖白，深色取松烟墨绿，
-  // 刻意区别于上游 Anx 的 iOS 冷灰（#F2F2F7 / #1C1C1E）。
+  // 刻意区别于上游 anx-reader 的 iOS 冷灰（#F2F2F7 / #1C1C1E）。
   final lightGropedBackground = SongJiangColors.paper;
   final darkGropedBackground =
-      prefsNotifier.trueDarkMode ? Color(0xFF000000) : SongJiangColors.ink;
+      ThemePrefs.trueDarkMode ? Color(0xFF000000) : SongJiangColors.ink;
   final gropedBackgroundColor = isEinkMode
       ? Colors.white
       : isDark
@@ -87,7 +86,7 @@ ThemeData colorSchema(
           Brightness.dark => FlexThemeData.dark(
               useMaterial3: true,
               swapLegacyOnMaterial3: true,
-              darkIsTrueBlack: prefsNotifier.trueDarkMode,
+              darkIsTrueBlack: ThemePrefs.trueDarkMode,
               colorScheme: colorScheme,
             )
         };

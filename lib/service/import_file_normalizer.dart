@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:koni_archive/io.dart';
 import 'package:path/path.dart' as p;
@@ -134,7 +134,7 @@ String? sniffExtension(String path) {
 
     return null;
   } catch (e) {
-    AnxLog.warning('Import: 嗅探文件格式失败 $path: $e');
+    SjLog.warning('Import: 嗅探文件格式失败 $path: $e');
     return null;
   }
 }
@@ -146,7 +146,7 @@ Future<File?> _copyWithExtension(
   Directory? tempDir,
 }) async {
   try {
-    final dir = tempDir ?? await getAnxTempDir();
+    final dir = tempDir ?? await getSjTempDir();
     var base = p.basenameWithoutExtension(src);
     if (base.isEmpty) base = 'import';
     base = base.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
@@ -158,10 +158,10 @@ Future<File?> _copyWithExtension(
     }
 
     final copied = await File(src).copy(targetPath);
-    AnxLog.info('Import: 已修正扩展名 $src -> ${copied.path}');
+    SjLog.info('Import: 已修正扩展名 $src -> ${copied.path}');
     return copied;
   } catch (e) {
-    AnxLog.severe('Import: 修正扩展名失败 $src: $e');
+    SjLog.severe('Import: 修正扩展名失败 $src: $e');
     return null;
   }
 }
@@ -218,7 +218,7 @@ int _naturalCompare(String a, String b) {
 /// 并写出标准 ZIP/CBZ，与本项目「不引入原生依赖」的约束一致。
 Future<File?> _convertCbrToCbz(String src, {Directory? tempDir}) async {
   try {
-    final dir = tempDir ?? await getAnxTempDir();
+    final dir = tempDir ?? await getSjTempDir();
     var base = p.basenameWithoutExtension(src);
     if (base.isEmpty) base = 'import';
     base = base.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
@@ -238,7 +238,7 @@ Future<File?> _convertCbrToCbz(String src, {Directory? tempDir}) async {
         ..sort((a, b) => _naturalCompare(a.path, b.path));
 
       if (imageEntries.isEmpty) {
-        AnxLog.warning('Import: CBR 内未找到图片条目，跳过：$src');
+        SjLog.warning('Import: CBR 内未找到图片条目，跳过：$src');
         return null;
       }
 
@@ -267,10 +267,10 @@ Future<File?> _convertCbrToCbz(String src, {Directory? tempDir}) async {
       await archive.close();
     }
 
-    AnxLog.info('Import: CBR 已转换为 CBZ：$src -> $targetPath');
+    SjLog.info('Import: CBR 已转换为 CBZ：$src -> $targetPath');
     return File(targetPath);
   } catch (e) {
-    AnxLog.severe('Import: CBR 转 CBZ 失败 $src: $e');
+    SjLog.severe('Import: CBR 转 CBZ 失败 $src: $e');
     return null;
   }
 }
@@ -291,7 +291,7 @@ Future<List<File>> normalizeImportFiles(
     final src = file.path;
 
     if (!File(src).existsSync()) {
-      AnxLog.severe('Import: 文件不存在或不可直接读取，跳过：$src');
+      SjLog.severe('Import: 文件不存在或不可直接读取，跳过：$src');
       continue;
     }
 
@@ -301,10 +301,10 @@ Future<List<File>> normalizeImportFiles(
       continue;
     }
 
-    AnxLog.info('Import: 扩展名「$ext」不在白名单，尝试按内容识别：$src');
+    SjLog.info('Import: 扩展名「$ext」不在白名单，尝试按内容识别：$src');
     final sniffed = sniffExtension(src);
     if (sniffed == null) {
-      AnxLog.warning('Import: 无法识别文件格式，跳过：$src');
+      SjLog.warning('Import: 无法识别文件格式，跳过：$src');
       continue;
     }
 

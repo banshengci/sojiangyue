@@ -1,8 +1,8 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:songjiang_reader/config/remote_config.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/tts/models/tts_voice.dart';
 import 'package:songjiang_reader/service/tts/tts_service.dart';
@@ -55,7 +55,7 @@ class AzureTtsProvider extends TtsServiceProvider {
 
   @override
   Map<String, dynamic> getConfig() {
-    final config = Prefs().getOnlineTtsConfig(serviceId);
+    final config = TtsPrefs.getOnlineConfig(serviceId);
     // Apply defaults if config is empty
     if (config.isEmpty || (config['key'] == null && config['region'] == null)) {
       return {'key': '', 'region': 'global'};
@@ -65,7 +65,7 @@ class AzureTtsProvider extends TtsServiceProvider {
 
   @override
   void saveConfig(Map<String, dynamic> config) {
-    Prefs().saveOnlineTtsConfig(serviceId, config);
+    TtsPrefs.saveOnlineConfig(serviceId, config);
   }
 
   @override
@@ -117,7 +117,7 @@ class AzureTtsProvider extends TtsServiceProvider {
 
     // Convert pitch (0.5 ~ 2.0 typically)
     // Similar logic? Let's assume SongJiangReader passes standard 1.0 float base.
-    // If pitch comes from Prefs().ttsPitch which is double.
+    // If pitch comes from TtsPrefs.pitch which is double.
     int pitchPercent = ((pitch - 1.0) * 100).toInt();
     String pitchStr = pitchPercent >= 0 ? "+$pitchPercent%" : "$pitchPercent%";
 

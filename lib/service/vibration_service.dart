@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:haptic_feedback/haptic_feedback.dart';
 import 'package:vibration/vibration.dart';
 import 'package:vibration/vibration_presets.dart';
@@ -233,7 +233,7 @@ class VibrationService {
   }
 
   static bool _shouldSuppressFeedback() {
-    return Prefs().reduceVibrationFeedback;
+    return ReadingUiPrefs.reduceVibrationFeedback;
   }
 
   static const Map<VibrationType, HapticsType> _hapticsTypeMap = {

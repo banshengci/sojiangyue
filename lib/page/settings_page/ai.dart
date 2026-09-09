@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/enums/ai_prompts.dart';
 import 'package:songjiang_reader/enums/ai_chat_display_mode.dart';
 import 'package:songjiang_reader/enums/ai_panel_position.dart';
@@ -8,8 +8,8 @@ import 'package:songjiang_reader/providers/ai_cache_count.dart';
 import 'package:songjiang_reader/providers/ai_providers.dart';
 import 'package:songjiang_reader/providers/user_prompts.dart';
 import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
-import 'package:songjiang_reader/widgets/common/anx_button.dart';
-import 'package:songjiang_reader/widgets/common/anx_segmented_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_button.dart';
+import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:songjiang_reader/widgets/delete_confirm.dart';
 import 'package:songjiang_reader/widgets/settings/settings_section.dart';
 import 'package:songjiang_reader/widgets/settings/settings_tile.dart';
@@ -98,7 +98,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
             onPressed: (context) {
               SmartDialog.show(builder: (context) {
                 final controller = TextEditingController(
-                  text: Prefs().getAiPrompt(
+                  text: AiPrefs.getPrompt(
                     AiPrompts.values[index],
                   ),
                 );
@@ -149,8 +149,8 @@ class _AISettingsState extends ConsumerState<AISettings> {
                   actions: [
                     TextButton(
                       onPressed: () {
-                        Prefs().deleteAiPrompt(AiPrompts.values[index]);
-                        controller.text = Prefs().getAiPrompt(
+                        AiPrefs.deletePrompt(AiPrompts.values[index]);
+                        controller.text = AiPrefs.getPrompt(
                           AiPrompts.values[index],
                         );
                       },
@@ -158,7 +158,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
                     ),
                     TextButton(
                       onPressed: () {
-                        Prefs().saveAiPrompt(
+                        AiPrefs.savePrompt(
                           AiPrompts.values[index],
                           controller.text,
                         );
@@ -175,7 +175,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
     );
 
     final toolDefs = AiToolRegistry.definitions;
-    final enabledToolIds = Prefs().enabledAiToolIds;
+    final enabledToolIds = AiPrefs.enabledToolIds;
 
     final toolsTile = CustomSettingsTile(
       child: Column(
@@ -190,7 +190,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
                 } else {
                   next.remove(tool.id);
                 }
-                Prefs().enabledAiToolIds = next.toList();
+                AiPrefs.enabledToolIds = next.toList();
                 setState(() {});
               },
               title: Text(tool.displayName(l10n)),
@@ -200,7 +200,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: () {
-                Prefs().resetEnabledAiTools();
+                AiPrefs.resetEnabledTools();
                 setState(() {});
               },
               child: Text(l10n.commonReset),
@@ -246,7 +246,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
         title: Text(L10n.of(context).settingsAiChatDisplay),
         tiles: [
           aiChatDisplayModeTile(),
-          if (Prefs().aiChatDisplayMode != AiChatDisplayMode.popup)
+          if (AiPrefs.aiChatDisplayMode != AiChatDisplayMode.popup)
             aiPanelPositionTile(),
         ],
       ),
@@ -289,16 +289,16 @@ class _AISettingsState extends ConsumerState<AISettings> {
               ),
               subtitle: Row(
                 children: [
-                  Text(Prefs().maxAiCacheCount.toString()),
+                  Text(AiPrefs.maxCacheCount.toString()),
                   Expanded(
                     child: Slider(
-                      value: Prefs().maxAiCacheCount.toDouble(),
+                      value: AiPrefs.maxCacheCount.toDouble(),
                       min: 0,
                       max: 1000,
                       divisions: 100,
-                      label: Prefs().maxAiCacheCount.toString(),
+                      label: AiPrefs.maxCacheCount.toString(),
                       onChanged: (value) {
-                        Prefs().maxAiCacheCount = value.toInt();
+                        AiPrefs.maxCacheCount = value.toInt();
                         setState(() {});
                       },
                     ),
@@ -363,7 +363,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
             Row(
               children: [
                 Expanded(
-                  child: AnxSegmentedButton<AiChatDisplayMode>(
+                  child: SjSegmentedButton<AiChatDisplayMode>(
                     segments: [
                       SegmentButtonItem(
                         value: AiChatDisplayMode.adaptive,
@@ -381,10 +381,10 @@ class _AISettingsState extends ConsumerState<AISettings> {
                         icon: const Icon(Icons.open_in_new, size: 18),
                       ),
                     ],
-                    selected: {Prefs().aiChatDisplayMode},
+                    selected: {AiPrefs.aiChatDisplayMode},
                     onSelectionChanged: (Set<AiChatDisplayMode> selected) {
                       if (selected.isNotEmpty) {
-                        Prefs().aiChatDisplayMode = selected.first;
+                        AiPrefs.aiChatDisplayMode = selected.first;
                         setState(() {});
                       }
                     },
@@ -415,7 +415,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
             Row(
               children: [
                 Expanded(
-                  child: AnxSegmentedButton<AiPanelPositionEnum>(
+                  child: SjSegmentedButton<AiPanelPositionEnum>(
                     segments: [
                       SegmentButtonItem(
                         value: AiPanelPositionEnum.bottom,
@@ -428,10 +428,10 @@ class _AISettingsState extends ConsumerState<AISettings> {
                         icon: const Icon(Icons.border_right, size: 18),
                       ),
                     ],
-                    selected: {Prefs().aiPanelPosition},
+                    selected: {AiPrefs.aiPanelPosition},
                     onSelectionChanged: (Set<AiPanelPositionEnum> selected) {
                       if (selected.isNotEmpty) {
-                        Prefs().aiPanelPosition = selected.first;
+                        AiPrefs.aiPanelPosition = selected.first;
                         setState(() {});
                       }
                     },
@@ -460,7 +460,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AnxButton(
+                SjButton(
                   onPressed: _showAddPromptDialog,
                   child: Text(L10n.of(context).settingsAiUserPromptsAdd),
                 ),
@@ -669,7 +669,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
                 final content = contentController.text.trim();
 
                 if (name.isEmpty || content.isEmpty) {
-                  AnxToast.show(L10n.of(context).commonInputCannotBeEmpty);
+                  SjToast.show(L10n.of(context).commonInputCannotBeEmpty);
                   return;
                 }
 
@@ -683,7 +683,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
                   _expandedUserPromptId = null;
                 });
 
-                AnxToast.show(L10n.of(context).commonSaveSuccess);
+                SjToast.show(L10n.of(context).commonSaveSuccess);
               },
               child: Text(L10n.of(context).commonSave),
             ),
@@ -743,7 +743,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
               final content = contentController.text.trim();
 
               if (name.isEmpty || content.isEmpty) {
-                AnxToast.show(L10n.of(context).commonInputCannotBeEmpty);
+                SjToast.show(L10n.of(context).commonInputCannotBeEmpty);
                 return;
               }
 
@@ -753,7 +753,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
               nameController.dispose();
               contentController.dispose();
 
-              AnxToast.show(L10n.of(context).commonAddSuccess);
+              SjToast.show(L10n.of(context).commonAddSuccess);
             },
             child: Text(L10n.of(context).commonConfirm),
           ),
@@ -778,7 +778,7 @@ class _AiRpmTileState extends State<_AiRpmTile> {
   @override
   void initState() {
     super.initState();
-    final rpm = Prefs().aiRpm;
+    final rpm = AiPrefs.rpm;
     _controller = TextEditingController(text: rpm == 0 ? '' : rpm.toString());
   }
 
@@ -811,7 +811,7 @@ class _AiRpmTileState extends State<_AiRpmTile> {
             isDense: true,
           ),
           onChanged: (value) {
-            Prefs().aiRpm = int.tryParse(value) ?? 0;
+            AiPrefs.rpm = int.tryParse(value) ?? 0;
             widget.setState();
           },
         ),

@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:flutter/material.dart';
 
 class IconAndText extends StatelessWidget {
@@ -22,7 +22,7 @@ class IconAndText extends StatelessWidget {
     final double width = compact ? 42 : 48;
     final double height = compact ? 50 : 60;
 
-    if (!Prefs().showActionLabels) {
+    if (!ReadingUiPrefs.showActionLabels) {
       if (onTap == null) {
         return SizedBox(
           width: width,

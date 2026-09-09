@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/notes_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/book_note.dart';
 import 'package:songjiang_reader/models/book_notes_state.dart';
@@ -118,7 +118,7 @@ class _BookNotesPageState extends ConsumerState<BookNotesPage> {
     showModalBottomSheet(
       context: context,
       builder: (context) {
-        bool mergeChapters = Prefs().notesExportMergeChapters;
+        bool mergeChapters = NotesPrefs.exportMergeChapters;
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Consumer(
@@ -142,7 +142,7 @@ class _BookNotesPageState extends ConsumerState<BookNotesPage> {
                               setModalState(() {
                                 mergeChapters = value;
                               });
-                              Prefs().notesExportMergeChapters = value;
+                              NotesPrefs.exportMergeChapters = value;
                             },
                           ),
                           const SizedBox(height: 20),

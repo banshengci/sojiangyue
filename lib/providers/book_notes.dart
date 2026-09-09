@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/notes_prefs.dart';
 import 'package:songjiang_reader/constants/note_annotations.dart';
 import 'package:songjiang_reader/dao/book_note.dart';
 import 'package:songjiang_reader/models/book.dart';
@@ -13,31 +13,27 @@ part 'book_notes.g.dart';
 @riverpod
 class BookNotesController extends _$BookNotesController {
   NotesSortMode _viewSortFromPrefs() {
-    final prefs = Prefs();
     return NotesSortMode(
-      field: prefs.notesViewSortFieldPref,
-      direction: prefs.notesViewSortDirectionPref,
+      field: NotesPrefs.viewSortField,
+      direction: NotesPrefs.viewSortDirection,
     );
   }
 
   NotesSortMode _exportSortFromPrefs() {
-    final prefs = Prefs();
     return NotesSortMode(
-      field: prefs.notesExportSortFieldPref,
-      direction: prefs.notesExportSortDirectionPref,
+      field: NotesPrefs.exportSortField,
+      direction: NotesPrefs.exportSortDirection,
     );
   }
 
   void _persistViewSort(NotesSortMode mode) {
-    final prefs = Prefs();
-    prefs.notesViewSortFieldPref = mode.field;
-    prefs.notesViewSortDirectionPref = mode.direction;
+    NotesPrefs.viewSortField = mode.field;
+    NotesPrefs.viewSortDirection = mode.direction;
   }
 
   void _persistExportSort(NotesSortMode mode) {
-    final prefs = Prefs();
-    prefs.notesExportSortFieldPref = mode.field;
-    prefs.notesExportSortDirectionPref = mode.direction;
+    NotesPrefs.exportSortField = mode.field;
+    NotesPrefs.exportSortDirection = mode.direction;
   }
 
   @override

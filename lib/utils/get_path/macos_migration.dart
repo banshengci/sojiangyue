@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/platform_utils.dart';
@@ -27,7 +27,7 @@ class MigrationCheckResult {
 /// 2. Old path (Documents) has data
 /// 3. New path (Application Support) is empty or doesn't exist
 Future<MigrationCheckResult> checkMigrationNeeded() async {
-  if (!AnxPlatform.isMacOS) {
+  if (!SjPlatform.isMacOS) {
     return MigrationCheckResult(needsMigration: false);
   }
 
@@ -69,7 +69,7 @@ Future<MigrationCheckResult> checkMigrationNeeded() async {
 
     // If new path already has data, skip migration
     if (newHasData) {
-      AnxLog.info('Migration: New path already has data, skipping migration');
+      SjLog.info('Migration: New path already has data, skipping migration');
       return MigrationCheckResult(needsMigration: false);
     }
 
@@ -79,7 +79,7 @@ Future<MigrationCheckResult> checkMigrationNeeded() async {
       newPath: newPath,
     );
   } catch (e) {
-    AnxLog.severe('Migration check failed: $e');
+    SjLog.severe('Migration check failed: $e');
     return MigrationCheckResult(needsMigration: false);
   }
 }
@@ -117,7 +117,7 @@ Future<bool> performMigration({
       await _copyDirectory(oldDir, newDir);
       successfullyMigrated.add(folder);
 
-      AnxLog.info('Migration: Copied $folder successfully');
+      SjLog.info('Migration: Copied $folder successfully');
     }
 
     // Also copy the log file if it exists
@@ -127,16 +127,16 @@ Future<bool> performMigration({
       final newLogFile =
           File('$newPath${Platform.pathSeparator}songjiang_reader.log');
       await oldLogFile.copy(newLogFile.path);
-      AnxLog.info('Migration: Copied log file successfully');
+      SjLog.info('Migration: Copied log file successfully');
     }
 
     // All copies successful, now delete old data
-    AnxLog.info('Migration: All data copied, cleaning up old data...');
+    SjLog.info('Migration: All data copied, cleaning up old data...');
     for (final folder in successfullyMigrated) {
       final oldDir = Directory('$oldPath${Platform.pathSeparator}$folder');
       if (oldDir.existsSync()) {
         await oldDir.delete(recursive: true);
-        AnxLog.info('Migration: Deleted old $folder');
+        SjLog.info('Migration: Deleted old $folder');
       }
     }
 
@@ -145,10 +145,10 @@ Future<bool> performMigration({
       await oldLogFile.delete();
     }
 
-    AnxLog.info('Migration: Completed successfully');
+    SjLog.info('Migration: Completed successfully');
     return true;
   } catch (e) {
-    AnxLog.severe('Migration failed: $e');
+    SjLog.severe('Migration failed: $e');
     return false;
   }
 }

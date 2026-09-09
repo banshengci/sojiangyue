@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/widgets/common/container/base_rounded_container.dart';
 import 'package:songjiang_reader/widgets/common/container/outlined_container.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +24,7 @@ class FilledContainer extends BaseRoundedContainer {
 
   @override
   Widget build(BuildContext context) {
-    if (Prefs().eInkMode && !fill) {
+    if (ThemePrefs.eInkMode && !fill) {
       return OutlinedContainer(
         width: width,
         height: height,

@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/enums/sync_direction.dart';
@@ -87,11 +87,11 @@ class SyncStatus extends _$SyncStatus {
       try {
         return await core();
       } catch (e) {
-        AnxLog.info(
+        SjLog.info(
             'Webdav: Failed to list remote files: $e try again $count/$maxCount');
         count++;
         if (count >= maxCount) {
-          AnxLog.info('Webdav: Failed to list remote files: $e');
+          SjLog.info('Webdav: Failed to list remote files: $e');
           return [];
         }
       }

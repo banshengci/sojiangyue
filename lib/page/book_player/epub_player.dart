@@ -3,6 +3,13 @@ import 'dart:convert';
 import 'dart:ui';
 
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/translate_prefs.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/bookshelf_prefs.dart';
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/config/bgimg_prefs.dart';
+import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/book_note.dart';
 import 'package:songjiang_reader/enums/page_turn_mode.dart';
@@ -173,14 +180,14 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
 
   void changeStyle(BookStyle? bookStyle) {
     styleTimer?.cancel();
-    String bgimgUrl = Prefs().bgimg.getEffectiveUrl(
+    String bgimgUrl = BgimgPrefs.bgimg.getEffectiveUrl(
           isDarkMode: isDarkMode,
-          autoAdjust: Prefs().autoAdjustReadingTheme,
+          autoAdjust: ThemePrefs.autoAdjustReadingTheme,
         );
 
     styleTimer = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      BookStyle style = bookStyle ?? Prefs().bookStyle;
+      BookStyle style = bookStyle ?? ReadingStylePrefs.bookStyle;
       webViewController.evaluateJavascript(source: '''
       changeStyle({
         fontSize: ${style.fontSize},
@@ -194,17 +201,17 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
         textIndent: ${style.indent},
         maxColumnCount: ${style.maxColumnCount},
         columnThreshold: ${style.columnThreshold},
-        writingMode: '${Prefs().writingMode.code}',
-        textAlign: '${Prefs().textAlignment.code}',
+        writingMode: '${ReadingStylePrefs.writingMode.code}',
+        textAlign: '${ReadingStylePrefs.textAlignment.code}',
         backgroundImage: '$bgimgUrl',
-        bgimgBlur: ${Prefs().bgimg.blur},
-        bgimgOpacity: ${Prefs().bgimg.opacity},
-        bgimgFit: '${Prefs().bgimgFit.code}',
-        customCSS: `${Prefs().customCSS.replaceAll('`', '\\`')}`,
-        customCSSEnabled: ${Prefs().customCSSEnabled},
-        useBookStyles: ${Prefs().useBookStyles},
+        bgimgBlur: ${BgimgPrefs.bgimg.blur},
+        bgimgOpacity: ${BgimgPrefs.bgimg.opacity},
+        bgimgFit: '${BgimgPrefs.fit.code}',
+        customCSS: `${ReadingUiPrefs.customCss.replaceAll('`', '\\`')}`,
+        customCSSEnabled: ${ReadingUiPrefs.customCssEnabled},
+        useBookStyles: ${ReadingStylePrefs.useBookStyles},
         headingFontSize: ${style.headingFontSize},
-        codeHighlightTheme: '${Prefs().codeHighlightTheme.code}',
+        codeHighlightTheme: '${ReadingUiPrefs.codeHighlightTheme.code}',
       })
       ''');
     });
@@ -212,17 +219,17 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
 
   void changeBgimgEffect() {
     if (!mounted) return;
-    final bgimg = Prefs().bgimg;
+    final bgimg = BgimgPrefs.bgimg;
     final bgimgUrl = bgimg.getEffectiveUrl(
       isDarkMode: isDarkMode,
-      autoAdjust: Prefs().autoAdjustReadingTheme,
+      autoAdjust: ThemePrefs.autoAdjustReadingTheme,
     );
     webViewController.evaluateJavascript(source: '''
       changeStyle({
         backgroundImage: '$bgimgUrl',
         bgimgBlur: ${bgimg.blur},
         bgimgOpacity: ${bgimg.opacity},
-        bgimgFit: '${Prefs().bgimgFit.code}',
+        bgimgFit: '${BgimgPrefs.fit.code}',
       })
     ''');
   }
@@ -495,7 +502,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
 
     final uri = Uri.tryParse(link);
     if (uri == null || uri.scheme.isEmpty || uri.scheme == 'javascript') {
-      AnxLog.warning('Ignored invalid external link: $link');
+      SjLog.warning('Ignored invalid external link: $link');
       return;
     }
 
@@ -537,7 +544,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       mode: LaunchMode.externalApplication,
     );
     if (!opened) {
-      AnxLog.warning('Failed to open external link: $link');
+      SjLog.warning('Failed to open external link: $link');
     }
   }
 
@@ -552,16 +559,16 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
     final part = coordinatesToPart(x, y);
 
     PageTurningType action;
-    final pageTurnMode = PageTurnMode.fromCode(Prefs().pageTurnMode);
+    final pageTurnMode = PageTurnMode.fromCode(ReadingStylePrefs.pageTurnMode);
 
     if (pageTurnMode == PageTurnMode.simple) {
       // Use predefined page turning types
-      final currentPageTurningType = Prefs().pageTurningType;
+      final currentPageTurningType = ReadingStylePrefs.pageTurningType;
       final pageTurningType = pageTurningTypes[currentPageTurningType];
       action = pageTurningType[part];
 
       // Apply swap if enabled
-      if (Prefs().swapPageTurnArea) {
+      if (ReadingUiPrefs.swapPageTurnArea) {
         if (action == PageTurningType.prev) {
           action = PageTurningType.next;
         } else if (action == PageTurningType.next) {
@@ -570,12 +577,12 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       }
     } else {
       // Use custom configuration
-      final customConfig = Prefs().customPageTurnConfig;
+      final customConfig = ReadingStylePrefs.customPageTurnConfig;
       action = PageTurningType.values[customConfig[part]];
     }
 
     // Disable mouse/touch page turning when keyboard shortcuts are enabled
-    if (Prefs().keyboardShortcutTurnPage) {
+    if (ReadingUiPrefs.keyboardShortcutTurnPage) {
       // Only allow menu action, disable prev/next page turning
       if (action == PageTurningType.prev || action == PageTurningType.next) {
         return;
@@ -610,7 +617,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   }
 
   void getThemeColor() {
-    if (Prefs().autoAdjustReadingTheme) {
+    if (ThemePrefs.autoAdjustReadingTheme) {
       List<ReadTheme> themes = widget.initialThemes;
       final isDayMode =
           Theme.of(navigatorKey.currentContext!).brightness == Brightness.light;
@@ -618,8 +625,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
           isDayMode ? themes[0].backgroundColor : themes[1].backgroundColor;
       textColor = isDayMode ? themes[0].textColor : themes[1].textColor;
     } else {
-      backgroundColor = Prefs().readTheme.backgroundColor;
-      textColor = Prefs().readTheme.textColor;
+      backgroundColor = AppMiscPrefs.readTheme.backgroundColor;
+      textColor = AppMiscPrefs.readTheme.textColor;
     }
   }
 
@@ -865,14 +872,14 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       callback: (args) async {
         try {
           String text = args[0];
-          final service = Prefs().fullTextTranslateService;
-          final from = Prefs().fullTextTranslateFrom;
-          final to = Prefs().fullTextTranslateTo;
+          final service = TranslatePrefs.fullTextService;
+          final from = TranslatePrefs.fullTextFrom;
+          final to = TranslatePrefs.fullTextTo;
 
           return await service.provider
               .translateTextOnly(text, from, to, isFullText: true);
         } catch (e) {
-          AnxLog.severe('Translation error: $e');
+          SjLog.severe('Translation error: $e');
           return 'Translation error: $e';
         }
       },
@@ -880,7 +887,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   }
 
   Future<void> onWebViewCreated(InAppWebViewController controller) async {
-    if (AnxPlatform.isAndroid) {
+    if (SjPlatform.isAndroid) {
       await InAppWebViewController.setWebContentsDebuggingEnabled(true);
     }
     webViewController = controller;
@@ -889,7 +896,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
 
     // Initialize translation mode based on book-specific settings
     Future.delayed(const Duration(milliseconds: 300), () {
-      setTranslationMode(Prefs().getBookTranslationMode(widget.book.id));
+      setTranslationMode(
+          Prefs().getBookTranslationMode(widget.book.id.toString()));
     });
   }
 
@@ -902,11 +910,11 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   }
 
   Future<void> _handlePointerEvents(PointerEvent event) async {
-    if (await isFootNoteOpen() || Prefs().pageTurnStyle == PageTurn.scroll) {
+    if (await isFootNoteOpen() || ReadingStylePrefs.pageTurnStyle == PageTurn.scroll) {
       return;
     }
     // Disable scroll wheel page turning when keyboard shortcuts are enabled
-    if (Prefs().keyboardShortcutTurnPage) {
+    if (ReadingUiPrefs.keyboardShortcutTurnPage) {
       return;
     }
     if (event is PointerScrollEvent) {
@@ -940,7 +948,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
         // removeOverlay();
       },
     );
-    if (Prefs().openBookAnimation) {
+    if (BookshelfPrefs.openBookAnimation) {
       _animationController = AnimationController(
         duration: const Duration(milliseconds: 600),
         vsync: this,
@@ -1229,7 +1237,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       onConsoleMessage: webviewConsoleMessage,
     );
 
-    if (!AnxPlatform.isIOS) {
+    if (!SjPlatform.isIOS) {
       return SizedBox.expand(child: webView);
     }
 
@@ -1266,7 +1274,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
             buildWebviewWithIOSWorkaround(context, url, initialCfi),
             readingInfoWidget(),
             if (showHistory) _buildHistoryCapsule(),
-            if (Prefs().openBookAnimation)
+            if (BookshelfPrefs.openBookAnimation)
               SizedBox.expand(
                   child: IgnorePointer(
                 ignoring: true,

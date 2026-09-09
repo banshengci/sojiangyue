@@ -1,6 +1,7 @@
-import 'dart:io';
+﻿import 'dart:io';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/models/ai_provider.dart';
 import 'package:songjiang_reader/providers/current_reading.dart';
 import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
@@ -118,7 +119,7 @@ class LangchainAiRegistry {
     ChatMessage? systemMessage;
 
     if (useAgent) {
-      final enabledIds = Prefs().enabledAiToolIds;
+      final enabledIds = AiPrefs.enabledToolIds;
       final toolContext = AiToolContext(ref: ref!);
       tools = AiToolRegistry.buildTools(toolContext, enabledIds);
       final enabledDefs = AiToolRegistry.definitions
@@ -142,7 +143,7 @@ class LangchainAiRegistry {
     required List<AiToolDefinition> enabledTools,
   }) {
     final currentLanguageCode =
-        Prefs().locale?.languageCode ?? Platform.localeName;
+        AppMiscPrefs.locale?.languageCode ?? Platform.localeName;
 
     // Map language code to language name
     final languageMap = {

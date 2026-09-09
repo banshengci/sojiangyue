@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
 import 'package:songjiang_reader/service/tts/online_tts.dart';
 import 'package:songjiang_reader/service/tts/system_tts.dart';
@@ -22,12 +22,12 @@ class TtsFactory {
   }
 
   BaseTts createTts() {
-    TtsService service = getTtsService(Prefs().ttsService);
+    TtsService service = getTtsService(TtsPrefs.serviceId);
     return service == TtsService.system ? SystemTts() : OnlineTts();
   }
 
   Future<void> switchTtsType(String serviceId) async {
-    if (Prefs().ttsService == serviceId) return;
+    if (TtsPrefs.serviceId == serviceId) return;
 
     if (_currentTts != null) {
       await _currentTts!.stop();
@@ -35,7 +35,7 @@ class TtsFactory {
       _currentTts = null;
     }
 
-    Prefs().ttsService = serviceId;
+    TtsPrefs.serviceId = serviceId;
     _currentTts = createTts();
   }
 

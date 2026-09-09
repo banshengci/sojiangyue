@@ -1,6 +1,6 @@
-import 'dart:core';
+﻿import 'dart:core';
 
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/translate_prefs.dart';
 import 'package:songjiang_reader/enums/lang_list.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/config/config_item.dart';
@@ -130,7 +130,7 @@ abstract class TranslateServiceProvider {
             'Translation returned no valid result: ${lastResult ?? 'No result'}');
       } catch (e) {
         if (attempt < maxRetries) {
-          AnxLog.warning(
+          SjLog.warning(
               'Translation attempt ${attempt + 1} failed with exception: $e. Retrying...');
           await Future.delayed(Duration(milliseconds: 100 * (attempt + 1)));
           continue;
@@ -194,9 +194,9 @@ abstract class TranslateServiceProvider {
 
 Widget translateText(String text,
     {TranslateService? service, String? contextText}) {
-  service ??= Prefs().translateService;
-  final from = Prefs().translateFrom;
-  final to = Prefs().translateTo;
+  service ??= TranslatePrefs.service;
+  final from = TranslatePrefs.from;
+  final to = TranslatePrefs.to;
 
   return service.provider.translate(
     text,
@@ -222,9 +222,9 @@ void saveTranslateServiceConfig(
 
 Future<String> translateTextOnly(String text,
     {TranslateService? service, String? contextText}) async {
-  service ??= Prefs().translateService;
-  final from = Prefs().translateFrom;
-  final to = Prefs().translateTo;
+  service ??= TranslatePrefs.service;
+  final from = TranslatePrefs.from;
+  final to = TranslatePrefs.to;
 
   return await service.provider.translateTextOnly(
     text,

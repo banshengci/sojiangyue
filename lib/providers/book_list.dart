@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/tag.dart';
 import 'package:songjiang_reader/enums/sort_field.dart';
@@ -55,7 +55,7 @@ class BookList extends _$BookList {
   List<Book> sortBooks(List<Book> books) {
     books.sort((a, b) {
       int compareResult;
-      switch (Prefs().sortField) {
+      switch (BookshelfPrefs.sortField) {
         case SortFieldEnum.title:
           compareResult = getChineseCompareResult(a.title, b.title);
           break;
@@ -72,7 +72,7 @@ class BookList extends _$BookList {
           compareResult = a.createTime.compareTo(b.createTime);
           break;
       }
-      return Prefs().sortOrder == SortOrderEnum.ascending
+      return BookshelfPrefs.sortOrder == SortOrderEnum.ascending
           ? compareResult
           : -compareResult;
     });

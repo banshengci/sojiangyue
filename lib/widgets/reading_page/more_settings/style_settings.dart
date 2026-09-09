@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/enums/text_alignment.dart';
 import 'package:songjiang_reader/enums/writing_mode.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
@@ -75,18 +75,18 @@ class _StyleSettingsState extends State<StyleSettings> {
           L10n.of(context).useBookStylesDescription,
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        value: Prefs().useBookStyles,
+        value: ReadingStylePrefs.useBookStyles,
         onChanged: (bool value) {
           setState(() {
-            Prefs().useBookStyles = value;
-            epubPlayerKey.currentState?.changeStyle(Prefs().bookStyle);
+            ReadingStylePrefs.useBookStyles = value;
+            epubPlayerKey.currentState?.changeStyle(ReadingStylePrefs.bookStyle);
           });
         },
       );
     }
 
     Widget textIndent(BookStyle bookStyle, StateSetter setState) {
-      bool enabled = !Prefs().useBookStyles;
+      bool enabled = !ReadingStylePrefs.useBookStyles;
       return StyleSlider(
         icon: Icons.format_indent_increase,
         label: L10n.of(context).readingPageIndent,
@@ -95,7 +95,7 @@ class _StyleSettingsState extends State<StyleSettings> {
           setState(() {
             bookStyle.indent = value;
             epubPlayerKey.currentState?.changeStyle(bookStyle);
-            Prefs().saveBookStyleToPrefs(bookStyle);
+            ReadingStylePrefs.saveBookStyle(bookStyle);
           });
         },
         min: -0.5,
@@ -110,10 +110,10 @@ class _StyleSettingsState extends State<StyleSettings> {
 
     Widget sideMarginSlider(BookStyle bookStyle, StateSetter setState) {
       return StyleSlider(
-        icon: Prefs().writingMode == WritingModeEnum.verticalRl
+        icon: ReadingStylePrefs.writingMode == WritingModeEnum.verticalRl
             ? Bootstrap.arrows_vertical
             : Bootstrap.arrows,
-        label: Prefs().writingMode == WritingModeEnum.verticalRl
+        label: ReadingStylePrefs.writingMode == WritingModeEnum.verticalRl
             ? L10n.of(context).readingPageVerticleMargin
             : L10n.of(context).readingPageSideMargin,
         value: bookStyle.sideMargin,
@@ -121,7 +121,7 @@ class _StyleSettingsState extends State<StyleSettings> {
           setState(() {
             bookStyle.sideMargin = value;
             epubPlayerKey.currentState?.changeStyle(bookStyle);
-            Prefs().saveBookStyleToPrefs(bookStyle);
+            ReadingStylePrefs.saveBookStyle(bookStyle);
           });
         },
         min: 0,
@@ -133,7 +133,7 @@ class _StyleSettingsState extends State<StyleSettings> {
     }
 
     Widget letterSpacingSlider(BookStyle bookStyle, StateSetter setState) {
-      bool enabled = !Prefs().useBookStyles;
+      bool enabled = !ReadingStylePrefs.useBookStyles;
       return StyleSlider(
         icon: Icons.compare_arrows,
         label: L10n.of(context).readingPageLetterSpacing,
@@ -142,7 +142,7 @@ class _StyleSettingsState extends State<StyleSettings> {
           setState(() {
             bookStyle.letterSpacing = value;
             epubPlayerKey.currentState?.changeStyle(bookStyle);
-            Prefs().saveBookStyleToPrefs(bookStyle);
+            ReadingStylePrefs.saveBookStyle(bookStyle);
           });
         },
         min: -3,
@@ -155,7 +155,7 @@ class _StyleSettingsState extends State<StyleSettings> {
 
     Row topBottomMarginSlider(BookStyle bookStyle, StateSetter setState) {
       return Row(children: [
-        Prefs().writingMode == WritingModeEnum.verticalRl
+        ReadingStylePrefs.writingMode == WritingModeEnum.verticalRl
             ? IconAndText(
                 icon: const Icon(Bootstrap.chevron_bar_right),
                 text: L10n.of(context).readingPageRightMargin,
@@ -172,7 +172,7 @@ class _StyleSettingsState extends State<StyleSettings> {
               setState(() {
                 bookStyle.topMargin = value;
                 epubPlayerKey.currentState?.changeStyle(bookStyle);
-                Prefs().saveBookStyleToPrefs(bookStyle);
+                ReadingStylePrefs.saveBookStyle(bookStyle);
               });
             },
             min: 0,
@@ -181,7 +181,7 @@ class _StyleSettingsState extends State<StyleSettings> {
             label: (bookStyle.topMargin / 20).toStringAsFixed(0),
           ),
         ),
-        Prefs().writingMode == WritingModeEnum.verticalRl
+        ReadingStylePrefs.writingMode == WritingModeEnum.verticalRl
             ? IconAndText(
                 icon: const Icon(Bootstrap.chevron_bar_left),
                 text: L10n.of(context).readingPageLeftMargin,
@@ -198,7 +198,7 @@ class _StyleSettingsState extends State<StyleSettings> {
               setState(() {
                 bookStyle.bottomMargin = value;
                 epubPlayerKey.currentState?.changeStyle(bookStyle);
-                Prefs().saveBookStyleToPrefs(bookStyle);
+                ReadingStylePrefs.saveBookStyle(bookStyle);
               });
             },
             min: 0,
@@ -211,7 +211,7 @@ class _StyleSettingsState extends State<StyleSettings> {
     }
 
     Widget fontWeightSlider(BookStyle bookStyle, StateSetter setState) {
-      bool enabled = !Prefs().useBookStyles;
+      bool enabled = !ReadingStylePrefs.useBookStyles;
       return StyleSlider(
         icon: Icons.format_bold,
         label: L10n.of(context).readingPageFontWeight,
@@ -220,7 +220,7 @@ class _StyleSettingsState extends State<StyleSettings> {
           setState(() {
             bookStyle.fontWeight = value;
             epubPlayerKey.currentState?.changeStyle(bookStyle);
-            Prefs().saveBookStyleToPrefs(bookStyle);
+            ReadingStylePrefs.saveBookStyle(bookStyle);
           });
         },
         min: 100,
@@ -232,7 +232,7 @@ class _StyleSettingsState extends State<StyleSettings> {
     }
 
     Widget headingFontSizeSlider(BookStyle bookStyle, StateSetter setState) {
-      bool enabled = !Prefs().useBookStyles;
+      bool enabled = !ReadingStylePrefs.useBookStyles;
       return StyleSlider(
         icon: Icons.title,
         label: L10n.of(context).headingFontSize,
@@ -241,7 +241,7 @@ class _StyleSettingsState extends State<StyleSettings> {
           setState(() {
             bookStyle.headingFontSize = value;
             epubPlayerKey.currentState?.changeStyle(bookStyle);
-            Prefs().saveBookStyleToPrefs(bookStyle);
+            ReadingStylePrefs.saveBookStyle(bookStyle);
           });
         },
         min: 0.5,
@@ -291,7 +291,7 @@ class _StyleSettingsState extends State<StyleSettings> {
             const Spacer(),
             DropdownMenu<TextAlignmentEnum>(
               width: 140,
-              initialSelection: Prefs().textAlignment,
+              initialSelection: ReadingStylePrefs.textAlignment,
               inputDecorationTheme: InputDecorationTheme(
                 isDense: false,
                 border: InputBorder.none,
@@ -306,8 +306,8 @@ class _StyleSettingsState extends State<StyleSettings> {
               onSelected: (value) {
                 if (value != null) {
                   setState(() {
-                    Prefs().textAlignment = value;
-                    epubPlayerKey.currentState?.changeStyle(Prefs().bookStyle);
+                    ReadingStylePrefs.textAlignment = value;
+                    epubPlayerKey.currentState?.changeStyle(ReadingStylePrefs.bookStyle);
                   });
                 }
               },
@@ -318,7 +318,7 @@ class _StyleSettingsState extends State<StyleSettings> {
     }
 
     Widget sliders() {
-      BookStyle bookStyle = Prefs().bookStyle;
+      BookStyle bookStyle = ReadingStylePrefs.bookStyle;
       return StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) => Column(
           children: [

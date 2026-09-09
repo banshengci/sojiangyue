@@ -1,7 +1,7 @@
-import 'package:songjiang_reader/enums/sync_protocol.dart';
+﻿import 'package:songjiang_reader/enums/sync_protocol.dart';
 import 'package:songjiang_reader/service/sync/sync_client_base.dart';
 import 'package:songjiang_reader/service/sync/webdav_client.dart';
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/sync_prefs.dart';
 
 class SyncClientFactory {
   static final SyncClientFactory _instance = SyncClientFactory._internal();
@@ -50,7 +50,7 @@ class SyncClientFactory {
 
   /// Get the currently selected sync protocol from preferences
   static SyncProtocol getCurrentSyncProtocol() {
-    final protocolName = Prefs().syncProtocol ?? 'webdav';
+    final protocolName = SyncPrefs.syncProtocol ?? 'webdav';
     return SyncProtocol.values.firstWhere(
       (p) => p.name == protocolName,
       orElse: () => SyncProtocol.webdav,
@@ -59,7 +59,7 @@ class SyncClientFactory {
 
   /// Get configuration for a specific protocol
   static Map<String, dynamic> getConfigForProtocol(SyncProtocol protocol) {
-    return Prefs().getSyncInfo(protocol);
+    return SyncPrefs.getSyncInfo(protocol);
   }
 
   /// Update the current client configuration
@@ -74,12 +74,12 @@ class SyncClientFactory {
   /// Save configuration for a specific protocol
   static void saveConfigForProtocol(
       SyncProtocol protocol, Map<String, dynamic> config) {
-    Prefs().setSyncInfo(protocol, config);
+    SyncPrefs.setSyncInfo(protocol, config);
   }
 
   /// Switch to a different sync protocol
   static void switchProtocol(SyncProtocol newProtocol) {
-    Prefs().syncProtocol = newProtocol.name;
+    SyncPrefs.syncProtocol = newProtocol.name;
     initializeCurrentClient();
   }
 

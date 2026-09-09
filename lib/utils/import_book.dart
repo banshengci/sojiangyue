@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -25,7 +25,7 @@ Future<String> saveImageToLocal(String? imageFile, String name) async {
 
     return name;
   } catch (e) {
-    AnxLog.severe('Error saving image\n$e');
+    SjLog.severe('Error saving image\n$e');
     return name;
   }
 }
