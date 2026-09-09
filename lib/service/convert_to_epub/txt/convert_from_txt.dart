@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/models/chapter_split_presets.dart';
@@ -49,6 +49,19 @@ List<Section> _buildSectionsFromMatches({
   return sections;
 }
 
+String _snippetTitle(String content, int index) {
+  final lines = content
+      .split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .toList();
+  if (lines.isEmpty) return 'No.${index + 1}';
+  final line = lines.first;
+  // 优先用看起来像标题的短行，否则截断
+  if (line.length <= 24) return line;
+  return '${line.substring(0, 24)}…';
+}
+
 List<Section> _fallbackChunking(String filename, String content) {
   final sections = <Section>[];
   const singleLevel = 1;
@@ -61,16 +74,18 @@ List<Section> _fallbackChunking(String filename, String content) {
   while (startIndex < content.length) {
     final endIndex = startIndex + 20000;
     if (endIndex >= content.length) {
-      sections.add(Section('No.${sections.length + 1}',
-          content.substring(startIndex).trim(), singleLevel));
+      final chunk = content.substring(startIndex).trim();
+      sections.add(
+          Section(_snippetTitle(chunk, sections.length), chunk, singleLevel));
       break;
     }
 
     final nextNewline = content.indexOf('\n', endIndex);
     final chapterEndIndex = nextNewline == -1 ? content.length : nextNewline;
 
-    sections.add(Section('No.${sections.length + 1}',
-        content.substring(startIndex, chapterEndIndex).trim(), singleLevel));
+    final chunk = content.substring(startIndex, chapterEndIndex).trim();
+    sections.add(Section(
+        _snippetTitle(chunk, sections.length), chunk, singleLevel));
     startIndex = chapterEndIndex + 1;
   }
 

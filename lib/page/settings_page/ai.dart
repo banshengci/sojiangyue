@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/config/ai_prefs.dart';
+import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/enums/ai_prompts.dart';
 import 'package:songjiang_reader/enums/ai_chat_display_mode.dart';
 import 'package:songjiang_reader/enums/ai_panel_position.dart';
@@ -84,6 +84,21 @@ class _AISettingsState extends ConsumerState<AISettings> {
         "identifier": AiPrompts.mindmap,
         "title": l10n.settingsAiPromptMindmap,
         "variables": [],
+      },
+      {
+        "identifier": AiPrompts.chapterQuiz,
+        "title": l10n.settingsAiPromptChapterQuiz,
+        "variables": [],
+      },
+      {
+        "identifier": AiPrompts.chapterPreview,
+        "title": l10n.settingsAiPromptChapterPreview,
+        "variables": [],
+      },
+      {
+        "identifier": AiPrompts.chapterRecap,
+        "title": l10n.settingsAiPromptChapterRecap,
+        "variables": [],
       }
     ];
 
@@ -99,7 +114,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
               SmartDialog.show(builder: (context) {
                 final controller = TextEditingController(
                   text: AiPrefs.getPrompt(
-                    AiPrompts.values[index],
+                    prompts[index]["identifier"] as AiPrompts,
                   ),
                 );
 
@@ -149,17 +164,16 @@ class _AISettingsState extends ConsumerState<AISettings> {
                   actions: [
                     TextButton(
                       onPressed: () {
-                        AiPrefs.deletePrompt(AiPrompts.values[index]);
-                        controller.text = AiPrefs.getPrompt(
-                          AiPrompts.values[index],
-                        );
+                        final id = prompts[index]["identifier"] as AiPrompts;
+                        AiPrefs.deletePrompt(id);
+                        controller.text = AiPrefs.getPrompt(id);
                       },
                       child: Text(L10n.of(context).commonReset),
                     ),
                     TextButton(
                       onPressed: () {
                         AiPrefs.savePrompt(
-                          AiPrompts.values[index],
+                          prompts[index]["identifier"] as AiPrompts,
                           controller.text,
                         );
                       },

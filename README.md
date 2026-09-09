@@ -24,11 +24,12 @@
 | Format Support | EPUB/MOBI/AZW3/FB2/TXT/PDF fully supported | ✅ |
 | Cross-Platform Sync | Android/iOS/macOS/Windows coverage<br>Sync books, notes, and reading progress via WebDAV | ✅ |
 | AI Assistant | Organizes shelves by progress and tone<br>Generates mind maps for deeper understanding<br>On-demand AI dictionary and translation<br>Delivers perspective analysis and summaries | ✅ |
+| AI Deep Read | Pre-reading guide → in-flight dictionary/translation → post-reading chapter quiz & recap card<br>Mind maps and full-text translation | ✅ |
 | Custom Reading Experience | Tune letter, line, paragraph, and margin spacing<br>Adjust font size, style, and weight<br>Customize themes, backgrounds, alignment, and styles | ✅ |
 | Notes Workspace | Multiple color/style presets<br>Sort by time or chapter with color filters<br>Export to TXT/Markdown/CSV<br>Create shareable, well-designed cards | ✅ |
 | Reading Insights | Track reading time<br>View daily/weekly/monthly/yearly stats<br>Visual heatmap reveals reading habits | ✅ |
 | Advanced Extras | TTS with multi-voice, speed, tone, and sleep timer controls<br>Full-book translation with side-by-side view<br>Store books in the cloud and download on demand<br>One-tap simplified/traditional Chinese conversion | ✅ |
-| OPDS Catalogs | Built-in OPDS support with custom catalog management | 🛠️ In progress |
+| OPDS Catalogs | Built-in OPDS support with custom catalogs; browse and import from Calibre-style libraries | ✅ |
 
 
 ## Get it

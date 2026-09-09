@@ -1,4 +1,4 @@
-{
+﻿{
   "@@locale": "zh_TW",
   "appName": "松江閱",
   "appAbout": "關於 松江閱",
@@ -904,5 +904,31 @@
   "settingsAdvancedHttpProxyTest": "測試連線",
   "settingsAdvancedHttpProxyTesting": "正在測試...",
   "settingsAdvancedHttpProxyTestSuccess": "連線成功",
-  "settingsAdvancedHttpProxyTestFailed": "連線失敗"
+  "settingsAdvancedHttpProxyTestFailed": "連線失敗",
+  "opdsTitle": "OPDS 書源",
+  "opdsAddCatalog": "新增書源",
+  "opdsEditCatalog": "編輯書源",
+  "opdsRemoveCatalog": "刪除書源",
+  "opdsCatalogName": "書源名稱",
+  "opdsCatalogUrl": "書源網址",
+  "opdsUsername": "使用者名稱（可選）",
+  "opdsPassword": "密碼（可選）",
+  "opdsTestConnection": "測試連線",
+  "opdsBrowse": "瀏覽",
+  "opdsEmptyHint": "新增 OPDS 書源網址，即可瀏覽並下載線上書庫（Calibre 等）中的書籍。",
+  "opdsEmptyCatalog": "此書源為空，或沒有可讀項目。",
+  "opdsNameUrlRequired": "名稱與網址必填",
+  "opdsInvalidUrl": "網址無效（須以 http 開頭）",
+  "settingsAiPromptChapterQuiz": "本章自測",
+  "settingsAiPromptChapterPreview": "讀前導讀",
+  "settingsAiPromptChapterRecap": "本章回顧卡",
+  "vocabTitle": "生詞難句本",
+  "vocabSave": "收藏到生詞本",
+  "vocabSaved": "已收藏到生詞本",
+  "vocabEmptyHint": "生詞本還是空的。\n閱讀時選取文字，點「收藏到生詞本」即可。",
+  "vocabSearchHint": "搜尋詞條、章節",
+  "vocabReviewCount": "{count, plural, =0{尚未複習} other{已複習 {count} 次}}",
+  "vocabMarkReviewed": "標記已複習",
+  "bookshelfAddBook": "新增書籍",
+  "bookshelfImportBook": "匯入書籍"
 }

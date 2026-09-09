@@ -537,9 +537,24 @@ class ReadingPageState extends ConsumerState<ReadingPage>
         prompt: generatePromptSummaryTheBook().buildString(),
       ),
       AiQuickPromptChip(
+        icon: Icons.menu_book_outlined,
+        label: L10n.of(context).settingsAiPromptChapterPreview,
+        prompt: generatePromptChapterPreview().buildString(),
+      ),
+      AiQuickPromptChip(
         icon: Icons.account_tree_outlined,
         label: L10n.of(context).settingsAiPromptMindmap,
         prompt: generatePromptMindmap().buildString(),
+      ),
+      AiQuickPromptChip(
+        icon: Icons.quiz_outlined,
+        label: L10n.of(context).settingsAiPromptChapterQuiz,
+        prompt: generatePromptChapterQuiz().buildString(),
+      ),
+      AiQuickPromptChip(
+        icon: Icons.summarize_outlined,
+        label: L10n.of(context).settingsAiPromptChapterRecap,
+        prompt: generatePromptChapterRecap().buildString(),
       ),
       // User custom prompts (enabled only)
       ...AiPrefs.userPrompts

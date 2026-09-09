@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/ai_prefs.dart';
@@ -86,6 +86,45 @@ PromptTemplatePayload generatePromptMindmap() {
     template: template,
     variables: {},
     identifier: AiPrompts.mindmap,
+  );
+}
+
+PromptTemplatePayload generatePromptChapterQuiz() {
+  final prompt = AiPrefs.getPrompt(AiPrompts.chapterQuiz);
+  final normalized = _normalizePrompt(prompt);
+  final template = ChatPromptTemplate.fromPromptMessages([
+    HumanChatMessagePromptTemplate.fromTemplate(normalized),
+  ]);
+  return PromptTemplatePayload(
+    template: template,
+    variables: {},
+    identifier: AiPrompts.chapterQuiz,
+  );
+}
+
+PromptTemplatePayload generatePromptChapterPreview() {
+  final prompt = AiPrefs.getPrompt(AiPrompts.chapterPreview);
+  final normalized = _normalizePrompt(prompt);
+  final template = ChatPromptTemplate.fromPromptMessages([
+    HumanChatMessagePromptTemplate.fromTemplate(normalized),
+  ]);
+  return PromptTemplatePayload(
+    template: template,
+    variables: {},
+    identifier: AiPrompts.chapterPreview,
+  );
+}
+
+PromptTemplatePayload generatePromptChapterRecap() {
+  final prompt = AiPrefs.getPrompt(AiPrompts.chapterRecap);
+  final normalized = _normalizePrompt(prompt);
+  final template = ChatPromptTemplate.fromPromptMessages([
+    HumanChatMessagePromptTemplate.fromTemplate(normalized),
+  ]);
+  return PromptTemplatePayload(
+    template: template,
+    variables: {},
+    identifier: AiPrompts.chapterRecap,
   );
 }
 

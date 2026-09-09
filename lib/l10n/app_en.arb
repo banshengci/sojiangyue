@@ -1,4 +1,4 @@
-{
+﻿{
   "@@locale": "en",
   "appName": "SongJiang Reader",
   "appAbout": "About SongJiang Reader",
@@ -904,5 +904,31 @@
   "aiChatFontSize": "Font Size",
   "aiModelSwitchTitle": "Switch Model",
   "aiModelEnterManually": "Enter model name",
-  "aiModelOrSelectBelow": "Or select from list:"
+  "aiModelOrSelectBelow": "Or select from list:",
+  "opdsTitle": "OPDS Book Source",
+  "opdsAddCatalog": "Add Catalog",
+  "opdsEditCatalog": "Edit Catalog",
+  "opdsRemoveCatalog": "Remove Catalog",
+  "opdsCatalogName": "Catalog Name",
+  "opdsCatalogUrl": "Catalog URL",
+  "opdsUsername": "Username (optional)",
+  "opdsPassword": "Password (optional)",
+  "opdsTestConnection": "Test Connection",
+  "opdsBrowse": "Browse",
+  "opdsEmptyHint": "Add an OPDS catalog URL to browse and download books from online libraries (Calibre, etc.).",
+  "opdsEmptyCatalog": "This catalog is empty or has no readable entries.",
+  "opdsNameUrlRequired": "Name and URL are required",
+  "opdsInvalidUrl": "Invalid URL (must start with http)",
+  "settingsAiPromptChapterQuiz": "Chapter Quiz",
+  "settingsAiPromptChapterPreview": "Pre-reading guide",
+  "settingsAiPromptChapterRecap": "Chapter recap card",
+  "vocabTitle": "Vocabulary",
+  "vocabSave": "Save to vocab",
+  "vocabSaved": "Saved to vocabulary",
+  "vocabEmptyHint": "Your vocabulary list is empty.\nSelect text while reading and tap Save to vocab.",
+  "vocabSearchHint": "Search term, note, or chapter",
+  "vocabReviewCount": "{count, plural, =0{Not reviewed yet} other{Reviewed {count} times}}",
+  "vocabMarkReviewed": "Mark reviewed",
+  "bookshelfAddBook": "Add book",
+  "bookshelfImportBook": "Import book"
 }

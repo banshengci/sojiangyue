@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/page/settings_page/ai.dart';
@@ -6,11 +6,13 @@ import 'package:songjiang_reader/page/settings_page/advanced.dart';
 import 'package:songjiang_reader/page/settings_page/appearance.dart';
 import 'package:songjiang_reader/page/settings_page/developer/developer_options_page.dart';
 import 'package:songjiang_reader/page/settings_page/narrate.dart';
+import 'package:songjiang_reader/page/settings_page/opds.dart';
 import 'package:songjiang_reader/page/settings_page/reading.dart';
 import 'package:songjiang_reader/page/settings_page/settings_page.dart';
 import 'package:songjiang_reader/page/settings_page/storage.dart';
 import 'package:songjiang_reader/page/settings_page/sync.dart';
 import 'package:songjiang_reader/page/settings_page/translate.dart';
+import 'package:songjiang_reader/page/vocab_list_page.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
 import 'package:songjiang_reader/widgets/settings/about.dart';
 import 'package:flutter/cupertino.dart';
@@ -103,6 +105,15 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                 ],
               },
               {
+                "title": L10n.of(context).opdsTitle,
+                "icon": Icons.library_books_outlined,
+                "sections": const OpdsSettingsPage(),
+                "subtitles": [
+                  L10n.of(context).opdsAddCatalog,
+                  L10n.of(context).opdsBrowse,
+                ],
+              },
+              {
                 "title": L10n.of(context).settingsNarrate,
                 "icon": EvaIcons.headphones,
                 "sections": const NarrateSettings(),
@@ -181,6 +192,20 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                     sections: settings[index]["sections"],
                     subTitles: settings[index]["subtitles"],
                   ),
+                ListTile(
+                  leading: Icon(Icons.bookmark_add_outlined,
+                      color: Theme.of(context).colorScheme.primary),
+                  title: Text(L10n.of(context).vocabTitle),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                        builder: (context) => const VocabListPage(),
+                      ),
+                    );
+                  },
+                ),
                 if (showDeveloper)
                   ListTile(
                     leading: Icon(Icons.developer_mode,

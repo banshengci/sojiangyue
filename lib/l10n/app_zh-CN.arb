@@ -1,4 +1,4 @@
-{
+﻿{
   "@@locale": "zh_CN",
   "appName": "松江阅",
   "appAbout": "关于 松江阅",
@@ -904,5 +904,31 @@
   "aiChatFontSize": "字体大小",
   "aiModelSwitchTitle": "切换模型",
   "aiModelEnterManually": "输入模型名称",
-  "aiModelOrSelectBelow": "或从列表中选择："
+  "aiModelOrSelectBelow": "或从列表中选择：",
+  "opdsTitle": "OPDS 书源",
+  "opdsAddCatalog": "添加书源",
+  "opdsEditCatalog": "编辑书源",
+  "opdsRemoveCatalog": "删除书源",
+  "opdsCatalogName": "书源名称",
+  "opdsCatalogUrl": "书源地址",
+  "opdsUsername": "用户名（可选）",
+  "opdsPassword": "密码（可选）",
+  "opdsTestConnection": "测试连接",
+  "opdsBrowse": "浏览",
+  "opdsEmptyHint": "添加 OPDS 书源地址，可浏览并下载在线书库（Calibre 等）中的书籍。",
+  "opdsEmptyCatalog": "该书源为空，或没有可读条目。",
+  "opdsNameUrlRequired": "名称与地址必填",
+  "opdsInvalidUrl": "地址无效（须以 http 开头）",
+  "settingsAiPromptChapterQuiz": "本章自测",
+  "settingsAiPromptChapterPreview": "读前导读",
+  "settingsAiPromptChapterRecap": "本章回顾卡",
+  "vocabTitle": "生词难句本",
+  "vocabSave": "收藏到生词本",
+  "vocabSaved": "已收藏到生词本",
+  "vocabEmptyHint": "生词本还是空的。\n阅读时选中文字，点「收藏到生词本」即可。",
+  "vocabSearchHint": "搜索词条、章节",
+  "vocabReviewCount": "{count, plural, =0{尚未复习} other{已复习 {count} 次}}",
+  "vocabMarkReviewed": "标记已复习",
+  "bookshelfAddBook": "添加书籍",
+  "bookshelfImportBook": "导入书籍"
 }

@@ -1,5 +1,6 @@
-﻿import 'dart:io';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:songjiang_reader/service/convert_to_epub/generate_toc.dart';
 import 'package:songjiang_reader/service/convert_to_epub/section.dart';
 import 'package:songjiang_reader/utils/get_path/get_temp_dir.dart';
@@ -30,30 +31,51 @@ String _trimLine(String s) {
 
 /// 把章节纯文本切分为 `<p>` 段落。
 ///
-/// 优先按空行分段：若正文里存在空行间隔，则相邻的连续行视为同一段的回行，
-/// 合并成一个 `<p>`（段内以空格连接），更符合小说阅读习惯；
-/// 若不存在空行（连续排版的 TXT 小说），则每行作为一个独立段落。
-List<String> _buildParagraphs(String content) {
-  final hasBlankLineSep = content.contains(RegExp(r'\n[ \t　]*\n'));
-  if (hasBlankLineSep) {
-    final paragraphs = <String>[];
-    for (final block in content.split(RegExp(r'\n[ \t　]*\n'))) {
-      final lines = block
-          .split('\n')
-          .map(_trimLine)
-          .where((l) => l.isNotEmpty)
-          .toList();
-      if (lines.isEmpty) continue;
-      paragraphs.add('    <p>${_escapeXml(lines.join(' '))}</p>');
-    }
-    return paragraphs;
+/// 中文网文常见两种排版：
+/// 1. 几乎无空行，每行即一段（硬段）——按行切 `<p>`；
+/// 2. 有空行分段，段内可能软换行——按空行切块；块内若以全角/半角空格缩进
+///    则缩进行视为新段，否则整块并为一段。
+@visibleForTesting
+List<String> buildEpubParagraphs(String content) {
+  final lines = content.split('\n');
+  final nonEmptyCount = lines.where((l) => l.trim().isNotEmpty).length;
+  final blankCount = lines.length - nonEmptyCount;
+  final blankRatio = lines.isEmpty ? 0.0 : blankCount / lines.length;
+
+  // 空行极少：视为每行一段（网文硬换行）
+  if (blankRatio < 0.08) {
+    return lines
+        .map(_trimLine)
+        .where((line) => line.isNotEmpty)
+        .map((line) => '    <p>${_escapeXml(line)}</p>')
+        .toList();
   }
-  return content
-      .split('\n')
-      .map(_trimLine)
-      .where((line) => line.isNotEmpty)
-      .map((line) => '    <p>${_escapeXml(line)}</p>')
-      .toList();
+
+  final paragraphs = <String>[];
+  for (final block in content.split(RegExp(r'\n[ \t　]*\n'))) {
+    final rawLines = block.split('\n');
+    final List<String> current = [];
+    void flush() {
+      if (current.isEmpty) return;
+      paragraphs.add('    <p>${_escapeXml(current.join(' '))}</p>');
+      current.clear();
+    }
+
+    for (final raw in rawLines) {
+      final line = raw.replaceAll('　', ' ').trim();
+      if (line.isEmpty) continue;
+      // 全角空格 / 多个半角空格缩进 → 新段
+      final wasIndented = raw.startsWith('　') ||
+          raw.startsWith('  ') ||
+          raw.startsWith('\t');
+      if (wasIndented) {
+        flush();
+      }
+      current.add(line);
+    }
+    flush();
+  }
+  return paragraphs;
 }
 
 Future<File> createEpub(
@@ -145,7 +167,16 @@ Future<File> createEpub(
   final styleFile = File('${oebpsDir.path}/style.css');
   styleFile.createSync();
   styleFile.writeAsStringSync('''body {
-
+  margin: 0;
+  padding: 0;
+}
+p {
+  margin: 0.45em 0;
+  text-indent: 0;
+}
+h1, h2, h3, h4, h5, h6 {
+  margin: 0.6em 0 0.4em;
+  line-height: 1.4;
 }
 ''');
   // xhtml
@@ -163,7 +194,7 @@ Future<File> createEpub(
         ? ''
         : '    <h$level>${_escapeXml(rawTitle)}</h$level>';
 
-    final paragraphLines = _buildParagraphs(content);
+    final paragraphLines = buildEpubParagraphs(content);
 
     final bodyBuffer = StringBuffer();
     if (heading.isNotEmpty) {

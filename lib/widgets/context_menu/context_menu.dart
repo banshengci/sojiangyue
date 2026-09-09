@@ -1,4 +1,4 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/notes_prefs.dart';
@@ -554,6 +554,11 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
                                 decoration: widget.decoration,
                                 axis: widget.axis,
                                 contextText: widget.contextText,
+                                bookId: epubPlayerKey.currentState?.book.id,
+                                bookTitle:
+                                    epubPlayerKey.currentState?.book.title,
+                                chapter:
+                                    epubPlayerKey.currentState?.chapterTitle,
                               ),
                             ],
                           ),

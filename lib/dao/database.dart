@@ -14,7 +14,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // Current app database version
-const int currentDbVersion = 8;
+const int currentDbVersion = 9;
 
 const createBookSQL = '''
 CREATE TABLE tb_books (
@@ -474,6 +474,25 @@ class DBHelper {
           await db.execute(primaryTheme5);
           await db.execute(primaryTheme6);
         }
+        continue case8;
+      case8:
+      case 8:
+        // 松江阅：生词/难句本
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS tb_vocab_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            term TEXT NOT NULL,
+            gloss TEXT,
+            book_id INTEGER,
+            book_title TEXT,
+            chapter TEXT,
+            create_time TEXT,
+            review_count INTEGER NOT NULL DEFAULT 0,
+            last_review_time TEXT
+          )
+        ''');
+        await db.execute(
+            'CREATE INDEX IF NOT EXISTS idx_vocab_term ON tb_vocab_items(term)');
     }
 
     if (oldVersion != 0 && SyncPrefs.webdavStatus) {

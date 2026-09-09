@@ -13,5 +13,10 @@ void main() {
     test('matches headings with trailing ideographic whitespace', () {
       expect(pattern.hasMatch('第三章　'), isTrue);
     });
+
+    test('matches Chinese webnovel titles without space after 章', () {
+      expect(pattern.hasMatch('第1章开局就离婚（加料 田曦薇）'), isTrue);
+      expect(pattern.hasMatch('第十二章风起云涌'), isTrue);
+    });
   });
 }
