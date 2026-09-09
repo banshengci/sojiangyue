@@ -279,9 +279,11 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  # ============ macOS / iOS ============
-  build-apple:
-    name: Build macOS & iOS
+  # ============ macOS ============
+  # Flutter 3.35 的 macos 子命令已无 --no-codesign；
+  # debug 默认不 codesign（--codesign defaultsTo release）。
+  build-macos:
+    name: Build macOS
     runs-on: macos-latest
     timeout-minutes: 60
     needs: analyze-and-test
@@ -313,23 +315,15 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
-      # macOS/iOS 构建需要 pod install，runner 上的 CocoaPods specs 可能过期，
-      # 或 Podfile.lock 锁定版本与新 specs 不兼容（resolve_dependencies 失败）。
-      # 两步解决：1) 重建 specs 仓库；2) 删 Podfile.lock 让 pod 重新解析依赖。
       - name: Prepare CocoaPods
         run: |
-          echo "=== CocoaPods version ==="
           pod --version
-          echo "=== Reset specs repo ==="
           pod repo remove trunk 2>/dev/null || true
           pod repo add-cdn trunk https://cdn.cocoapods.org/
-          echo "=== Remove stale Podfile.lock ==="
-          rm -f ios/Podfile.lock macos/Podfile.lock
-          echo "=== Done ==="
+          rm -f macos/Podfile.lock
 
-      # CI 没有开发者证书，必须 --no-codesign；本地右键→打开即可运行
-      - name: Build macOS (debug, no codesign)
-        run: flutter build macos --debug --no-codesign
+      - name: Build macOS (debug)
+        run: flutter build macos --debug --no-pub
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -339,12 +333,88 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # ============ iOS（无开发者账号：打出未签名 IPA，供 TrollStore 侧载） ============
+  # 个人设备（如 iPhone 14 / iOS 16.1 + TrollStore）无需付费开发者账号。
+  # 产物为 --no-codesign 的 Runner.app 打成 .ipa，由设备端 TrollStore 重签安装。
+  build-ios-unsigned:
+    name: Build iOS (unsigned IPA / TrollStore)
+    runs-on: macos-latest
+    timeout-minutes: 90
+    needs: analyze-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter 3.35.3
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.3
+          channel: stable
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool/package_config.json
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code (l10n + build_runner)
+        run: |
+          flutter gen-l10n
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Prepare CocoaPods
+        run: |
+          pod --version
+          pod repo remove trunk 2>/dev/null || true
+          pod repo add-cdn trunk https://cdn.cocoapods.org/
+          rm -f ios/Podfile.lock
+
+      - name: Build iOS (release, no codesign)
+        run: flutter build ios --release --no-codesign --no-pub
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+          APP_DIR="build/ios/iphoneos"
+          # 部分 Flutter 版本输出在 Release-iphoneos
+          if [ ! -d "$APP_DIR/Runner.app" ]; then
+            APP_DIR="build/ios/Release-iphoneos"
+          fi
+          test -d "$APP_DIR/Runner.app"
+          STAGE=$(mktemp -d)
+          mkdir -p "$STAGE/Payload"
+          cp -R "$APP_DIR/Runner.app" "$STAGE/Payload/"
+          (
+            cd "$STAGE"
+            zip -qry SongJiang-Reader-ios-unsigned.ipa Payload
+          )
+          mkdir -p build/ios-artifacts
+          cp "$STAGE/SongJiang-Reader-ios-unsigned.ipa" build/ios-artifacts/
+          ls -la build/ios-artifacts/
+
+      - name: Upload iOS IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: songjiang_reader-ios-unsigned-ipa
+          path: build/ios-artifacts/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
   # ============ Linux ============
   build-linux:
     name: Build Linux (debug)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: analyze-and-test
+    # WPE WebKit 在部分 Ubuntu 镜像上包名不稳定；Linux 非主目标，失败不阻塞
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -352,11 +422,20 @@ jobs:
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
+          # flutter_inappwebview_linux 需要 WPE WebKit
           sudo apt-get install -y \
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-            libasound2-dev
+            libasound2-dev \
+            libwpe-1.0-dev libwpebackend-fdo-1.0-dev \
+            libwpewebkit-1.0-dev || \
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libasound2-dev \
+            libwpe-1.0-dev libwpebackend-fdo-1.0-dev
 
       - name: Setup Flutter 3.35.3
         uses: subosito/flutter-action@v2

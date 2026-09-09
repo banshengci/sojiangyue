@@ -95,4 +95,5 @@ $env:FLUTTER_HOME = "D:\flutter_windows_3.35.3-stable\flutter"
 
 - [构建指南](./BUILD.md)
 - [部署](./DEPLOY.md)
+- [iOS 侧载 / TrollStore（无开发者账号）](./IOS_TROLLSTORE.md)
 - [故障排除](./troubleshooting.md)
