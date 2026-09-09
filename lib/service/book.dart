@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/theme.dart';
@@ -105,9 +105,32 @@ Future<void> importBookList(
         .contains(file.path.split('.').last.toLowerCase());
   }).toList();
 
+  // 全部不支持：直接提示，不打开导入对话框
+  if (supportedFiles.isEmpty && unsupportedFiles.isNotEmpty) {
+    for (final f in unsupportedFiles) {
+      try {
+        f.deleteSync();
+      } catch (_) {}
+    }
+    SjToast.show(
+        L10n.of(context).importNBooksNotSupport(unsupportedFiles.length));
+    return;
+  }
+
+  // 部分不支持：先提示，再继续处理支持的文件
+  if (unsupportedFiles.isNotEmpty) {
+    for (final f in unsupportedFiles) {
+      try {
+        f.deleteSync();
+      } catch (_) {}
+    }
+    SjToast.show(
+        L10n.of(context).importNBooksNotSupport(unsupportedFiles.length));
+  }
+
   _checkDuplicatesAndShowDialog(
     supportedFiles,
-    unsupportedFiles,
+    const [], // 不支持文件已删除并提示，避免对话框内重复 deleteSync
     fileList,
     context,
     ref,
@@ -188,9 +211,11 @@ void _showImportDialog(
   List<File> fileList,
   WidgetRef ref,
 ) {
-  // delete unsupported files
+  // 不支持的文件在 importBookList 已删除并提示；此处再删一次仅作兜底
   for (var file in unsupportedFiles) {
-    file.deleteSync();
+    try {
+      file.deleteSync();
+    } catch (_) {}
   }
 
   BuildContext context = navigatorKey.currentContext!;
@@ -283,7 +308,8 @@ void _showImportDialog(
 
         return StatefulBuilder(builder: (context, setState) {
           return AlertDialog(
-            title: Text(L10n.of(context).importNBooksSelected(fileList.length)),
+            title: Text(L10n.of(context)
+                .importNBooksSelected(supportedFiles.length)),
             contentPadding: const EdgeInsets.all(16),
             content: SingleChildScrollView(
               child: Column(

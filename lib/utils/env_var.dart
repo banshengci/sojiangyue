@@ -20,7 +20,8 @@ class EnvVar {
 
   static bool get enableCheckUpdate =>
       !isStoreBuild && !isFdroid && !isOhosStore;
-  static bool get enableDonation => !isStoreBuild && !isOhosStore;
+  // 松江阅：关于页不展示捐赠入口（个人自用 / 不设捐赠渠道）。
+  static bool get enableDonation => false;
   static bool get enableInAppPurchase => isStoreBuild;
 
   static bool get showBeian =>

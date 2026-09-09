@@ -24,11 +24,32 @@ class FontsSettingPage extends ConsumerWidget {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(32),
-                child: Text(
-                  RemoteConfig.enableFontMarket
-                      ? L10n.of(context).fontFailedToLoadFonts
-                      : '字体服务未配置。请在构建时设置 --dart-define=FONT_BASE_URL=https://your-host/fonts/ 后重新构建。',
-                  textAlign: TextAlign.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      RemoteConfig.enableFontMarket
+                          ? Icons.cloud_off
+                          : Icons.settings_suggest_outlined,
+                      size: 48,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      RemoteConfig.enableFontMarket
+                          ? L10n.of(context).fontFailedToLoadFonts
+                          : '字体服务未配置。\n构建时需设置 --dart-define=FONT_BASE_URL=https://your-host/fonts/',
+                      textAlign: TextAlign.center,
+                    ),
+                    if (RemoteConfig.enableFontMarket) ...[
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () => ref.invalidate(fontsProvider),
+                        icon: const Icon(Icons.refresh),
+                        label: Text(L10n.of(context).commonRetry),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             );
@@ -121,7 +142,29 @@ class FontsSettingPage extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
-          child: Text(L10n.of(context).fontFailedToLoadFonts),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48),
+                const SizedBox(height: 16),
+                Text(L10n.of(context).fontFailedToLoadFonts),
+                const SizedBox(height: 8),
+                Text(
+                  '$error',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () => ref.invalidate(fontsProvider),
+                  icon: const Icon(Icons.refresh),
+                  label: Text(L10n.of(context).commonRetry),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

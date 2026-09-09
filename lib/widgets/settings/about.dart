@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/config/developer_prefs.dart';
@@ -255,8 +255,11 @@ Future<void> openAboutDialog() async {
                   onTap: () {
                     showLicensePage(
                       context: context,
-                      applicationName: '松江阅',
+                      applicationName: '松江阅 SongJiang Reader',
                       applicationVersion: version,
+                      applicationLegalese:
+                          '基于 anx-reader 二次开发 · MIT License\n'
+                          '松风入怀，书卷在手',
                     );
                   },
                 ),
