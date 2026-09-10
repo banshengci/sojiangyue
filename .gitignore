@@ -1,4 +1,4 @@
-# Miscellaneous
+﻿# Miscellaneous
 *.class
 *.log
 *.pyc
@@ -71,3 +71,6 @@ google_service_account.json
 # FVM Version Cache
 .fvm/
 .fvmrc
+release.jks
+*.p12
+*.pfx

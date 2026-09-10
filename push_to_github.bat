@@ -1,19 +1,26 @@
 @echo off
 chcp 65001 >nul 2>&1
-set GIT="C:\Users\Administrator\.workbuddy\binaries\PortableGit\versions\1.2.0\cmd\git.exe"
+REM SongJiang Reader - Push to GitHub
+REM Requires git on PATH, or set GIT_BIN to full path of git.exe
+setlocal
+if defined GIT_BIN (
+  set "GIT_CMD=%GIT_BIN%"
+) else (
+  set "GIT_CMD=git"
+)
+
 echo === SongJiang Reader - Push to GitHub ===
 echo.
 echo Pushing to origin/main...
-%GIT% push origin main
+"%GIT_CMD%" push origin main
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo === SUCCESS! Code pushed to GitHub ===
-    echo CI will start automatically at:
-    echo https://github.com/2113024546/sojiangyue/actions
+    echo Check Actions on the repository page.
 ) else (
     echo.
     echo === PUSH FAILED ===
-    echo Try running push_force.bat if this is the first push.
+    echo Check network / credentials, then try again.
 )
 echo.
 pause
