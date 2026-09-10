@@ -38,6 +38,10 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # 根目录脚本：仅工具用，避免 avoid_print 把 CI 打红
+    - normalize_arb_files.dart
+    - release.dart
+    - bootstrap_fastlane.dart
   errors:
     invalid_annotation_target: ignore
 # Additional information about this file can be found at

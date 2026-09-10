@@ -1,3 +1,6 @@
+// Flutter 3.32+ 弃用 Radio.groupValue/onChanged；未迁 RadioGroup 前先忽略弃用提示。
+// ignore_for_file: deprecated_member_use
+
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/config/config_item.dart';
 import 'package:flutter/material.dart';
