@@ -607,8 +607,6 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
     );
 
     Widget buildEmptyState() {
-      final theme = Theme.of(context);
-
       Widget buildQuickChipColumn() {
         if (widget.quickPromptChips.isEmpty) {
           return const SizedBox.shrink();
@@ -648,35 +646,29 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
         );
       }
 
+      // AppBar 已有「AI对话」标题，空态不再重复标题，避免顶部两行大字占空间。
       return Stack(
         children: [
           if (widget.quickPromptChips.isEmpty)
             Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    L10n.of(context).tryAQuickPrompt,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _suggestedPrompts
-                        .map(
-                          (prompt) => ActionChip(
-                            label: Text(prompt),
-                            onPressed: () {
-                              inputController.text = prompt;
-                              _sendMessage();
-                            },
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _suggestedPrompts
+                      .map(
+                        (prompt) => ActionChip(
+                          label: Text(prompt),
+                          onPressed: () {
+                            inputController.text = prompt;
+                            _sendMessage();
+                          },
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
               ),
             ),
           buildQuickChipColumn(),
@@ -688,15 +680,17 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
       key: _scaffoldKey,
       backgroundColor: Colors.transparent,
       appBar: AppBar(
+        // 弹窗/面板里空间紧：压扁 AppBar，避免顶部两行大字。
+        toolbarHeight: 48,
         title: Text(L10n.of(context).aiChat),
         leading: IconButton(
-          icon: const Icon(Icons.insert_drive_file),
+          icon: const Icon(Icons.history, size: 20),
           tooltip: L10n.of(context).history,
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_document),
+            icon: const Icon(Icons.refresh),
             onPressed: _clearMessage,
           ),
           Builder(
