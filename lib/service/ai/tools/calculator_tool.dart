@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
@@ -55,7 +55,8 @@ class CalculatorTool
 
   String _evaluateExpression(String expression) {
     SjLog.info('Evaluating expression: $expression');
-    final parser = ShuntingYardParser();
+    // math_expressions 2.x 推荐 GrammarParser；ShuntingYardParser 为遗留 API。
+    final ExpressionParser parser = GrammarParser();
     final parsed = parser.parse(expression);
     final evaluation = parsed.evaluate(EvaluationType.REAL, ContextModel());
     if (evaluation is num && evaluation != 0) {
