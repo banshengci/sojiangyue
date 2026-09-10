@@ -917,18 +917,25 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                             onKeyEvent: _handleReaderKeyEvent,
                             child: Stack(
                               children: [
-                                // WebView 通屏铺满主题底色；
-                                // 刘海/圆角安全区在 EpubPlayer 内并入 top/bottomMargin，
-                                // 避免 SafeArea 外挖空造成上下色带割裂。
-                                EpubPlayer(
-                                  key: epubPlayerKey,
-                                  book: _book,
-                                  cfi: widget.cfi,
-                                  showOrHideAppBarAndBottomBar:
-                                      showOrHideAppBarAndBottomBar,
-                                  onLoadEnd: onLoadEnd,
-                                  initialThemes: widget.initialThemes,
-                                  updateParent: updateState,
+                                // 系统 viewPadding 留出刘海/圆角/Home 条，
+                                // Scaffold 底色与阅读主题一致，避免上下色带割裂。
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    top: MediaQuery.of(context).viewPadding.top,
+                                    bottom: MediaQuery.of(context)
+                                        .viewPadding
+                                        .bottom,
+                                  ),
+                                  child: EpubPlayer(
+                                    key: epubPlayerKey,
+                                    book: _book,
+                                    cfi: widget.cfi,
+                                    showOrHideAppBarAndBottomBar:
+                                        showOrHideAppBarAndBottomBar,
+                                    onLoadEnd: onLoadEnd,
+                                    initialThemes: widget.initialThemes,
+                                    updateParent: updateState,
+                                  ),
                                 ),
                                 if (_isResizingAiChat)
                                   SizedBox.expand(

@@ -10,13 +10,11 @@ import 'package:songjiang_reader/providers/ai_chat.dart';
 import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/providers/ai_history.dart';
 import 'package:songjiang_reader/providers/ai_providers.dart';
-import 'package:songjiang_reader/service/ai/ai_services.dart';
 import 'package:songjiang_reader/service/ai/ai_history.dart';
 import 'package:songjiang_reader/service/ai/index.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/utils/ai_reasoning_parser.dart';
-import 'package:songjiang_reader/widgets/ai/model_picker_dialog.dart';
 import 'package:songjiang_reader/widgets/ai/tool_step_tile.dart';
 import 'package:songjiang_reader/widgets/ai/tool_tiles/apply_book_tags_step_tile.dart';
 import 'package:songjiang_reader/widgets/ai/tool_tiles/mindmap_step_tile.dart';
@@ -121,31 +119,6 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
     _messageController?.close();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  AiProvider? _currentProvider(List<AiProvider> enabledProviders) {
-    final selectedId = AiPrefs.selectedServiceId;
-    try {
-      return enabledProviders.firstWhere((p) => p.id == selectedId);
-    } catch (_) {
-      return enabledProviders.isNotEmpty ? enabledProviders.first : null;
-    }
-  }
-
-  String _modelLabel(AiProvider provider) {
-    final model = provider.model;
-    if (model.trim().isNotEmpty) return model;
-    // Fallback: look up default model from built-in templates
-    final defaults = buildDefaultAiServices();
-    for (final d in defaults) {
-      if (d.identifier == provider.id) return d.defaultModel;
-    }
-    return '';
-  }
-
-  void _onProviderSelected(String providerId) {
-    if (_isStreaming) return;
-    ref.read(aiProvidersProvider.notifier).setSelectedProvider(providerId);
   }
 
   AiProvider? _providerById(List<AiProvider> providers, String id) {
@@ -277,17 +250,6 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
       return serviceLabel;
     }
     return '$serviceLabel · ${entry.model}';
-  }
-
-  Widget? _providerLogo(AiProvider? provider) {
-    final logo = provider?.logoAsset;
-    if (logo == null || logo.isEmpty) return null;
-    return Image.asset(
-      logo,
-      width: 20,
-      height: 20,
-      errorBuilder: (_, __, ___) => const SizedBox(),
-    );
   }
 
   String _deriveTitle(AiChatHistoryEntry entry) {
@@ -559,64 +521,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
   @override
   Widget build(BuildContext context) {
     final quickPrompts = _getQuickPrompts(context);
-    final allProviders = ref.watch(aiProvidersProvider);
-    final enabledProviders = allProviders.where((p) => p.enabled).toList();
-    final currentProvider = _currentProvider(enabledProviders);
-    final selectedId = AiPrefs.selectedServiceId;
 
-    var aiService = PopupMenuButton<String>(
-      enabled: !_isStreaming,
-      onSelected: _onProviderSelected,
-      itemBuilder: (context) {
-        return enabledProviders.map((provider) {
-          final isSelected = provider.id == selectedId;
-          final label = _modelLabel(provider);
-          final logo = _providerLogo(provider);
-          return PopupMenuItem<String>(
-            value: provider.id,
-            child: Row(
-              children: [
-                if (logo != null) logo else const SizedBox(width: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    label.isNotEmpty
-                        ? '${provider.title} · $label'
-                        : provider.title,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (isSelected) const Icon(Icons.check, size: 16),
-              ],
-            ),
-          );
-        }).toList(growable: false);
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_providerLogo(currentProvider) != null)
-            _providerLogo(currentProvider)!,
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              currentProvider != null
-                  ? () {
-                      final label = _modelLabel(currentProvider);
-                      return label.isNotEmpty
-                          ? '${currentProvider.title} · $label'
-                          : currentProvider.title;
-                    }()
-                  : '',
-              style: Theme.of(context).textTheme.bodySmall,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.expand_more, size: 16),
-        ],
-      ),
-    );
     Widget inputBox = FilledContainer(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       radius: 20,
@@ -695,40 +600,6 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(child: aiService),
-                      if (currentProvider != null)
-                        IconButton(
-                          icon: const Icon(Icons.tune, size: 18),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          visualDensity: VisualDensity.compact,
-                          onPressed: () async {
-                            final selected = await showModelPickerDialog(
-                              context: context,
-                              provider: currentProvider,
-                              currentModel: currentProvider.model,
-                            );
-                            if (selected != null &&
-                                selected != currentProvider.model) {
-                              ref
-                                  .read(aiProvidersProvider.notifier)
-                                  .updateProvider(
-                                    currentProvider.copyWith(model: selected),
-                                  );
-                            }
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-              ],
             ),
           ],
         ),
