@@ -178,15 +178,32 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       ''');
   }
 
-  /// 将系统安全区（刘海/圆角/Home Indicator）并入正文上下边距。
-  /// WebView 保持通屏，避免 SafeArea 在外层挖空造成的色带割裂。
-  /// 在 viewPadding 之外再加一点圆角余量，保证文字不贴弧。
+  /// 多机型安全区：把系统 inset + 圆角余量并入正文上下边距。
+  /// WebView 保持通屏，避免 SafeArea 外挖空造成色带割裂。
+  ///
+  /// 适配策略（按 viewPadding 特征推断机型，不写死型号）：
+  /// - 无 top inset（部分安卓/平板）→ 不加额外余量
+  /// - 有 top inset 且较大（刘海/灵动岛，约 ≥47）→ 多留圆角余量
+  /// - bottom 有 Home Indicator（≥20）→ 多留一点
   ({double top, double bottom}) _safeInsets() {
     final padding = MediaQuery.of(context).viewPadding;
-    // iPhone 圆角/灵动岛：viewPadding 已含刘海，再加少量余量防文字贴弧
-    final top = padding.top > 0 ? padding.top + 8.0 : 0.0;
-    // Home Indicator 通常 ~34pt；仅在有底部 inset 时加强
-    final bottom = padding.bottom > 0 ? padding.bottom + 4.0 : 0.0;
+
+    double top = 0;
+    if (padding.top > 0) {
+      top = padding.top;
+      if (padding.top >= 47) {
+        // 刘海 / 灵动岛机型：文字再离弧远一点
+        top += 12;
+      } else {
+        top += 8;
+      }
+    }
+
+    double bottom = 0;
+    if (padding.bottom > 0) {
+      bottom = padding.bottom + (padding.bottom >= 20 ? 10 : 6);
+    }
+
     return (top: top, bottom: bottom);
   }
 

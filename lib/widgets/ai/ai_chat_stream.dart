@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/ai_prefs.dart';
@@ -618,49 +618,86 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
       ),
     );
     Widget inputBox = FilledContainer(
-      padding: const EdgeInsets.all(4),
-      radius: 15,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      radius: 20,
       child: SafeArea(
+        top: false,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                SizedBox.shrink(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    reverse: true,
-                    child: Row(
-                      spacing: 8,
-                      children: quickPrompts.map((prompt) {
-                        return ActionChip(
-                          // labelPadding: EdgeInsets.all(0),
-                          label: Text(prompt['label']!),
-                          onPressed: () => _useQuickPrompt(prompt['prompt']!),
-                        );
-                      }).toList(),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              reverse: true,
+              child: Row(
+                spacing: 8,
+                children: quickPrompts.map((prompt) {
+                  return ActionChip(
+                    avatar: const Icon(Icons.auto_awesome, size: 16),
+                    label: Text(prompt['label']!),
+                    onPressed: () => _useQuickPrompt(prompt['prompt']!),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: inputController,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: L10n.of(context).aiHintInputPlaceholder,
+                        hintStyle: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant
+                              .withAlpha(140),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 0,
+                          vertical: 12,
+                        ),
+                      ),
+                      maxLines: 5,
+                      minLines: 1,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: 4),
-            TextField(
-              controller: inputController,
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: L10n.of(context).aiHintInputPlaceholder,
-                border: InputBorder.none,
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _isStreaming
+                          ? Theme.of(context).colorScheme.errorContainer
+                          : Theme.of(context).colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        _isStreaming ? Icons.stop_rounded : Icons.send_rounded,
+                        color: _isStreaming
+                            ? Theme.of(context).colorScheme.onErrorContainer
+                            : Theme.of(context).colorScheme.onPrimary,
+                        size: 20,
+                      ),
+                      onPressed:
+                          _isStreaming ? _cancelStreaming : _sendMessage,
+                    ),
+                  ),
+                ],
               ),
-              maxLines: 5,
-              minLines: 1,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendMessage(),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Row(
@@ -668,7 +705,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
                       Flexible(child: aiService),
                       if (currentProvider != null)
                         IconButton(
-                          icon: const Icon(Icons.tune, size: 16),
+                          icon: const Icon(Icons.tune, size: 18),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           visualDensity: VisualDensity.compact,
@@ -690,10 +727,6 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
                         ),
                     ],
                   ),
-                ),
-                IconButton(
-                  icon: Icon(_isStreaming ? Icons.stop : Icons.send, size: 18),
-                  onPressed: _isStreaming ? _cancelStreaming : _sendMessage,
                 ),
               ],
             ),
@@ -927,31 +960,63 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
     final isLongMessage = content.length > 300;
     final lastAssistantMessage = _getLastAssistantMessage();
 
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: 8.0,
-        left: isUser ? 8.0 : 0,
-        right: isUser ? 0 : 8.0,
+      padding: const EdgeInsets.only(
+        bottom: 14,
+        left: 16,
+        right: 16,
       ),
       child: Row(
         mainAxisAlignment:
             isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(width: 8),
+          if (!isUser) ...[
+            Container(
+              margin: const EdgeInsets.only(top: 4, right: 10),
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                size: 16,
+                color: scheme.primary,
+              ),
+            ),
+          ],
           Flexible(
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
               decoration: BoxDecoration(
                 color: isUser
-                    ? Theme.of(context).colorScheme.surfaceContainer
-                    : Theme.of(context).colorScheme.surface,
+                    ? scheme.primaryContainer
+                    : isDark
+                        ? scheme.surfaceContainerLow
+                        : scheme.surfaceContainer,
                 borderRadius: BorderRadius.only(
-                  topLeft: isUser ? const Radius.circular(12) : Radius.zero,
-                  topRight: isUser ? Radius.zero : const Radius.circular(12),
-                  bottomLeft: isUser ? Radius.zero : const Radius.circular(12),
-                  bottomRight: isUser ? const Radius.circular(12) : Radius.zero,
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: isUser
+                      ? const Radius.circular(18)
+                      : const Radius.circular(4),
+                  bottomRight: isUser
+                      ? const Radius.circular(4)
+                      : const Radius.circular(18),
                 ),
+                boxShadow: [
+                  if (!isDark)
+                    BoxShadow(
+                      color: Colors.black.withAlpha(12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -960,25 +1025,36 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
                       ? _buildCollapsibleText(content, isLongMessage)
                       : _buildAssistantTimeline(parsed, isStreaming),
                   if (!isUser)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (identical(message, lastAssistantMessage))
-                          TextButton(
-                            onPressed: _regenerateLastMessage,
-                            child: Text(L10n.of(context).aiRegenerate),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (identical(message, lastAssistantMessage))
+                            TextButton.icon(
+                              onPressed: _regenerateLastMessage,
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: Text(L10n.of(context).aiRegenerate),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          TextButton.icon(
+                            onPressed: () => _copyMessageContent(content),
+                            icon: const Icon(Icons.copy, size: 16),
+                            label: Text(L10n.of(context).commonCopy),
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
                           ),
-                        TextButton(
-                          onPressed: () => _copyMessageContent(content),
-                          child: Text(L10n.of(context).commonCopy),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          if (isUser) const SizedBox(width: 4),
         ],
       ),
     );

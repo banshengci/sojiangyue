@@ -82,8 +82,10 @@ String generateUrl(
     'textIndent': bookStyle.indent,
     'fontColor': '#$textColor',
     'backgroundColor': '#$backgroundColor',
-    'topMargin': bookStyle.topMargin + (safeTop > 0 ? safeTop + 8 : 0),
-    'bottomMargin': bookStyle.bottomMargin + (safeBottom > 0 ? safeBottom + 4 : 0),
+    'topMargin': bookStyle.topMargin +
+        (safeTop > 0 ? safeTop + (safeTop >= 47 ? 12 : 8) : 0),
+    'bottomMargin': bookStyle.bottomMargin +
+        (safeBottom > 0 ? safeBottom + (safeBottom >= 20 ? 10 : 6) : 0),
     'sideMargin': bookStyle.sideMargin,
     'justify': true,
     'hyphenate': false,
