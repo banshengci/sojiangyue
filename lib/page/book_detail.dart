@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:songjiang_reader/dao/book.dart';
@@ -302,6 +302,51 @@ class _BookDetailState extends ConsumerState<BookDetail> {
                           widget.book.author = value;
                         },
                       ),
+                      if (isEditing) ...[
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          initialValue: widget.book.seriesName ?? '',
+                          enabled: isEditing,
+                          style: bookAuthorStyle,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            isCollapsed: true,
+                            labelText: L10n.of(context).bookSeriesName,
+                            labelStyle: bookAuthorStyle.copyWith(fontSize: 12),
+                          ),
+                          onChanged: (value) {
+                            widget.book.seriesName =
+                                value.trim().isEmpty ? null : value.trim();
+                          },
+                        ),
+                        TextFormField(
+                          initialValue:
+                              widget.book.seriesIndex?.toString() ?? '',
+                          enabled: isEditing,
+                          style: bookAuthorStyle,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            isCollapsed: true,
+                            labelText: L10n.of(context).bookSeriesIndex,
+                            labelStyle: bookAuthorStyle.copyWith(fontSize: 12),
+                          ),
+                          onChanged: (value) {
+                            widget.book.seriesIndex =
+                                double.tryParse(value.trim());
+                          },
+                        ),
+                      ] else if (widget.book.seriesName != null &&
+                          widget.book.seriesName!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.book.seriesIndex != null
+                              ? '${widget.book.seriesName} · #${widget.book.seriesIndex}'
+                              : widget.book.seriesName!,
+                          style: bookAuthorStyle.copyWith(fontSize: 12),
+                        ),
+                      ],
                     ],
                   ),
                 ),

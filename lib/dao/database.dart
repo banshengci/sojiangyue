@@ -14,7 +14,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // Current app database version
-const int currentDbVersion = 9;
+const int currentDbVersion = 10;
 
 const createBookSQL = '''
 CREATE TABLE tb_books (
@@ -493,6 +493,17 @@ class DBHelper {
         ''');
         await db.execute(
             'CREATE INDEX IF NOT EXISTS idx_vocab_term ON tb_vocab_items(term)');
+        continue case9;
+      case9:
+      case 9:
+        // 松江阅：书籍系列元数据（Calibre 风格）
+        final bookCols = await db.rawQuery('PRAGMA table_info(tb_books)');
+        final hasSeries =
+            bookCols.any((c) => c['name'] == 'series_name');
+        if (!hasSeries) {
+          await db.execute('ALTER TABLE tb_books ADD COLUMN series_name TEXT');
+          await db.execute('ALTER TABLE tb_books ADD COLUMN series_index REAL');
+        }
     }
 
     if (oldVersion != 0 && SyncPrefs.webdavStatus) {

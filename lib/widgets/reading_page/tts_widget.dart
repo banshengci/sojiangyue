@@ -1,13 +1,22 @@
 ﻿import 'package:songjiang_reader/config/tts_prefs.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/main.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/tts/tts_handler.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/tts/tts_service.dart' as tts_svc;
 import 'package:songjiang_reader/widgets/reading_page/widget_title.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/page/book_player/epub_player.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/page/settings_page/narrate.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/reading_page/more_settings/more_settings.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'dart:async';
@@ -195,13 +204,13 @@ class _TtsWidgetState extends State<TtsWidget> {
                   await widget.epubPlayerKey.currentState!.ttsPrevSection();
                   TtsHandler().playPrevious();
                 },
-                icon: const Icon(EvaIcons.arrowhead_left),
+                icon: const Icon(Icons.chevron_left_rounded),
               ),
               IconButton(
                 onPressed: () {
                   TtsHandler().playPrevious();
                 },
-                icon: const Icon(EvaIcons.chevron_left),
+                icon: const Icon(SongJiangIcons.chevronLeft),
               ),
               IconButton(
                 onPressed: () async {
@@ -210,20 +219,20 @@ class _TtsWidgetState extends State<TtsWidget> {
                       : audioHandler.play();
                 },
                 icon: ttsState == TtsStateEnum.playing
-                    ? const Icon(EvaIcons.pause_circle_outline)
-                    : const Icon(EvaIcons.play_circle_outline),
+                    ? const Icon(SongJiangIcons.pause)
+                    : const Icon(SongJiangIcons.play),
               ),
               IconButton(
                 onPressed: () {
                   audioHandler.stop();
                 },
-                icon: const Icon(EvaIcons.stop_circle_outline),
+                icon: const Icon(SongJiangIcons.stop),
               ),
               IconButton(
                 onPressed: () {
                   TtsHandler().playNext();
                 },
-                icon: const Icon(EvaIcons.chevron_right),
+                icon: const Icon(SongJiangIcons.chevronRight),
               ),
               IconButton(
                 onPressed: () async {
@@ -231,7 +240,7 @@ class _TtsWidgetState extends State<TtsWidget> {
                   await widget.epubPlayerKey.currentState!.ttsNextSection();
                   TtsHandler().playNext();
                 },
-                icon: const Icon(EvaIcons.arrowhead_right),
+                icon: const Icon(Icons.chevron_right_rounded),
               ),
             ],
           );
@@ -242,7 +251,7 @@ class _TtsWidgetState extends State<TtsWidget> {
             padding: const EdgeInsets.fromLTRB(20, 5, 20, 0),
             child: Row(
               children: [
-                const Icon(EvaIcons.clock_outline),
+                const Icon(SongJiangIcons.clock),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Slider(

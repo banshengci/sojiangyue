@@ -94,7 +94,7 @@ class StatisticCard extends ConsumerWidget {
                   IconButton(
                     onPressed: () =>
                         _changeDate(ref, false, data.mode, data.date),
-                    icon: const Icon(EvaIcons.arrow_ios_back_outline),
+                    icon: const Icon(Icons.chevron_left_rounded),
                   ),
                   const Spacer(),
                   TextButton(
@@ -124,7 +124,7 @@ class StatisticCard extends ConsumerWidget {
                   IconButton(
                     onPressed: () =>
                         _changeDate(ref, true, data.mode, data.date),
-                    icon: const Icon(EvaIcons.arrow_ios_forward_outline),
+                    icon: const Icon(Icons.chevron_right_rounded),
                   ),
                 ],
               ),

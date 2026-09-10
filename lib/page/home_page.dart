@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 
 import 'package:songjiang_reader/dao/database.dart';
 import 'package:songjiang_reader/enums/sync_direction.dart';
@@ -23,6 +23,7 @@ import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/theme/songjiang_theme.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/settings/about.dart';
@@ -31,7 +32,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 WebViewEnvironment? webViewEnvironment;
@@ -134,24 +134,28 @@ class _HomePageState extends ConsumerState<HomePage> {
     // AI 不占用底栏入口，改由「更多设置 → AI 对话」与阅读页侧栏进入。
     List<Map<String, dynamic>> navBarItems = [
       {
-        'icon': EvaIcons.book_open,
+        'icon': SongJiangIcons.bookshelf,
+        'iconSelected': SongJiangIcons.bookshelfSelected,
         'label': L10n.of(context).navBarBookshelf,
         'identifier': 'bookshelf'
       },
       if (BookshelfPrefs.bottomNavShowStatistics)
         {
-          'icon': Icons.show_chart,
+          'icon': SongJiangIcons.statistics,
+          'iconSelected': SongJiangIcons.statisticsSelected,
           'label': L10n.of(context).navBarStatistics,
           'identifier': 'statistics'
         },
       if (BookshelfPrefs.bottomNavShowNote)
         {
-          'icon': Icons.note,
+          'icon': SongJiangIcons.notes,
+          'iconSelected': SongJiangIcons.notesSelected,
           'label': L10n.of(context).navBarNotes,
           'identifier': 'notes'
         },
       {
-        'icon': EvaIcons.settings_2,
+        'icon': SongJiangIcons.settings,
+        'iconSelected': SongJiangIcons.settingsSelected,
         'label': L10n.of(context).navBarSettings,
         'identifier': 'settings'
       },
@@ -189,6 +193,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     List<NavigationRailDestination> railBarItems = navBarItems.map((item) {
       return NavigationRailDestination(
         icon: Icon(item['icon'] as IconData),
+        selectedIcon: Icon(
+          item['iconSelected'] as IconData? ?? item['icon'] as IconData,
+        ),
         label: Text(item['label'] as String),
       );
     }).toList();
@@ -196,6 +203,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     List<BottomNavigationBarItem> bottomBarItems = navBarItems.map((item) {
       return BottomNavigationBarItem(
         icon: Icon(item['icon'] as IconData),
+        activeIcon: Icon(
+          item['iconSelected'] as IconData? ?? item['icon'] as IconData,
+        ),
         label: item['label'] as String,
       );
     }).toList();

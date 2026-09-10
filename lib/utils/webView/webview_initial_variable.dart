@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/models/book_style.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
@@ -16,6 +16,8 @@ Future<void> webviewInitialVariable(
   String? fontPath,
   String? backgroundColor,
   bool? importing,
+  double safeTop = 0,
+  double safeBottom = 0,
 }) async {
   ReadTheme readTheme = AppMiscPrefs.readTheme;
   bookStyle ??= ReadingStylePrefs.bookStyle;
@@ -47,8 +49,8 @@ Future<void> webviewInitialVariable(
           textIndent: ${bookStyle.indent},
           fontColor: '#$textColor',
           backgroundColor: '#$backgroundColor',
-          topMargin: ${bookStyle.topMargin},
-          bottomMargin: ${bookStyle.bottomMargin},
+          topMargin: ${bookStyle.topMargin + safeTop},
+          bottomMargin: ${bookStyle.bottomMargin + safeBottom},
           sideMargin: ${bookStyle.sideMargin},
           justify: true,
           hyphenate: true,

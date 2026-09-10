@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/utils/platform_utils.dart';
+import 'package:songjiang_reader/utils/platform_utils.dart';
 
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
@@ -248,6 +248,20 @@ class _OtherSettingsState extends State<OtherSettings> {
       );
     }
 
+    Widget autoCleanWebNovel() {
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        trailing: Switch(
+          value: ReadingUiPrefs.autoCleanWebNovel,
+          onChanged: (bool value) => setState(() {
+            ReadingUiPrefs.autoCleanWebNovel = value;
+          }),
+        ),
+        title: Text(L10n.of(context).readingPageAutoCleanWebNovel),
+        subtitle: Text(L10n.of(context).readingPageAutoCleanWebNovelTips),
+      );
+    }
+
     ListTile autoAdjustReadingTheme() {
       return ListTile(
         contentPadding: EdgeInsets.zero,
@@ -333,6 +347,7 @@ class _OtherSettingsState extends State<OtherSettings> {
           autoTranslateSelection(),
           autoMarkSelection(),
           autoSummaryPreviousContent(),
+          autoCleanWebNovel(),
           screenTimeout(),
           pageTurningControl(),
         ],

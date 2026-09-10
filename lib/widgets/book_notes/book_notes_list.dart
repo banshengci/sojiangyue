@@ -1,17 +1,31 @@
 import 'package:songjiang_reader/constants/note_annotations.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/hint_key.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/book.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/book_note.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/book_notes_state.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/providers/book_notes.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/book.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/book_notes/book_note_tile.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/book_share/excerpt_share_service.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/delete_confirm.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/hint/hint_banner.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/tips/notes_tips.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -101,7 +115,7 @@ class BookNotesList extends ConsumerWidget {
               }
             },
             icon: Icon(
-              allSelected ? EvaIcons.checkmark_circle : Icons.circle_outlined,
+              allSelected ? SongJiangIcons.checkCircle : Icons.circle_outlined,
               color: buttonColor,
             ),
           ),
@@ -121,8 +135,8 @@ class BookNotesList extends ConsumerWidget {
                 }
               }
             },
-            deleteIcon: Icon(EvaIcons.trash_2, color: buttonColor),
-            confirmIcon: const Icon(EvaIcons.close_circle, color: Colors.red),
+            deleteIcon: Icon(SongJiangIcons.trash, color: buttonColor),
+            confirmIcon: const Icon(SongJiangIcons.closeCircle, color: Colors.red),
           ),
           if (!reading && exportNotes != null)
             IconButton(
@@ -142,7 +156,7 @@ class BookNotesList extends ConsumerWidget {
         IconButton(
           onPressed: () => _showFilterSheet(context, ref),
           icon: Icon(
-            state.showAllNotes ? EvaIcons.funnel_outline : EvaIcons.funnel,
+            state.showAllNotes ? SongJiangIcons.filter : SongJiangIcons.filterOn,
           ),
         ),
       ],
@@ -197,8 +211,8 @@ class BookNotesList extends ConsumerWidget {
                                 .toggleShowBookmarks(),
                             icon: Icon(
                               state.showBookmarks
-                                  ? EvaIcons.bookmark
-                                  : EvaIcons.bookmark_outline,
+                                  ? SongJiangIcons.bookmarkOn
+                                  : SongJiangIcons.bookmark,
                               color: Theme.of(context).colorScheme.primary,
                             ),
                             label: Text(L10n.of(context).noteListShowBookmark),
@@ -266,8 +280,8 @@ class BookNotesList extends ConsumerWidget {
         if (isActive)
           Icon(
             current.direction == SortDirection.asc
-                ? EvaIcons.arrow_up
-                : EvaIcons.arrow_down,
+                ? SongJiangIcons.arrowUp
+                : SongJiangIcons.arrowDown,
           ),
       ],
     );
@@ -294,7 +308,7 @@ class BookNotesList extends ConsumerWidget {
       return IconButton(
         onPressed: () => notifier.toggleTypeColor(type.type, color),
         icon: Icon(
-          selected ? EvaIcons.checkmark_circle_2 : Icons.circle,
+          selected ? SongJiangIcons.checkCircle : Icons.circle,
           color: Color(int.parse('0x99$color')),
         ),
         iconSize: 35,
@@ -344,7 +358,7 @@ class BookNotesList extends ConsumerWidget {
               onPressed: () => notifier.toggleSelection(bookNote),
               icon: Icon(
                 state.selectedNoteIds.contains(bookNote.id)
-                    ? EvaIcons.checkmark_circle
+                    ? SongJiangIcons.checkCircle
                     : Icons.circle_outlined,
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -469,7 +483,7 @@ class BookNotesList extends ConsumerWidget {
                               return IconButton(
                                 icon: Icon(
                                   currentColor == color
-                                      ? EvaIcons.checkmark_circle_2
+                                      ? SongJiangIcons.checkCircle
                                       : Icons.circle,
                                   color: Color(int.parse('0x99$color')),
                                   size: 30,

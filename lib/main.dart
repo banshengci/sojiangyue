@@ -10,6 +10,7 @@ import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/config/excerpt_share_prefs.dart';
 import 'package:songjiang_reader/config/http_proxy_prefs.dart';
 import 'package:songjiang_reader/config/iap_prefs.dart';
+import 'package:songjiang_reader/config/local_dict_prefs.dart';
 import 'package:songjiang_reader/config/notes_prefs.dart';
 import 'package:songjiang_reader/config/opds_prefs.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
@@ -62,6 +63,7 @@ Future<void> main() async {
   await DeveloperPrefs.ensureInitialized();
   await ExcerptSharePrefs.ensureInitialized();
   await IapPrefs.ensureInitialized();
+  await LocalDictPrefs.ensureInitialized();
   await ReadingStylePrefs.ensureInitialized();
   await SyncPrefs.ensureInitialized();
   await AiPrefs.ensureInitialized();

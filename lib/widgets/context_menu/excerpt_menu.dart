@@ -1,16 +1,29 @@
 ﻿import 'package:songjiang_reader/config/notes_prefs.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/constants/note_annotations.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/dao/book_note.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/main.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/book_note.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/tts/tts_handler.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/book_share/excerpt_share_service.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/axis_flex.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/icon_and_text.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icons_plus/icons_plus.dart';
@@ -155,7 +168,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
   Icon deleteIcon() {
     return deleteConfirm
         ? const Icon(
-            EvaIcons.close_circle,
+            SongJiangIcons.closeCircle,
             color: Colors.red,
           )
         : const Icon(Icons.delete);
@@ -272,7 +285,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
               SjToast.show(L10n.of(context).notesPageCopied);
               widget.onClose();
             },
-            icon: const Icon(EvaIcons.copy),
+            icon: const Icon(SongJiangIcons.copy),
             text: L10n.of(context).contextMenuCopy,
           ),
           // Web search
@@ -286,7 +299,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
                 mode: LaunchMode.externalApplication,
               );
             },
-            icon: const Icon(EvaIcons.globe),
+            icon: const Icon(SongJiangIcons.globe),
             text: L10n.of(context).contextMenuSearch,
           ),
           // toggle translation menu
@@ -334,7 +347,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
                   widget.toggleReaderNoteMenu(show: true);
                 }
               },
-              icon: const Icon(EvaIcons.edit_2_outline),
+              icon: const Icon(SongJiangIcons.edit),
               text: L10n.of(context).contextMenuWriteIdea,
             ),
           // AI chat
@@ -353,7 +366,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
                       widget.annoContent;
                 }
               },
-              icon: const Icon(EvaIcons.message_circle_outline),
+              icon: const Icon(SongJiangIcons.message),
               text: L10n.of(context).navBarAI,
             ),
           // share
@@ -369,7 +382,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
                 chapter: epubPlayerKey.currentState!.chapterTitle,
               );
             },
-            icon: const Icon(EvaIcons.share_outline),
+            icon: const Icon(SongJiangIcons.share),
             text: L10n.of(context).contextMenuShare,
           ),
         ],

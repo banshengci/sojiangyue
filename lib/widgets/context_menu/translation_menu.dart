@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/config/local_dict_prefs.dart';
 import 'package:songjiang_reader/config/translate_prefs.dart';
 import 'package:songjiang_reader/dao/vocab.dart';
 import 'package:songjiang_reader/enums/lang_list.dart';
@@ -35,6 +36,7 @@ class TranslationMenu extends StatefulWidget {
 
 class _TranslationMenuState extends State<TranslationMenu> {
   Widget? _translationWidget;
+  String? _localDictDef;
   Timer? _debounceTimer;
   bool _translationInitialized = false;
   bool _savingVocab = false;
@@ -52,18 +54,26 @@ class _TranslationMenuState extends State<TranslationMenu> {
 
       // Debounce: Delay the translation call to ensure context has stopped updating
       _debounceTimer?.cancel();
-      _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
         if (!mounted || _translationInitialized) return;
 
+        // 1) 本地词典优先（短词/短语，离线）
+        final def = await LocalDictPrefs.lookup(widget.content);
+        if (!mounted) return;
+
+        // 2) AI 翻译仍加载（本地命中时作为补充；未命中则作主结果）
+        final effectiveContextText =
+            (widget.contextText?.trim().isEmpty ?? true)
+                ? null
+                : widget.contextText;
+        final aiWidget = translateText(
+          widget.content,
+          contextText: effectiveContextText,
+        );
+
         setState(() {
-          final effectiveContextText =
-              (widget.contextText?.trim().isEmpty ?? true)
-                  ? null
-                  : widget.contextText;
-          _translationWidget = translateText(
-            widget.content,
-            contextText: effectiveContextText,
-          );
+          _localDictDef = def;
+          _translationWidget = aiWidget;
           _translationInitialized = true;
         });
       });
@@ -174,6 +184,44 @@ class _TranslationMenuState extends State<TranslationMenu> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_localDictDef != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withAlpha(80),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              L10n.of(context).localDictHit,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(_localDictDef!),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        L10n.of(context).aiTranslateFallback,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                     _translationWidget ??
                         const SizedBox(
                           height: 20,

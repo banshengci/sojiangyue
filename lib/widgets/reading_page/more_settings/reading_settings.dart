@@ -1,16 +1,29 @@
-import 'package:songjiang_reader/config/shared_preference_provider.dart';
+﻿import 'package:songjiang_reader/config/shared_preference_provider.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/convert_chinese_mode.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/reading_info.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/translation_mode.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/writing_mode.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/code_highlight_theme.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/reading_info.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/page/settings_page/subpage/fonts.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 
@@ -151,12 +164,12 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                       SegmentButtonItem(
                         label: L10n.of(context).readingPageSingle,
                         value: 1,
-                        icon: const Icon(EvaIcons.book),
+                        icon: const Icon(SongJiangIcons.book),
                       ),
                       SegmentButtonItem(
                         label: L10n.of(context).readingPageDouble,
                         value: 2,
-                        icon: const Icon(EvaIcons.book_open),
+                        icon: const Icon(SongJiangIcons.bookOpen),
                       ),
                     ],
                     selected: {ReadingStylePrefs.bookStyle.maxColumnCount},
@@ -240,7 +253,7 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                       SegmentButtonItem(
                         label: L10n.of(context).readingPageWritingDirectionAuto,
                         value: WritingModeEnum.auto,
-                        icon: const Icon(EvaIcons.activity_outline),
+                        icon: const Icon(SongJiangIcons.activity),
                       ),
                       SegmentButtonItem(
                         label: L10n.of(context)

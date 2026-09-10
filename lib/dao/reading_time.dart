@@ -101,6 +101,17 @@ class ReadingTimeDao extends BaseDao {
     return result ?? 0;
   }
 
+  /// 今日累计阅读秒数（跨书汇总）。
+  Future<int> selectTodayReadingSeconds() async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final result = await rawQuerySingle(
+      'SELECT SUM(reading_time) AS total_sum FROM $table WHERE DATE(date) = DATE(?)',
+      arguments: [today],
+      mapper: (row) => row['total_sum'] as int? ?? 0,
+    );
+    return result ?? 0;
+  }
+
   Future<int> selectTotalNumberOfBook() async {
     final result = await rawQuerySingle(
       'SELECT COUNT(DISTINCT book_id) AS total_count FROM $table',

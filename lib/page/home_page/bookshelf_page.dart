@@ -13,10 +13,10 @@ import 'package:songjiang_reader/models/tag.dart';
 import 'package:songjiang_reader/providers/book_list.dart';
 import 'package:songjiang_reader/providers/book_filters.dart';
 import 'package:songjiang_reader/providers/tags.dart';
+import 'package:songjiang_reader/providers/bookshelf_selection.dart';
+import 'package:songjiang_reader/widgets/bookshelf/bookshelf_batch_sheet.dart';
 import 'package:songjiang_reader/service/book.dart';
 import 'package:songjiang_reader/page/search/search_page.dart';
-import 'package:songjiang_reader/page/settings_page/opds.dart';
-import 'package:songjiang_reader/config/opds_prefs.dart';
 import 'package:songjiang_reader/utils/get_path/get_temp_dir.dart';
 import 'package:songjiang_reader/utils/color/hash_color.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -27,10 +27,12 @@ import 'package:songjiang_reader/widgets/common/container/filled_container.dart'
 import 'package:songjiang_reader/widgets/common/tag_chip.dart';
 import 'package:songjiang_reader/widgets/hint/hint_banner.dart';
 import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
+import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 import 'package:songjiang_reader/widgets/tips/bookshelf_tips.dart';
+import 'package:songjiang_reader/widgets/tips/daily_goal_banner.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_grid_view/widgets/custom_draggable.dart';
 import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
@@ -74,53 +76,6 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
       await targetFile.delete();
     }
     return File(sourcePath).copy(targetPath);
-  }
-
-  Future<void> _showAddBookSheet() async {
-    final catalogs = OpdsPrefs.catalogs;
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.file_open_outlined),
-                title: Text(L10n.of(sheetContext).bookshelfImportBook),
-                subtitle: Text(
-                  L10n.of(sheetContext)
-                      .importSupportTypes(['epub', 'txt', 'pdf', 'mobi'].join(' / ')),
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _importBook();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.library_books_outlined),
-                title: Text(L10n.of(sheetContext).opdsTitle),
-                subtitle: Text(
-                  catalogs.isEmpty
-                      ? L10n.of(sheetContext).opdsEmptyHint
-                      : L10n.of(sheetContext).opdsBrowse,
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: (_) => const OpdsSettingsPage(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   Future<void> _importBook() async {
@@ -429,7 +384,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
             ),
             IconButton(
               key: _tagButtonKey,
-              icon: const Icon(EvaIcons.pricetags_outline, size: 22),
+              icon: const Icon(SongJiangIcons.tags, size: 22),
               tooltip: L10n.of(context).bookshelfFilterTagsTooltip,
               onPressed: showTagMenu,
             ),
@@ -536,12 +491,13 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                       });
                     });
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const AppLoadingHint(),
           error: (error, stack) => Center(child: Text(error.toString())),
         );
 
     Widget body = Column(
       children: [
+        const DailyGoalBanner(),
         buildFilterBar(),
         Expanded(
           child: DropTarget(
@@ -580,7 +536,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            EvaIcons.arrowhead_down_outline,
+                            Icons.keyboard_arrow_down_rounded,
                             size: 48,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
@@ -633,13 +589,38 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
           )),
       actions: [
         const SyncButton(),
-        IconButton(
-          icon: const Icon(Icons.add),
-          tooltip: L10n.of(context).bookshelfAddBook,
-          onPressed: _showAddBookSheet,
+        Builder(
+          builder: (context) {
+            final selecting =
+                ref.watch(bookshelfSelectionProvider).isNotEmpty;
+            if (selecting) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(SongJiangIcons.batchTag),
+                    tooltip: L10n.of(context).batchAddTag,
+                    onPressed: () =>
+                        showBookshelfBatchSheet(context, ref),
+                  ),
+                  IconButton(
+                    icon: const Icon(SongJiangIcons.multiSelectCancel),
+                    tooltip: L10n.of(context).commonCancel,
+                    onPressed: () =>
+                        ref.read(bookshelfSelectionProvider.notifier).clear(),
+                  ),
+                ],
+              );
+            }
+            return IconButton(
+              icon: const Icon(SongJiangIcons.import),
+              tooltip: L10n.of(context).bookshelfImportBook,
+              onPressed: _importBook,
+            );
+          },
         ),
         IconButton(
-            icon: const Icon(Icons.sort),
+            icon: const Icon(SongJiangIcons.sort),
             onPressed: () {
               showMenu(
                 context: context,

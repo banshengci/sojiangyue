@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
@@ -21,6 +21,8 @@ String generateUrl(
   String? backgroundColor,
   bool? importing,
   bool isDarkMode = false,
+  double safeTop = 0,
+  double safeBottom = 0,
 }) {
   String indexHtmlPath =
       "http://127.0.0.1:${Server().port}/foliate-js/index.html";
@@ -80,8 +82,8 @@ String generateUrl(
     'textIndent': bookStyle.indent,
     'fontColor': '#$textColor',
     'backgroundColor': '#$backgroundColor',
-    'topMargin': bookStyle.topMargin,
-    'bottomMargin': bookStyle.bottomMargin,
+    'topMargin': bookStyle.topMargin + safeTop,
+    'bottomMargin': bookStyle.bottomMargin + safeBottom,
     'sideMargin': bookStyle.sideMargin,
     'justify': true,
     'hyphenate': false,

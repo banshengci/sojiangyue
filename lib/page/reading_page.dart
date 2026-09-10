@@ -13,6 +13,7 @@ import 'package:songjiang_reader/enums/sync_trigger.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/theme/songjiang_theme.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/ai_quick_prompt_chip.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
@@ -41,7 +42,6 @@ import 'package:flutter/services.dart';
 // show debugPrint, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -525,36 +525,37 @@ class ReadingPageState extends ConsumerState<ReadingPage>
   }
 
   List<AiQuickPromptChip> _getAiQuickPromptChips() {
+    // 按「读前 → 读中 → 读后」排序，强化深读闭环，而不是一堆平铺入口。
     return [
       AiQuickPromptChip(
-        icon: EvaIcons.book,
-        label: L10n.of(context).settingsAiPromptSummaryTheChapter,
-        prompt: generatePromptSummaryTheChapter().buildString(),
-      ),
-      AiQuickPromptChip(
-        icon: Icons.menu_book_rounded,
-        label: L10n.of(context).settingsAiPromptSummaryTheBook,
-        prompt: generatePromptSummaryTheBook().buildString(),
-      ),
-      AiQuickPromptChip(
-        icon: Icons.menu_book_outlined,
+        icon: SongJiangIcons.aiPreview,
         label: L10n.of(context).settingsAiPromptChapterPreview,
         prompt: generatePromptChapterPreview().buildString(),
       ),
       AiQuickPromptChip(
-        icon: Icons.account_tree_outlined,
-        label: L10n.of(context).settingsAiPromptMindmap,
-        prompt: generatePromptMindmap().buildString(),
-      ),
-      AiQuickPromptChip(
-        icon: Icons.quiz_outlined,
+        icon: SongJiangIcons.aiQuiz,
         label: L10n.of(context).settingsAiPromptChapterQuiz,
         prompt: generatePromptChapterQuiz().buildString(),
       ),
       AiQuickPromptChip(
-        icon: Icons.summarize_outlined,
+        icon: SongJiangIcons.aiRecap,
         label: L10n.of(context).settingsAiPromptChapterRecap,
         prompt: generatePromptChapterRecap().buildString(),
+      ),
+      AiQuickPromptChip(
+        icon: SongJiangIcons.aiChapter,
+        label: L10n.of(context).settingsAiPromptSummaryTheChapter,
+        prompt: generatePromptSummaryTheChapter().buildString(),
+      ),
+      AiQuickPromptChip(
+        icon: SongJiangIcons.aiMindmap,
+        label: L10n.of(context).settingsAiPromptMindmap,
+        prompt: generatePromptMindmap().buildString(),
+      ),
+      AiQuickPromptChip(
+        icon: SongJiangIcons.aiBook,
+        label: L10n.of(context).settingsAiPromptSummaryTheBook,
+        prompt: generatePromptSummaryTheBook().buildString(),
       ),
       // User custom prompts (enabled only)
       ...AiPrefs.userPrompts
@@ -751,7 +752,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                             : const Icon(Icons.bookmark_border)),
                     IconButton(
                       tooltip: L10n.of(context).readingPageBookDetails,
-                      icon: const Icon(EvaIcons.more_vertical),
+                      icon: const Icon(SongJiangIcons.moreVertical),
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -789,44 +790,59 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                                   ),
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surface,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerLow
+                                        .withAlpha(isDark ? 220 : 245),
                                     border: Border(
                                       top: BorderSide(
                                         color: SongJiangColors.pine
-                                            .withAlpha(isDark ? 150 : 120),
-                                        width: 1.2,
+                                            .withAlpha(isDark ? 90 : 70),
+                                        width: 0.8,
                                       ),
                                     ),
                                   ),
                                   child: IconTheme(
                                     data: IconThemeData(color: toolbarIconColor),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceAround,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.toc),
-                                          onPressed: tocHandler,
+                                    child: SafeArea(
+                                      top: false,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceAround,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(
+                                                  SongJiangIcons.toc),
+                                              onPressed: tocHandler,
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                  SongJiangIcons.edit),
+                                              onPressed: noteHandler,
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                  SongJiangIcons.activity),
+                                              onPressed: progressHandler,
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                  SongJiangIcons.palette),
+                                              onPressed: () {
+                                                styleHandler(setState);
+                                              },
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                  SongJiangIcons.tts),
+                                              onPressed: ttsHandler,
+                                            ),
+                                          ],
                                         ),
-                                        IconButton(
-                                          icon: const Icon(EvaIcons.edit),
-                                          onPressed: noteHandler,
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.data_usage),
-                                          onPressed: progressHandler,
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.color_lens),
-                                          onPressed: () {
-                                            styleHandler(setState);
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(EvaIcons.headphones),
-                                          onPressed: ttsHandler,
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -898,19 +914,18 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                             onKeyEvent: _handleReaderKeyEvent,
                             child: Stack(
                               children: [
-                                // iOS 等圆角屏：WebView 默认通边铺满，
-                                // 用 viewPadding 把内容推离刘海/圆角，避免被裁切。
-                                SafeArea(
-                                  child: EpubPlayer(
-                                    key: epubPlayerKey,
-                                    book: _book,
-                                    cfi: widget.cfi,
-                                    showOrHideAppBarAndBottomBar:
-                                        showOrHideAppBarAndBottomBar,
-                                    onLoadEnd: onLoadEnd,
-                                    initialThemes: widget.initialThemes,
-                                    updateParent: updateState,
-                                  ),
+                                // WebView 通屏铺满主题底色；
+                                // 刘海/圆角安全区在 EpubPlayer 内并入 top/bottomMargin，
+                                // 避免 SafeArea 外挖空造成上下色带割裂。
+                                EpubPlayer(
+                                  key: epubPlayerKey,
+                                  book: _book,
+                                  cfi: widget.cfi,
+                                  showOrHideAppBarAndBottomBar:
+                                      showOrHideAppBarAndBottomBar,
+                                  onLoadEnd: onLoadEnd,
+                                  initialThemes: widget.initialThemes,
+                                  updateParent: updateState,
                                 ),
                                 if (_isResizingAiChat)
                                   SizedBox.expand(

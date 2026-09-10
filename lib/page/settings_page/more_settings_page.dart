@@ -11,13 +11,14 @@ import 'package:songjiang_reader/page/settings_page/reading.dart';
 import 'package:songjiang_reader/page/settings_page/settings_page.dart';
 import 'package:songjiang_reader/page/settings_page/storage.dart';
 import 'package:songjiang_reader/page/settings_page/sync.dart';
+import 'package:songjiang_reader/page/settings_page/local_dict_settings.dart';
 import 'package:songjiang_reader/page/settings_page/translate.dart';
 import 'package:songjiang_reader/page/vocab_list_page.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
 import 'package:songjiang_reader/widgets/settings/about.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:icons_plus/icons_plus.dart';
 
 class MoreSettings extends StatelessWidget {
   const MoreSettings({super.key});
@@ -76,7 +77,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
             List<Map<String, dynamic>> settings = [
               {
                 "title": L10n.of(context).settingsAppearance,
-                "icon": Icons.color_lens_outlined,
+                "icon": SongJiangIcons.palette,
                 "sections": const AppearanceSetting(),
                 "subtitles": [
                   L10n.of(context).settingsAppearanceTheme,
@@ -86,7 +87,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsReading,
-                "icon": Icons.book_rounded,
+                "icon": SongJiangIcons.bookOpen,
                 "sections": const ReadingSettings(),
                 "subtitles": [
                   L10n.of(context).readingPageReading,
@@ -97,7 +98,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsSync,
-                "icon": Icons.sync_outlined,
+                "icon": SongJiangIcons.refresh,
                 "sections": const SyncSetting(),
                 "subtitles": [
                   L10n.of(context).settingsSyncWebdav,
@@ -106,7 +107,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).opdsTitle,
-                "icon": Icons.library_books_outlined,
+                "icon": SongJiangIcons.series,
                 "sections": const OpdsSettingsPage(),
                 "subtitles": [
                   L10n.of(context).opdsAddCatalog,
@@ -115,7 +116,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsNarrate,
-                "icon": EvaIcons.headphones,
+                "icon": SongJiangIcons.tts,
                 "sections": const NarrateSettings(),
                 "subtitles": [
                   L10n.of(context).settingsNarrateVoice,
@@ -124,7 +125,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsTranslate,
-                "icon": Icons.translate_outlined,
+                "icon": SongJiangIcons.translate,
                 "sections": const TranslateSetting(),
                 "subtitles": [
                   L10n.of(context).settingsTranslate,
@@ -133,7 +134,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               if (EnvVar.enableAIFeature)
                 {
                   "title": L10n.of(context).settingsAi,
-                  "icon": Icons.auto_awesome,
+                  "icon": SongJiangIcons.sparkle,
                   "sections": const AISettings(),
                   "subtitles": [
                     L10n.of(context).settingsAiServices,
@@ -142,7 +143,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                 },
               {
                 "title": L10n.of(context).storage,
-                "icon": Icons.storage_outlined,
+                "icon": SongJiangIcons.storage,
                 "sections": const StorageSettings(),
                 "subtitles": [
                   L10n.of(context).storageInfo,
@@ -151,7 +152,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsAdvanced,
-                "icon": Icons.shield_outlined,
+                "icon": Icons.security_outlined,
                 "sections": const AdvancedSetting(),
                 "subtitles": [
                   L10n.of(context).chapterSplitting,
@@ -193,15 +194,29 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                     subTitles: settings[index]["subtitles"],
                   ),
                 ListTile(
-                  leading: Icon(Icons.bookmark_add_outlined,
+                  leading: Icon(SongJiangIcons.vocabulary,
                       color: Theme.of(context).colorScheme.primary),
                   title: Text(L10n.of(context).vocabTitle),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const Icon(SongJiangIcons.chevronRight),
                   onTap: () {
                     Navigator.push(
                       context,
                       CupertinoPageRoute(
                         builder: (context) => const VocabListPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Icon(SongJiangIcons.dictionary,
+                      color: Theme.of(context).colorScheme.primary),
+                  title: Text(L10n.of(context).localDictTitle),
+                  trailing: const Icon(SongJiangIcons.chevronRight),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                        builder: (context) => const LocalDictSettingsPage(),
                       ),
                     );
                   },

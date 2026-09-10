@@ -1,4 +1,4 @@
-﻿import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/enums/code_highlight_theme.dart';
 import 'package:songjiang_reader/enums/hint_key.dart';
 
@@ -23,6 +23,10 @@ class ReadingUiPrefs {
   static const String customCssEnabledKey = 'customCSSEnabled';
   static const String codeHighlightThemeKey = 'codeHighlightTheme';
   static const String enableJsForEpubKey = 'enableJsForEpub';
+  /// 导入 TXT 时自动清洗网文广告/噪声行（默认开）。
+  static const String autoCleanWebNovelKey = 'autoCleanWebNovel';
+  /// 每日阅读目标（分钟，0=关闭）。
+  static const String dailyGoalMinutesKey = 'dailyGoalMinutes';
   static const String hintPrefix = 'hint_';
 
   static SharedPreferences? _sp;
@@ -160,6 +164,20 @@ class ReadingUiPrefs {
 
   static set enableJsForEpub(bool enable) {
     _require.setBool(enableJsForEpubKey, enable);
+  }
+
+  static bool get autoCleanWebNovel =>
+      _require.getBool(autoCleanWebNovelKey) ?? true;
+
+  static set autoCleanWebNovel(bool value) {
+    _require.setBool(autoCleanWebNovelKey, value);
+  }
+
+  static int get dailyGoalMinutes =>
+      _require.getInt(dailyGoalMinutesKey) ?? 0;
+
+  static set dailyGoalMinutes(int minutes) {
+    _require.setInt(dailyGoalMinutesKey, minutes.clamp(0, 240));
   }
 
   // ---- hints ----

@@ -1,10 +1,12 @@
 import 'dart:io';
 
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/models/chapter_split_presets.dart';
 import 'package:songjiang_reader/service/convert_to_epub/create_epub.dart';
 import 'package:songjiang_reader/service/convert_to_epub/encoding_utils.dart';
 import 'package:songjiang_reader/service/convert_to_epub/section.dart';
+import 'package:songjiang_reader/service/convert_to_epub/txt/webnovel_cleaner.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:path/path.dart' as path;
 
@@ -107,7 +109,13 @@ Future<File> convertFromTxt(File file) async {
   String content = readFileWithEncoding(file);
   content = _normalizeLineBreaks(content);
 
-  // content = content.replaceAll(RegExp(r'(\n*|^)(\s|　)+'), '\n');
+  // 网文一键清洗：去掉广告/导航/页码噪声，便于章节切分与分段
+  if (ReadingUiPrefs.autoCleanWebNovel) {
+    final beforeLen = content.length;
+    content = cleanWebNovelText(content);
+    SjLog.info(
+        'convert from txt. cleaned: $beforeLen -> ${content.length}');
+  }
 
   SjLog.info('convert from txt. content: ${content.length}');
 

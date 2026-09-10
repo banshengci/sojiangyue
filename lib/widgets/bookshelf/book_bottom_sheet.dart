@@ -1,26 +1,48 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:math';
 
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/config/sync_prefs.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/dao/book.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/hint_key.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/book.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/page/book_detail.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/providers/sync.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/providers/book_list.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
+import 'package:songjiang_reader/providers/bookshelf_selection.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/sync_direction.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/providers/sync_status.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/convert_to_epub/txt/convert_from_txt.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/md5_service.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/book.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/share_file.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/bookshelf/book_cover.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/delete_confirm.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/icon_and_text.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,19 +62,8 @@ class BookBottomSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     Future<void> handleDelete(BuildContext context) async {
       Navigator.pop(context);
-      await bookDao.updateBook(Book(
-        id: book.id,
-        title: book.title,
-        coverPath: book.coverPath,
-        filePath: book.filePath,
-        lastReadPosition: book.lastReadPosition,
-        readingPercentage: book.readingPercentage,
-        author: book.author,
+      await bookDao.updateBook(book.copyWith(
         isDeleted: true,
-        description: book.description,
-        rating: book.rating,
-        md5: book.md5,
-        createTime: book.createTime,
         updateTime: DateTime.now(),
       ));
       ref.read(bookListProvider.notifier).refresh();
@@ -264,22 +275,30 @@ class BookBottomSheet extends ConsumerWidget {
 
     final actions = [
       {
-        "icon": EvaIcons.share,
+        "icon": SongJiangIcons.share,
         "text": L10n.of(context).shareFile,
         "onTap": () => handleShare()
       },
       {
-        "icon": EvaIcons.refresh,
+        "icon": SongJiangIcons.refresh,
         "text": L10n.of(context).bookBottomSheetReplaceFile,
         "onTap": () => handleReplace(context)
       },
       {
-        "icon": EvaIcons.cloud_upload,
+        "icon": SongJiangIcons.cloudUpload,
         "text": L10n.of(context).bookSyncStatusReleaseSpace,
         "onTap": () => handleUpload(context)
       },
       {
-        "icon": EvaIcons.more_vertical,
+        "icon": Icons.check_rounded,
+        "text": L10n.of(context).batchSelectBook,
+        "onTap": () {
+          Navigator.pop(context);
+          ref.read(bookshelfSelectionProvider.notifier).toggle(book.id);
+        }
+      },
+      {
+        "icon": SongJiangIcons.moreVertical,
         "text": L10n.of(context).notesPageDetail,
         "onTap": () => handleDetail(context)
       },
@@ -305,12 +324,12 @@ class BookBottomSheet extends ConsumerWidget {
               handleDelete(context);
             },
             deleteIcon: IconAndText(
-              icon: const Icon(EvaIcons.trash),
+              icon: const Icon(SongJiangIcons.trash),
               text: L10n.of(context).commonDelete,
             ),
             confirmIcon: IconAndText(
               icon: const Icon(
-                EvaIcons.checkmark_circle_2,
+                SongJiangIcons.checkCircle,
                 color: Colors.red,
               ),
               text: L10n.of(context).commonConfirm,
@@ -333,7 +352,7 @@ class BookBottomSheet extends ConsumerWidget {
                 }).toList();
               },
               child: IconAndText(
-                icon: const Icon(EvaIcons.more_vertical),
+                icon: const Icon(SongJiangIcons.moreVertical),
                 text: L10n.of(context).more,
               ))
         ],

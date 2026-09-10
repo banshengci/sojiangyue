@@ -1,6 +1,8 @@
 import 'package:songjiang_reader/dao/vocab.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/vocab_item.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
+import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 import 'package:flutter/material.dart';
 
 /// 生词 / 难句本：浏览、搜索、标记复习、删除。
@@ -91,16 +93,12 @@ class _VocabListPageState extends State<VocabListPage> {
           ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const AppLoadingHint()
                 : _items.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Text(
-                            L10n.of(context).vocabEmptyHint,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+                    ? EmptyStateHint(
+                        icon: SongJiangIcons.vocabulary,
+                        title: L10n.of(context).vocabTitle,
+                        subtitle: L10n.of(context).vocabEmptyHint,
                       )
                     : ListView.builder(
                         itemCount: _items.length,

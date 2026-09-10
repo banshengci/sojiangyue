@@ -1,5 +1,7 @@
 import 'package:songjiang_reader/config/remote_config.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
+import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -140,7 +142,7 @@ class FontsSettingPage extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const AppLoadingHint(),
         error: (error, stack) => Center(
           child: Padding(
             padding: const EdgeInsets.all(32),

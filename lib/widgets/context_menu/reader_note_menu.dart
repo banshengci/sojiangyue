@@ -1,7 +1,11 @@
-import 'package:songjiang_reader/dao/book_note.dart';
+﻿import 'package:songjiang_reader/dao/book_note.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/book_note.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/axis_flex.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 
@@ -158,7 +162,7 @@ class ReaderNoteMenuState extends State<ReaderNoteMenu> {
                     ),
                     if (showSaveButton)
                       IconButton(
-                        icon: const Icon(EvaIcons.checkmark_circle_2_outline),
+                        icon: const Icon(SongJiangIcons.checkCircleOutline),
                         onPressed: () {
                           saveNote();
                           // remove focus

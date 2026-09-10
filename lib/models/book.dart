@@ -15,6 +15,8 @@ class Book {
   String? md5;
   DateTime createTime;
   DateTime updateTime;
+  String? seriesName;
+  double? seriesIndex;
 
   Book(
       {required this.id,
@@ -30,7 +32,9 @@ class Book {
       this.groupId = 0,
       this.md5,
       required this.createTime,
-      required this.updateTime});
+      required this.updateTime,
+      this.seriesName,
+      this.seriesIndex});
 
   factory Book.mock() {
     return Book(
@@ -71,6 +75,8 @@ class Book {
       'file_md5': md5,
       'create_time': createTime.toIso8601String(),
       'update_time': updateTime.toIso8601String(),
+      'series_name': seriesName,
+      'series_index': seriesIndex,
     };
   }
 
@@ -89,6 +95,8 @@ class Book {
     String? md5,
     DateTime? createTime,
     DateTime? updateTime,
+    String? seriesName,
+    double? seriesIndex,
   }) {
     return Book(
       id: id ?? this.id,
@@ -105,6 +113,8 @@ class Book {
       md5: md5 ?? this.md5,
       createTime: createTime ?? this.createTime,
       updateTime: updateTime ?? this.updateTime,
+      seriesName: seriesName ?? this.seriesName,
+      seriesIndex: seriesIndex ?? this.seriesIndex,
     );
   }
 
@@ -124,6 +134,8 @@ class Book {
       md5: map['file_md5'] as String?,
       createTime: DateTime.parse(map['create_time'] as String),
       updateTime: DateTime.parse(map['update_time'] as String),
+      seriesName: map['series_name'] as String?,
+      seriesIndex: (map['series_index'] as num?)?.toDouble(),
     );
   }
 }

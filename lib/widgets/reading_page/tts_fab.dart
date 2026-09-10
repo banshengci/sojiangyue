@@ -1,7 +1,11 @@
-import 'package:songjiang_reader/main.dart';
+﻿import 'package:songjiang_reader/main.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/tts/tts_handler.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
@@ -107,15 +111,15 @@ class _TtsFabState extends State<TtsFab> with SingleTickerProviderStateMixin {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _ActionButton(
-                                icon: EvaIcons.chevron_left,
+                                icon: SongJiangIcons.chevronLeft,
                                 onPressed: () {
                                   TtsHandler().playPrevious();
                                 },
                               ),
                               _ActionButton(
                                 icon: isPlaying
-                                    ? EvaIcons.pause_circle_outline
-                                    : EvaIcons.play_circle_outline,
+                                    ? SongJiangIcons.pause
+                                    : SongJiangIcons.play,
                                 onPressed: () {
                                   if (isPlaying) {
                                     audioHandler.pause();
@@ -125,13 +129,13 @@ class _TtsFabState extends State<TtsFab> with SingleTickerProviderStateMixin {
                                 },
                               ),
                               _ActionButton(
-                                icon: EvaIcons.chevron_right,
+                                icon: SongJiangIcons.chevronRight,
                                 onPressed: () {
                                   TtsHandler().playNext();
                                 },
                               ),
                               _ActionButton(
-                                icon: EvaIcons.stop_circle_outline,
+                                icon: SongJiangIcons.stop,
                                 onPressed: () {
                                   audioHandler.stop();
                                   _collapse();
@@ -160,8 +164,8 @@ class _TtsFabState extends State<TtsFab> with SingleTickerProviderStateMixin {
                             )
                           : Icon(
                               isPlaying
-                                  ? EvaIcons.pause_circle_outline
-                                  : EvaIcons.play_circle_outline,
+                                  ? SongJiangIcons.pause
+                                  : SongJiangIcons.play,
                               key: ValueKey('tts_state'),
                               size: 20,
                             ),

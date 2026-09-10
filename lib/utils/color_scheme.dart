@@ -178,13 +178,18 @@ ThemeData colorSchema(
             elevation: 0,
             backgroundColor: Colors.transparent,
             selectedItemColor: colorScheme.primary,
-            unselectedItemColor: colorScheme.onSurfaceVariant.withAlpha(160),
+            unselectedItemColor: colorScheme.onSurfaceVariant.withAlpha(150),
             selectedLabelStyle: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.2),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2),
             unselectedLabelStyle: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w400, letterSpacing: 0.2),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0.2),
             showSelectedLabels: true,
             showUnselectedLabels: true,
+            type: BottomNavigationBarType.fixed,
           ),
           navigationBarTheme: themeData.navigationBarTheme.copyWith(
             elevation: 0,

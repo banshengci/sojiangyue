@@ -178,6 +178,13 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       ''');
   }
 
+  /// 将系统安全区（刘海/圆角/Home Indicator）并入正文上下边距。
+  /// WebView 保持通屏，避免 SafeArea 在外层挖空造成的色带割裂。
+  ({double top, double bottom}) _safeInsets() {
+    final padding = MediaQuery.of(context).viewPadding;
+    return (top: padding.top, bottom: padding.bottom);
+  }
+
   void changeStyle(BookStyle? bookStyle) {
     styleTimer?.cancel();
     String bgimgUrl = BgimgPrefs.bgimg.getEffectiveUrl(
@@ -188,14 +195,15 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
     styleTimer = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
       BookStyle style = bookStyle ?? ReadingStylePrefs.bookStyle;
+      final insets = _safeInsets();
       webViewController.evaluateJavascript(source: '''
       changeStyle({
         fontSize: ${style.fontSize},
         spacing: ${style.lineHeight},
         fontWeight: ${style.fontWeight},
         paragraphSpacing: ${style.paragraphSpacing},
-        topMargin: ${style.topMargin},
-        bottomMargin: ${style.bottomMargin},
+        topMargin: ${style.topMargin + insets.top},
+        bottomMargin: ${style.bottomMargin + insets.bottom},
         sideMargin: ${style.sideMargin},
         letterSpacing: ${style.letterSpacing},
         textIndent: ${style.indent},
@@ -1228,6 +1236,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
             backgroundColor: backgroundColor,
             textColor: textColor,
             isDarkMode: Theme.of(context).brightness == Brightness.dark,
+            safeTop: MediaQuery.of(context).viewPadding.top,
+            safeBottom: MediaQuery.of(context).viewPadding.bottom,
           ),
         ),
       ),
