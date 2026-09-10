@@ -46,10 +46,18 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
-      # 基线约 60 条 info（deprecated_member_use 等），故 --no-fatal-infos；
-      # warning/error 必须为 0（当前仓库基线）。领域 Prefs 迁移后勿放宽。
+      # 仅 error 失败；info/warning 不致命（仓库有历史 info 基线）。
       - name: Analyze
-        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
+        run: |
+          set +e
+          flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
+          code=$?
+          set -e
+          echo "flutter analyze exit=$code"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::flutter analyze failed (exit $code)"
+            exit $code
+          fi
 
       - name: Run tests
         run: flutter test --no-pub --reporter expanded

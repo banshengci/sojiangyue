@@ -27,8 +27,8 @@ linter:
     unnecessary_late: true
 
 analyzer:
-  plugins:
-    - custom_lint
+  # custom_lint 作为 analyzer 插件会在 CI 干净环境加载失败，导致 analyze 非 0；
+  # 需要时用 `dart run custom_lint` 单独跑。
   exclude:
     - "lib/l10n/generated/*"
     - build/**
