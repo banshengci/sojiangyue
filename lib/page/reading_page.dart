@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/dao/reading_time.dart';
@@ -863,6 +864,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
+      // 与阅读主题同底，透明 WebView 边缘不透出主题灰造成割裂
+      backgroundColor: Color(int.parse('0x${AppMiscPrefs.readTheme.backgroundColor}')),
       body: Hero(
         tag: widget.heroTag ??
             (BookshelfPrefs.openBookAnimation ? _book.coverFullPath : heroTag),

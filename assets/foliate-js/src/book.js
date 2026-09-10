@@ -1,4 +1,4 @@
-﻿console.log('book.js')
+console.log('book.js')
 console.log('SjUA', navigator.userAgent)
 
 import './view.js'
@@ -1099,8 +1099,8 @@ class Reader {
     this.setView(this.view)
     await this.view.init({ lastLocation: cfi })
 
-    // set html bg color to grey 
-    document.documentElement.style.backgroundColor = 'grey'
+    // 用主题背景色铺底，避免透明 WebView 在圆角处透出错误底色造成割裂
+    document.documentElement.style.backgroundColor = style.backgroundColor || 'transparent'
   }
 
   setView(view) {

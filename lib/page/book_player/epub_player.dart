@@ -180,9 +180,14 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
 
   /// 将系统安全区（刘海/圆角/Home Indicator）并入正文上下边距。
   /// WebView 保持通屏，避免 SafeArea 在外层挖空造成的色带割裂。
+  /// 在 viewPadding 之外再加一点圆角余量，保证文字不贴弧。
   ({double top, double bottom}) _safeInsets() {
     final padding = MediaQuery.of(context).viewPadding;
-    return (top: padding.top, bottom: padding.bottom);
+    // iPhone 圆角/灵动岛：viewPadding 已含刘海，再加少量余量防文字贴弧
+    final top = padding.top > 0 ? padding.top + 8.0 : 0.0;
+    // Home Indicator 通常 ~34pt；仅在有底部 inset 时加强
+    final bottom = padding.bottom > 0 ? padding.bottom + 4.0 : 0.0;
+    return (top: top, bottom: bottom);
   }
 
   void changeStyle(BookStyle? bookStyle) {
@@ -906,6 +911,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
     Future.delayed(const Duration(milliseconds: 300), () {
       setTranslationMode(
           Prefs().getBookTranslationMode(widget.book.id.toString()));
+      // 再次下发样式：确保安全区边距在首屏渲染后仍生效（防圆角裁字）
+      changeStyle(null);
     });
   }
 
