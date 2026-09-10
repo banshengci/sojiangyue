@@ -46,18 +46,25 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
-      # 仅 error 失败；info/warning 不致命（仓库有历史 info 基线）。
+      # Flutter analyze 在部分版本对 info 也会 exit 1（即使 --no-fatal-infos）。
+      # 以日志里是否出现 error 级问题为准，info/warning 不阻塞。
       - name: Analyze
         run: |
           set +e
-          flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
-          code=$?
+          OUTPUT=$(flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings 2>&1)
+          CODE=$?
           set -e
-          echo "flutter analyze exit=$code"
-          if [ "$code" -ne 0 ]; then
-            echo "::error::flutter analyze failed (exit $code)"
-            exit $code
+          echo "$OUTPUT"
+          echo "flutter analyze raw exit=$CODE"
+          if echo "$OUTPUT" | grep -E '^\s*error\s+-'; then
+            echo "::error::flutter analyze reported error-level issues"
+            exit 1
           fi
+          if echo "$OUTPUT" | grep -qi 'failed to compile\|error-causing\|Unhandled exception'; then
+            echo "::error::flutter analyze failed to complete"
+            exit 1
+          fi
+          echo "Analyze OK (no error-level issues)"
 
       - name: Run tests
         run: flutter test --no-pub --reporter expanded
