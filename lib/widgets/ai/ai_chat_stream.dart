@@ -678,7 +678,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         // 弹窗/面板里空间紧：压扁 AppBar，避免顶部两行大字。
         toolbarHeight: 48,

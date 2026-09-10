@@ -602,6 +602,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
           isScrollControlled: true,
           showDragHandle: false,
           clipBehavior: Clip.hardEdge,
+          // 用主题 surface 色，避免默认黑色遮罩造成割裂感
+          backgroundColor: Theme.of(navigatorKey.currentContext!).colorScheme.surface,
           builder: (context) => PointerInterceptor(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
@@ -877,6 +879,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
             child: Scaffold(
               key: _scaffoldKey,
               resizeToAvoidBottomInset: false,
+              // 与外层 Scaffold 同底色，消除安全区与内容区的割裂感
+              backgroundColor: Color(int.parse('0x${AppMiscPrefs.readTheme.backgroundColor}')),
               drawer: PointerInterceptor(
                 child: Drawer(
                   width: math.min(
