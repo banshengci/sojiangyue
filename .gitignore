@@ -74,3 +74,9 @@ google_service_account.json
 release.jks
 *.p12
 *.pfx
+
+# 设计交付包（原始文件不入库，已整合到工程）
+songjiang-yue-delivery-20260911/
+songjiang-yue-delivery-20260911.zip
+.flutter
+.flutter_tool_state
