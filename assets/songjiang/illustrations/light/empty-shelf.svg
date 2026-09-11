@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 410 260" width="410" height="260" fill="none">
+  <!-- 空书架 · 浅色 -->
+  <circle cx="200" cy="126" r="92" fill="#EDF3EE"/>
+  <rect x="86" y="176" width="238" height="9" rx="4.5" fill="#2F6B4F"/>
+  <rect x="112" y="118" width="28" height="58" rx="4" fill="#A8C9BC"/>
+  <rect x="146" y="102" width="28" height="74" rx="4" fill="#3D8C7E"/>
+  <rect x="186" y="100" width="28" height="76" rx="4" stroke="#8FC5B4" stroke-width="3" stroke-dasharray="8 7"/>
+  <path d="M244 154h30l-4.5 22h-21z" fill="#C4553C"/>
+  <g stroke="#2F6B4F" stroke-width="4.5" stroke-linecap="round">
+    <path d="M259 152V106"/>
+    <path d="M259 144l-19-12"/>
+    <path d="M259 130l-17-11"/>
+    <path d="M259 144l19-12"/>
+    <path d="M259 130l17-11"/>
+  </g>
+</svg>
