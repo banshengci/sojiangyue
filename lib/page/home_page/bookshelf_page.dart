@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
+import 'package:songjiang_reader/widgets/common/sj_icon_button.dart';
 import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/enums/hint_key.dart';
@@ -27,7 +29,6 @@ import 'package:songjiang_reader/widgets/common/container/filled_container.dart'
 import 'package:songjiang_reader/widgets/common/tag_chip.dart';
 import 'package:songjiang_reader/widgets/hint/hint_banner.dart';
 import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 import 'package:songjiang_reader/widgets/tips/bookshelf_tips.dart';
 import 'package:songjiang_reader/widgets/tips/daily_goal_banner.dart';
@@ -37,7 +38,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_grid_view/widgets/custom_draggable.dart';
 import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:path/path.dart' as p;
 
 class BookshelfPage extends ConsumerStatefulWidget {
@@ -382,9 +382,10 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                 ),
               ),
             ),
-            IconButton(
+            SjIconButton(
               key: _tagButtonKey,
-              icon: const Icon(SongJiangIcons.tags, size: 22),
+              icon: SjIconName.markColor,
+              size: 22,
               tooltip: L10n.of(context).bookshelfFilterTagsTooltip,
               onPressed: showTagMenu,
             ),
@@ -573,7 +574,7 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
               color: Theme.of(context).colorScheme.surface.withAlpha(80),
               child: Row(
                 children: [
-                  const Icon(Icons.search, color: Colors.grey),
+                  const SjIcon(SjIconName.read, size: 20, color: Colors.grey),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(L10n.of(context).searchBooksOrNotes,
@@ -597,14 +598,14 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(SongJiangIcons.batchTag),
+                  SjIconButton(
+                    icon: SjIconName.markColor,
                     tooltip: L10n.of(context).batchAddTag,
                     onPressed: () =>
                         showBookshelfBatchSheet(context, ref),
                   ),
-                  IconButton(
-                    icon: const Icon(SongJiangIcons.multiSelectCancel),
+                  SjIconButton(
+                    icon: SjIconName.toc,
                     tooltip: L10n.of(context).commonCancel,
                     onPressed: () =>
                         ref.read(bookshelfSelectionProvider.notifier).clear(),
@@ -612,15 +613,15 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                 ],
               );
             }
-            return IconButton(
-              icon: const Icon(SongJiangIcons.import),
+            return SjIconButton(
+              icon: SjIconName.import,
               tooltip: L10n.of(context).bookshelfImportBook,
               onPressed: _importBook,
             );
           },
         ),
-        IconButton(
-            icon: const Icon(SongJiangIcons.sort),
+        SjIconButton(
+            icon: SjIconName.typography,
             onPressed: () {
               showMenu(
                 context: context,

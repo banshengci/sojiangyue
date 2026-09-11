@@ -1,53 +1,33 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
+import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
 import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/config/sync_prefs.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/dao/book.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/hint_key.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/book.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/page/book_detail.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/providers/sync.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/providers/book_list.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/providers/bookshelf_selection.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/enums/sync_direction.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/providers/sync_status.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/convert_to_epub/txt/convert_from_txt.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/md5_service.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/book.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/share_file.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/bookshelf/book_cover.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/delete_confirm.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/icon_and_text.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:path/path.dart' as p;
 
 class BookBottomSheet extends ConsumerWidget {
@@ -275,22 +255,22 @@ class BookBottomSheet extends ConsumerWidget {
 
     final actions = [
       {
-        "icon": SongJiangIcons.share,
+        "icon": const SjIcon(SjIconName.shareCard),
         "text": L10n.of(context).shareFile,
         "onTap": () => handleShare()
       },
       {
-        "icon": SongJiangIcons.refresh,
+        "icon": const SjIcon(SjIconName.sync),
         "text": L10n.of(context).bookBottomSheetReplaceFile,
         "onTap": () => handleReplace(context)
       },
       {
-        "icon": SongJiangIcons.cloudUpload,
+        "icon": const SjIcon(SjIconName.sync),
         "text": L10n.of(context).bookSyncStatusReleaseSpace,
         "onTap": () => handleUpload(context)
       },
       {
-        "icon": Icons.check_rounded,
+        "icon": const Icon(Icons.check_rounded),
         "text": L10n.of(context).batchSelectBook,
         "onTap": () {
           Navigator.pop(context);
@@ -298,7 +278,7 @@ class BookBottomSheet extends ConsumerWidget {
         }
       },
       {
-        "icon": SongJiangIcons.moreVertical,
+        "icon": const SjIcon(SjIconName.read),
         "text": L10n.of(context).notesPageDetail,
         "onTap": () => handleDetail(context)
       },
@@ -344,7 +324,7 @@ class BookBottomSheet extends ConsumerWidget {
                       },
                       child: Row(
                         children: [
-                          Icon(action["icon"] as IconData),
+                          action["icon"] as Widget,
                           const SizedBox(width: 8),
                           Text(action["text"] as String),
                         ],
