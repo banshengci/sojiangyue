@@ -1,4 +1,4 @@
-﻿import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/enums/convert_chinese_mode.dart';
 import 'package:songjiang_reader/enums/text_alignment.dart';
 import 'package:songjiang_reader/enums/writing_mode.dart';
@@ -45,7 +45,12 @@ class ReadingStylePrefs {
   static BookStyle get bookStyle {
     final json = _require.getString(bookStyleKey);
     if (json == null) return BookStyle();
-    return BookStyle.fromJson(json);
+    final style = BookStyle.fromJson(json);
+    // 旧版本默认 topMargin=90 / bottomMargin=50，留白过大。
+    // 若仍是旧默认值，自动重置为新默认值。
+    if (style.topMargin == 90.0) style.topMargin = 20.0;
+    if (style.bottomMargin == 50.0) style.bottomMargin = 16.0;
+    return style;
   }
 
   static Future<void> saveBookStyle(BookStyle bookStyle) async {

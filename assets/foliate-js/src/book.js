@@ -558,11 +558,38 @@ const makeZipLoader = async file => {
   const reader = new ZipReader(new BlobReader(file))
   const entries = await reader.getEntries()
   const map = new Map(entries.map(entry => [entry.filename, entry]))
-  const load = f => (name, ...args) =>
-    map.has(name) ? f(map.get(name), ...args) : null
-  const loadText = load(entry => entry.getData(new TextWriter()))
-  const loadBlob = load((entry, type) => entry.getData(new BlobWriter(type)))
-  const getSize = name => map.get(name)?.uncompressedSize ?? 0
+  // Fallback lookup: try percent-decoded and suffix-matched names.
+  // Some EPUBs have filenames with chars (: *) that URL/decodeURI may mangle.
+  const findEntry = name => {
+    if (map.has(name)) return map.get(name)
+    // Try decoding percent-encoding
+    try {
+      const decoded = decodeURIComponent(name)
+      if (decoded !== name && map.has(decoded)) return map.get(decoded)
+    } catch (e) { /* ignore */ }
+    // Try encoding special chars back
+    try {
+      const encoded = name.replace(/:/g, '%3A').replace(/\*/g, '%2A')
+      if (encoded !== name && map.has(encoded)) return map.get(encoded)
+    } catch (e) { /* ignore */ }
+    // Suffix match as last resort
+    const suffix = name.split('/').pop()
+    if (suffix) {
+      for (const [key, entry] of map) {
+        if (key.endsWith('/' + suffix) || key === suffix) return entry
+      }
+    }
+    return null
+  }
+  const loadBlob = (name, type) => {
+    const entry = findEntry(name)
+    return entry ? entry.getData(new BlobWriter(type)) : null
+  }
+  const loadText = (name) => {
+    const entry = findEntry(name)
+    return entry ? entry.getData(new TextWriter()) : null
+  }
+  const getSize = name => findEntry(name)?.uncompressedSize ?? 0
   return { entries, loadText, loadBlob, getSize }
 }
 

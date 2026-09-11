@@ -701,7 +701,15 @@ class Loader {
             // prevent circular references
             && parents.every(p => p !== href)
         if (shouldReplace) return this.loadReplaced(targetItem, parents)
-        const dataSource = detail.data ?? Promise.resolve().then(() => this.loadBlob(href))
+        let dataSource = detail.data ?? Promise.resolve().then(async () => {
+            let blob = await this.loadBlob(href)
+            // Fallback: if exact path fails, try suffix match against ZIP entries
+            if (!blob && this.#findBlobBySuffix) {
+                const altPath = this.#findBlobBySuffix(href)
+                if (altPath) blob = await this.loadBlob(altPath)
+            }
+            return blob
+        })
         return this.createURL(href, dataSource, mediaType, parent)
     }
     async loadHref(href, base, parents = []) {
