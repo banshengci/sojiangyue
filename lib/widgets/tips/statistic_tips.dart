@@ -1,37 +1,36 @@
+import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:flutter/material.dart';
 
+/// 统计空态：品牌插画 + 标题 + 副标题。
 class StatisticsTips extends StatelessWidget {
   const StatisticsTips({super.key});
 
-  final TextStyle textStyleBig = const TextStyle(
-    fontSize: 20,
-    fontWeight: FontWeight.bold,
-  );
-  final TextStyle textStyle = const TextStyle(
-    fontSize: 15,
-  );
-
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('(｡╯︵╰｡) ',
-              style: TextStyle(
-                  fontSize: 50,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey)),
-          const SizedBox(height: 50),
+          const SjIllustrationView(SjIllustration.noResults, width: 200),
+          const SizedBox(height: 28),
           Text(
             L10n.of(context).statisticsTips_1,
-            style: textStyleBig,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             L10n.of(context).statisticsTips_2,
-            style: textStyle,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
           ),
         ],
       ),

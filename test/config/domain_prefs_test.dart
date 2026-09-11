@@ -23,7 +23,8 @@ void main() {
 
   group('ThemePrefs', () {
     test('默认主题色为品牌松绿', () {
-      expect(ThemePrefs.themeColor.toARGB32(), 0xFF1B6B44);
+      // 对齐设计令牌松绿 #2E6B4F
+      expect(ThemePrefs.themeColor.toARGB32(), 0xFF2E6B4F);
     });
 
     test('保存/读取主题模式', () async {

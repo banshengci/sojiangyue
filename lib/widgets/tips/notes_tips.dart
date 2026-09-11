@@ -1,68 +1,36 @@
+import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:flutter/material.dart';
 
+/// 笔记空态：品牌插画 + 标题 + 副标题。
 class NotesTips extends StatelessWidget {
   const NotesTips({super.key});
 
-  final TextStyle textStyleBig = const TextStyle(
-    fontSize: 20,
-    fontWeight: FontWeight.bold,
-  );
-  final TextStyle textStyle = const TextStyle(
-    fontSize: 15,
-  );
-
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
-    final pine = SongJiangColors.pine;
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 品牌化空状态：松绿柔光圆盘里放一本摊开的书，
-          // 取代原来的灰色颜文字 `o(TヘTo)`
-          Container(
-            width: 136,
-            height: 136,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: pine.withAlpha(isDark ? 26 : 18),
-            ),
-            child: Center(
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: pine.withAlpha(isDark ? 34 : 24),
-                  border: Border.all(
-                    color: pine.withAlpha(isDark ? 60 : 45),
-                    width: 1.2,
-                  ),
-                ),
-                child: Icon(
-                  Icons.menu_book_outlined,
-                  size: 46,
-                  color: pine.withAlpha(isDark ? 190 : 210),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 40),
+          const SjIllustrationView(SjIllustration.noNotes, width: 200),
+          const SizedBox(height: 28),
           Text(
             L10n.of(context).notesTips_1,
-            style: textStyleBig.copyWith(color: scheme.onSurface),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             L10n.of(context).notesTips_2,
-            style: textStyle.copyWith(
-              color: scheme.onSurface.withAlpha(170),
-            ),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
           ),
         ],
       ),

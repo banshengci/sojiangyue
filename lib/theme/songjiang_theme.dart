@@ -9,40 +9,44 @@ class SongJiangColors {
   const SongJiangColors._();
 
   /// 松绿 —— 品牌主色，同时是动态配色的默认种子色
-  static const Color pine = Color(0xFF1B6B44);
+  /// （对齐设计令牌《松江阅 · 色彩》松绿 #2E6B4F）
+  static const Color pine = Color(0xFF2E6B4F);
 
   /// 松绿（浅）—— 渐变起点 / 亮色强调
-  static const Color pineLight = Color(0xFF35B575);
+  static const Color pineLight = Color(0xFF59A17D);
 
   /// 松绿（深）—— 渐变终点 / 深色强调
-  static const Color pineDeep = Color(0xFF0C3323);
+  static const Color pineDeep = Color(0xFF173B2E);
 
-  /// 竹青 —— 次强调色
-  static const Color bamboo = Color(0xFF4F9E75);
+  /// 江青 —— 次强调色（设计令牌 江青 #3D8C7D）
+  static const Color bamboo = Color(0xFF3D8C7D);
 
-  /// 竹青（浅）—— 清新明亮的青绿，用于品牌头图渐变起点
-  static const Color bambooLight = Color(0xFF7DD8A8);
+  /// 江青（浅）—— 清新明亮的青绿，用于品牌头图渐变起点
+  static const Color bambooLight = Color(0xFF6BB8A6);
 
-  /// 竹青（深）—— 青绿渐变终点，保持竹意同时不过于暗沉
-  static const Color bambooDeep = Color(0xFF2A8F70);
+  /// 江青（深）—— 青绿渐变终点，保持竹意同时不过于暗沉
+  static const Color bambooDeep = Color(0xFF2A6B5E);
 
-  /// 松花黄 —— 点缀色（徽标、特殊标签）
-  static const Color pollen = Color(0xFFC88C2E);
+  /// 砂朱 —— 点缀色（徽标、特殊标签）（设计令牌 砂朱 #C4543D）
+  static const Color pollen = Color(0xFFC4543D);
 
-  /// 宣纸 —— 浅色模式分组背景（暖调，区别于 iOS 冷灰）
-  static const Color paper = Color(0xFFF5F2EA);
+  /// 纸白 —— 浅色模式分组背景（设计令牌 纸白 #F7F5ED）
+  static const Color paper = Color(0xFFF7F5ED);
 
-  /// 宣纸白 —— 浅色模式卡片 / 容器表面
-  static const Color paperCard = Color(0xFFFFFDF7);
+  /// 纸白 —— 浅色模式卡片 / 容器表面
+  static const Color paperCard = Color(0xFFFFFFFF);
 
-  /// 松烟墨 —— 深色模式分组背景（带绿调，区别于纯中性灰）
-  static const Color ink = Color(0xFF121815);
+  /// 松墨 —— 深色模式分组背景（设计令牌 松墨 #12261F）
+  static const Color ink = Color(0xFF12261F);
 
   /// 墨绿 —— 深色模式卡片 / 容器表面
-  static const Color inkCard = Color(0xFF1E2621);
+  static const Color inkCard = Color(0xFF1B332A);
 
   /// 深色模式下的次级容器（比 [inkCard] 略亮一档）
-  static const Color inkCardHigh = Color(0xFF263029);
+  static const Color inkCardHigh = Color(0xFF263A30);
+
+  /// 松霜 —— 弱化色（次要底 / 描边 / 标签底）（设计令牌 松霜 #A8C9BD）
+  static const Color frost = Color(0xFFA8C9BD);
 
   /// 竹青渐变（品牌头图、引导页）—— 比松绿更清新明亮
   static const LinearGradient bambooGradient = LinearGradient(

@@ -1,3 +1,7 @@
+import 'package:songjiang_reader/design/songjiang/sj_app_gallery.dart';
+import 'package:songjiang_reader/design/songjiang/pages/sj_achievements_page.dart';
+import 'package:songjiang_reader/design/songjiang/pages/sj_favorites_page.dart';
+import 'package:songjiang_reader/design/songjiang/data/sj_data_providers.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/page/iap_page.dart';
 import 'package:songjiang_reader/page/settings_page/more_settings_page.dart';
@@ -50,6 +54,39 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                 ),
               if (EnvVar.enableAIFeature) const Divider(),
+              // 收藏 / 成就 / 数据面板（设计模块，真实数据接入）
+              ListTile(
+                leading: const Icon(Icons.favorite_border),
+                title: const Text('我的收藏'),
+                subtitle: const Text('评分过的书'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const _FavoritesRoute()),
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.emoji_events_outlined),
+                title: const Text('成就徽章'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const _AchievementsRoute()),
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.dashboard_outlined),
+                title: const Text('数据面板'),
+                subtitle: const Text('统计 · 收藏 · 成就 · 我的'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SjAppGallery()),
+                ),
+              ),
+              const Divider(),
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 8, 10, 8),
                 child: ChangeThemeMode(),
@@ -252,6 +289,44 @@ class _BrandHero extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 收藏页路由：用真实数据（rating > 0 的书）驱动 SjFavoritesPage。
+class _FavoritesRoute extends ConsumerWidget {
+  const _FavoritesRoute();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(sjFavoritesProvider);
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: AppBar(title: const Text('我的收藏')),
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('加载失败：$e')),
+        data: (books) => SjFavoritesPage(books: books),
+      ),
+    );
+  }
+}
+
+/// 成就页路由：用真实数据驱动 SjAchievementsPage。
+class _AchievementsRoute extends ConsumerWidget {
+  const _AchievementsRoute();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(sjAchievementsProvider);
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: AppBar(title: const Text('成就徽章')),
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('加载失败：$e')),
+        data: (data) => SjAchievementsPage(data: data),
       ),
     );
   }

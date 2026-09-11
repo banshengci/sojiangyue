@@ -13,7 +13,8 @@ void main() {
     });
 
     test('默认主色是松绿，且色板第一项就是它', () {
-      expect(SongJiangColors.pine, const Color(0xFF1B6B44));
+      // 对齐设计令牌《松江阅 · 色彩》松绿 #2E6B4F
+      expect(SongJiangColors.pine, const Color(0xFF2E6B4F));
       expect(SongJiangColors.themePalette.first, SongJiangColors.pine);
     });
 

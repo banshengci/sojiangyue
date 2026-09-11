@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
 
 /// 松江阅统一图标与形态 token。
 ///
-/// 原则：只用 Material Icons（描边/填充成对），不再混用 EvaIcons，
-/// 保证导航、设置、工具栏同一套视觉语言。
+/// Material 图标用于 BottomNavigationBar / NavigationRail 等只接受
+/// [IconData] 的场景；品牌 SVG 图标通过 [SjBrandIcon] 在其他位置使用。
 class SongJiangIcons {
   const SongJiangIcons._();
 
@@ -101,4 +102,54 @@ class SongJiangNavIndicator extends StatelessWidget {
       child: child,
     );
   }
+}
+
+/// 品牌 SVG 图标包装：在非 BottomNavigationBar 场景下使用品牌图标集。
+///
+/// 用法与 Material `Icon` 一致，但渲染的是 24px 品牌线性图标。
+/// 颜色默认跟随主题 onSurface，可用 [color] 覆盖。
+class SjBrandIcon extends StatelessWidget {
+  const SjBrandIcon(this.name, {super.key, this.size = 24, this.color});
+
+  final SjIconName name;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SjIcon(name, size: size, color: color);
+  }
+}
+
+/// 品牌图标名称映射：Material 图标常量 → 品牌 SVG 名称。
+///
+/// 底部导航仍用 Material（接受 IconData），
+/// 其他位置可用此映射切换到品牌 SVG。
+class SongJiangBrandIcons {
+  const SongJiangBrandIcons._();
+
+  static const SjIconName bookshelf = SjIconName.bookshelf;
+  static const SjIconName read = SjIconName.read;
+  static const SjIconName toc = SjIconName.toc;
+  static const SjIconName bookmark = SjIconName.bookmark;
+  static const SjIconName typography = SjIconName.typography;
+  static const SjIconName readingTime = SjIconName.readingTime;
+  static const SjIconName aiDeepRead = SjIconName.aiDeepRead;
+  static const SjIconName translate = SjIconName.translate;
+  static const SjIconName mindmap = SjIconName.mindmap;
+  static const SjIconName quiz = SjIconName.quiz;
+  static const SjIconName reviewCard = SjIconName.reviewCard;
+  static const SjIconName listen = SjIconName.listen;
+  static const SjIconName note = SjIconName.note;
+  static const SjIconName highlight = SjIconName.highlight;
+  static const SjIconName markColor = SjIconName.markColor;
+  static const SjIconName shareCard = SjIconName.shareCard;
+  static const SjIconName stats = SjIconName.stats;
+  static const SjIconName heatmap = SjIconName.heatmap;
+  static const SjIconName achievement = SjIconName.achievement;
+  static const SjIconName opds = SjIconName.opds;
+  static const SjIconName importIcon = SjIconName.import;
+  static const SjIconName sync = SjIconName.sync;
+  static const SjIconName nightMode = SjIconName.nightMode;
+  static const SjIconName settings = SjIconName.settings;
 }
