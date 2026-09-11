@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'package:songjiang_reader/design/songjiang/sj_bottom_nav.dart';
+import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
 import 'package:songjiang_reader/dao/database.dart';
 import 'package:songjiang_reader/enums/sync_direction.dart';
 import 'package:songjiang_reader/enums/sync_trigger.dart';
@@ -136,6 +138,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       {
         'icon': SongJiangIcons.bookshelf,
         'iconSelected': SongJiangIcons.bookshelfSelected,
+        'brand': SjIconName.bookshelf,
         'label': L10n.of(context).navBarBookshelf,
         'identifier': 'bookshelf'
       },
@@ -143,6 +146,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         {
           'icon': SongJiangIcons.statistics,
           'iconSelected': SongJiangIcons.statisticsSelected,
+          'brand': SjIconName.stats,
           'label': L10n.of(context).navBarStatistics,
           'identifier': 'statistics'
         },
@@ -150,16 +154,27 @@ class _HomePageState extends ConsumerState<HomePage> {
         {
           'icon': SongJiangIcons.notes,
           'iconSelected': SongJiangIcons.notesSelected,
+          'brand': SjIconName.note,
           'label': L10n.of(context).navBarNotes,
           'identifier': 'notes'
         },
       {
         'icon': SongJiangIcons.settings,
         'iconSelected': SongJiangIcons.settingsSelected,
+        'brand': SjIconName.settings,
         'label': L10n.of(context).navBarSettings,
         'identifier': 'settings'
       },
     ];
+
+    // 品牌导航项（用于 SjBottomNav）
+    final sjNavItems = navBarItems
+        .map((item) => SjNavItem(
+              label: item['label'] as String,
+              brand: item['brand'] as SjIconName?,
+              material: item['icon'] as IconData?,
+            ))
+        .toList();
 
     int currentIndex = navBarItems
         .indexWhere((element) => element['identifier'] == _currentTab);
@@ -197,16 +212,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           item['iconSelected'] as IconData? ?? item['icon'] as IconData,
         ),
         label: Text(item['label'] as String),
-      );
-    }).toList();
-
-    List<BottomNavigationBarItem> bottomBarItems = navBarItems.map((item) {
-      return BottomNavigationBarItem(
-        icon: Icon(item['icon'] as IconData),
-        activeIcon: Icon(
-          item['iconSelected'] as IconData? ?? item['icon'] as IconData,
-        ),
-        label: item['label'] as String,
       );
     }).toList();
 
@@ -283,7 +288,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
                   child: Container(
-                    height: 64,
+                    height: 70,
+                    padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
                     decoration: BoxDecoration(
                       color: Theme.of(context)
                           .colorScheme
@@ -295,18 +301,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                         width: 0.5,
                       ),
                     ),
-                    child: BottomNavigationBar(
-                      selectedFontSize: 12,
-                      enableFeedback: true,
-                      type: BottomNavigationBarType.fixed,
-                      landscapeLayout:
-                          BottomNavigationBarLandscapeLayout.linear,
-                      currentIndex: currentIndex,
+                    child: SjBottomNav(
+                      items: sjNavItems,
+                      selectedIndex: currentIndex,
                       onTap: (int index) => onBottomTap(index, false),
-                      items: bottomBarItems,
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      // height: 64,
                     ),
                   ),
                 ),

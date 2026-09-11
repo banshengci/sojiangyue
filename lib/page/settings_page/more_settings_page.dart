@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
@@ -77,7 +78,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
             List<Map<String, dynamic>> settings = [
               {
                 "title": L10n.of(context).settingsAppearance,
-                "icon": SongJiangIcons.palette,
+                "icon": const SjIcon(SjIconName.typography),
                 "sections": const AppearanceSetting(),
                 "subtitles": [
                   L10n.of(context).settingsAppearanceTheme,
@@ -87,7 +88,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsReading,
-                "icon": SongJiangIcons.bookOpen,
+                "icon": const SjIcon(SjIconName.read),
                 "sections": const ReadingSettings(),
                 "subtitles": [
                   L10n.of(context).readingPageReading,
@@ -98,7 +99,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsSync,
-                "icon": SongJiangIcons.refresh,
+                "icon": const SjIcon(SjIconName.sync),
                 "sections": const SyncSetting(),
                 "subtitles": [
                   L10n.of(context).settingsSyncWebdav,
@@ -107,7 +108,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).opdsTitle,
-                "icon": SongJiangIcons.series,
+                "icon": const SjIcon(SjIconName.opds),
                 "sections": const OpdsSettingsPage(),
                 "subtitles": [
                   L10n.of(context).opdsAddCatalog,
@@ -116,7 +117,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsNarrate,
-                "icon": SongJiangIcons.tts,
+                "icon": const SjIcon(SjIconName.listen),
                 "sections": const NarrateSettings(),
                 "subtitles": [
                   L10n.of(context).settingsNarrateVoice,
@@ -125,7 +126,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsTranslate,
-                "icon": SongJiangIcons.translate,
+                "icon": const SjIcon(SjIconName.translate),
                 "sections": const TranslateSetting(),
                 "subtitles": [
                   L10n.of(context).settingsTranslate,
@@ -134,7 +135,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               if (EnvVar.enableAIFeature)
                 {
                   "title": L10n.of(context).settingsAi,
-                  "icon": SongJiangIcons.sparkle,
+                  "icon": const SjIcon(SjIconName.aiDeepRead),
                   "sections": const AISettings(),
                   "subtitles": [
                     L10n.of(context).settingsAiServices,
@@ -143,7 +144,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                 },
               {
                 "title": L10n.of(context).storage,
-                "icon": SongJiangIcons.storage,
+                "icon": const SjIcon(SjIconName.sync),
                 "sections": const StorageSettings(),
                 "subtitles": [
                   L10n.of(context).storageInfo,
@@ -152,7 +153,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               {
                 "title": L10n.of(context).settingsAdvanced,
-                "icon": Icons.security_outlined,
+                "icon": const SjIcon(SjIconName.settings),
                 "sections": const AdvancedSetting(),
                 "subtitles": [
                   L10n.of(context).chapterSplitting,
@@ -185,17 +186,21 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                     id: index,
                     selectedIndex: selectedIndex,
                     setDetail: setDetail,
-                    icon: Icon(
-                      settings[index]["icon"],
-                      color: Theme.of(context).colorScheme.primary,
+                    icon: IconTheme(
+                      data: IconThemeData(
+                          color: Theme.of(context).colorScheme.primary),
+                      child: settings[index]["icon"] as Widget,
                     ),
                     title: settings[index]["title"],
                     sections: settings[index]["sections"],
                     subTitles: settings[index]["subtitles"],
                   ),
                 ListTile(
-                  leading: Icon(SongJiangIcons.vocabulary,
-                      color: Theme.of(context).colorScheme.primary),
+                  leading: IconTheme(
+                    data: IconThemeData(
+                        color: Theme.of(context).colorScheme.primary),
+                    child: const SjIcon(SjIconName.note),
+                  ),
                   title: Text(L10n.of(context).vocabTitle),
                   trailing: const Icon(SongJiangIcons.chevronRight),
                   onTap: () {
@@ -208,8 +213,11 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                   },
                 ),
                 ListTile(
-                  leading: Icon(SongJiangIcons.dictionary,
-                      color: Theme.of(context).colorScheme.primary),
+                  leading: IconTheme(
+                    data: IconThemeData(
+                        color: Theme.of(context).colorScheme.primary),
+                    child: const SjIcon(SjIconName.read),
+                  ),
                   title: Text(L10n.of(context).localDictTitle),
                   trailing: const Icon(SongJiangIcons.chevronRight),
                   onTap: () {

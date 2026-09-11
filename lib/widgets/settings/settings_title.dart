@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 Widget settingsTitle({
-  required Icon icon,
+  required Widget icon,
   required String title,
   required bool isMobile,
   required int id,

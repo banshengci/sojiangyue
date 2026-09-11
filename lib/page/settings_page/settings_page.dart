@@ -18,7 +18,7 @@ class SettingsPageBuilder extends StatelessWidget {
   final int id;
   final int selectedIndex;
   final void Function(Widget detail, int id) setDetail;
-  final Icon icon;
+  final Widget icon;
   final String title;
   final Widget sections;
   final List<String> subTitles;
