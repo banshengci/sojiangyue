@@ -616,13 +616,15 @@ class Loader {
     #cache = new Map()
     #children = new Map()
     #refCount = new Map()
+    #zipEntries = null
     eventTarget = new EventTarget()
     allowScript = false
-    constructor({ loadText, loadBlob, resources }) {
+    constructor({ loadText, loadBlob, resources, zipEntries }) {
         this.loadText = loadText
         this.loadBlob = loadBlob
         this.manifest = resources.manifest
         this.assets = resources.manifest
+        this.#zipEntries = zipEntries ?? null
 
         var urlParams = new URLSearchParams(window.location.search)
         this.allowScript = JSON.parse(urlParams.get('style')).allowScript
@@ -712,18 +714,18 @@ class Loader {
             const parent = parents[parents.length - 1]
             if (this.#cache.has(path)) return this.ref(path, parent)
             try {
-                const blob = await this.loadBlob(path)
+                let blob = await this.loadBlob(path)
+                // Some EPUBs have filenames with special chars (e.g. : *) that
+                // get mangled by URL/decodeURI. Try a suffix match as fallback.
+                if (!blob && this.#findBlobBySuffix) {
+                    const altPath = this.#findBlobBySuffix(path)
+                    if (altPath) {
+                        blob = await this.loadBlob(altPath)
+                        if (blob) return this.createURL(altPath, blob, this.#inferMediaType(altPath), parent)
+                    }
+                }
                 if (blob) {
-                    // Infer media type from file extension
-                    const ext = path.split('.').pop()?.toLowerCase()
-                    const mediaType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
-                        : ext === 'png' ? 'image/png'
-                        : ext === 'gif' ? 'image/gif'
-                        : ext === 'svg' ? 'image/svg+xml'
-                        : ext === 'webp' ? 'image/webp'
-                        : ext === 'css' ? 'text/css'
-                        : 'application/octet-stream'
-                    return this.createURL(path, blob, mediaType, parent)
+                    return this.createURL(path, blob, this.#inferMediaType(path), parent)
                 }
             } catch (e) {
                 console.warn(`Failed to load resource not in manifest: ${path}`, e)
@@ -731,6 +733,28 @@ class Loader {
             return href
         }
         return this.loadItem(item, parents.concat(base))
+    }
+    #inferMediaType(path) {
+        const ext = path.split('.').pop()?.toLowerCase()
+        return ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+            : ext === 'png' ? 'image/png'
+            : ext === 'gif' ? 'image/gif'
+            : ext === 'svg' ? 'image/svg+xml'
+            : ext === 'webp' ? 'image/webp'
+            : ext === 'css' ? 'text/css'
+            : 'application/octet-stream'
+    }
+    #findBlobBySuffix(path) {
+        // Try to find a ZIP entry whose filename ends with the same suffix
+        // as the resolved path (handles encoding mismatches with special chars)
+        const suffix = path.split('/').pop()
+        if (!suffix || !this.#zipEntries) return null
+        for (const entry of this.#zipEntries) {
+            if (entry.filename.endsWith('/' + suffix) || entry.filename === suffix) {
+                return entry.filename
+            }
+        }
+        return null
     }
     async loadReplaced(item, parents = []) {
         const { href, mediaType } = item
@@ -902,10 +926,12 @@ export class EPUB {
     parser = new DOMParser()
     #loader
     #encryption
-    constructor({ loadText, loadBlob, getSize, sha1 }) {
+    #entries = null
+    constructor({ loadText, loadBlob, getSize, sha1, entries }) {
         this.loadText = loadText
         this.loadBlob = loadBlob
         this.getSize = getSize
+        this.#entries = entries ?? null
         this.#encryption = new Encryption(deobfuscators(sha1))
     }
     async #loadXML(uri) {
@@ -943,6 +969,7 @@ ${doc.querySelector('parsererror').innerText}`)
             loadBlob: uri => Promise.resolve(this.loadBlob(uri))
                 .then(this.#encryption.getDecoder(uri)),
             resources: this.resources,
+            zipEntries: this.#entries,
         })
         this.transformTarget = this.#loader.eventTarget
         this.sections = this.resources.spine.map((spineItem, index) => {
