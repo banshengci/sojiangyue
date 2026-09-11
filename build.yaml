@@ -1,8 +1,0 @@
-# build_runner 配置
-# lib/design/ 是独立设计模块，排除以避免 flutter_svg 依赖树
-# 与 build/source_gen 版本冲突。
-targets:
-  $default:
-    sources:
-      exclude:
-        - lib/design/**
