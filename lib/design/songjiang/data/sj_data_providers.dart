@@ -1,5 +1,8 @@
-/// 松江阅页�?· 数据接入�?///
-/// 把应用真实数据（tb_reading_time / tb_books / tb_notes）映射为页面视图模型�?/// 页面只依�?[SjStatisticsData] 等模型，不直接触�?DAO�?library;
+/// 松江阅页面 · 数据接入层
+///
+/// 把应用真实数据（tb_reading_time / tb_books / tb_notes）映射为页面视图模型。
+/// 页面只依赖 [SjStatisticsData] 等模型，不直接触碰 DAO。
+library;
 
 import 'dart:math' as math;
 
@@ -9,13 +12,16 @@ import 'package:songjiang_reader/dao/reading_time.dart';
 
 import 'sj_view_models.dart';
 
-/// 「读完」的判定阈值（与书架筛选保持一致）�?const double _finishedThreshold = 0.98;
+/// 「读完」的判定阈值（与书架筛选保持一致）。
+const double _finishedThreshold = 0.98;
 
-/// 热力等级阈值（秒）�?10 �?/ <30 �?/ <60 �?/ �?0 分�?const List<int> _heatThresholds = [600, 1800, 3600];
+/// 热力等级阈值（秒）：<10 分 / <30 分 / <60 分 / ≥60 分。
+const List<int> _heatThresholds = [600, 1800, 3600];
 
 // ==================== 数据统计 ====================
 
-/// 数据统计（真实数据）�?final sjStatisticsProvider = FutureProvider<SjStatisticsData>((ref) async {
+/// 数据统计（真实数据）。
+final sjStatisticsProvider = FutureProvider<SjStatisticsData>((ref) async {
   final now = DateTime.now();
 
   final monthSeconds = _sum(
@@ -55,7 +61,8 @@ import 'sj_view_models.dart';
 
 // ==================== 成就 ====================
 
-/// 成就（由真实阅读数据判定解锁）�?final sjAchievementsProvider =
+/// 成就（由真实阅读数据判定解锁）。
+final sjAchievementsProvider =
     FutureProvider<SjAchievementsData>((ref) async {
   final perDay = await _readingSecondsByDay();
   final activeDays = _activeDays(perDay);
@@ -74,61 +81,61 @@ import 'sj_view_models.dart';
 
   final items = <SjAchievementItem>[
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '读',
       label: '初读',
-      requirement: '读完第一�?,
+      requirement: '读完第一本',
       unlocked: finishedBooks >= 1,
     ),
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '晓',
       label: '破晓',
-      requirement: '连续阅读 7 �?,
+      requirement: '连续阅读 7 天',
       unlocked: streak.longest >= 7,
     ),
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '半',
       label: '半月',
-      requirement: '连续阅读 15 �?,
+      requirement: '连续阅读 15 天',
       unlocked: streak.longest >= 15,
     ),
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '百',
       label: '百日',
       requirement: '累计 100 天有阅读',
       unlocked: daysWithReading >= 100,
     ),
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '卷',
       label: '十卷',
-      requirement: '读完 10 �?,
+      requirement: '读完 10 本',
       unlocked: finishedBooks >= 10,
     ),
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '藏',
       label: '藏书',
-      requirement: '书架 20 �?,
+      requirement: '书架 20 本',
       unlocked: books.length >= 20,
     ),
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '记',
       label: '笔记',
-      requirement: '写满 50 条笔�?,
+      requirement: '写满 50 条笔记',
       unlocked: notes >= 50,
     ),
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '评',
       label: '评赏',
-      requirement: '收藏 20 �?,
+      requirement: '收藏 20 本',
       unlocked: ratedBooks >= 20,
     ),
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '时',
       label: '万时',
       requirement: '累计阅读 10 小时',
       unlocked: totalSeconds >= 36000,
     ),
     SjAchievementItem(
-      glyph: '�?,
+      glyph: '长',
       label: '长读',
       requirement: '单日阅读 3 小时',
       unlocked: maxDailySeconds >= 10800,
@@ -140,7 +147,8 @@ import 'sj_view_models.dart';
 
 // ==================== 收藏 ====================
 
-/// 收藏（来源：书架中用户评�?> 0 的书）�?final sjFavoritesProvider = FutureProvider<List<SjFavoriteBook>>((ref) async {
+/// 收藏（来源：书架中用户评分 > 0 的书）。
+final sjFavoritesProvider = FutureProvider<List<SjFavoriteBook>>((ref) async {
   final books = await bookDao.selectNotDeleteBooks();
   final favorites = books.where((b) => b.rating > 0).toList()
     ..sort((a, b) => b.updateTime.compareTo(a.updateTime));
@@ -158,7 +166,8 @@ import 'sj_view_models.dart';
 
 // ==================== 我的 ====================
 
-/// 「我的」页统计（真实数据）�?final sjProfileProvider = FutureProvider<SjProfileData>((ref) async {
+/// 「我的」页统计（真实数据）。
+final sjProfileProvider = FutureProvider<SjProfileData>((ref) async {
   final books = await bookDao.selectNotDeleteBooks();
   return SjProfileData(
     booksRead: await readingTimeDao.selectTotalNumberOfBook(),
@@ -167,7 +176,8 @@ import 'sj_view_models.dart';
   );
 });
 
-/// 书架藏书数（用于空状态判定）�?final sjBookCountProvider = FutureProvider<int>((ref) async {
+/// 书架藏书数（用于空状态判定）。
+final sjBookCountProvider = FutureProvider<int>((ref) async {
   final books = await bookDao.selectNotDeleteBooks();
   return books.length;
 });
@@ -176,7 +186,8 @@ import 'sj_view_models.dart';
 
 int _sum(List<int> values) => values.fold<int>(0, (a, b) => a + b);
 
-/// 逐日阅读秒数（键已归一到当天零点）�?Future<Map<DateTime, int>> _readingSecondsByDay() async {
+/// 逐日阅读秒数（键已归一到当天零点）。
+Future<Map<DateTime, int>> _readingSecondsByDay() async {
   final raw = await readingTimeDao.selectAllReadingTimeGroupByDay();
   final perDay = <DateTime, int>{};
   raw.forEach((key, value) {
@@ -186,10 +197,12 @@ int _sum(List<int> values) => values.fold<int>(0, (a, b) => a + b);
   return perDay;
 }
 
-/// 有阅读记录的日期（升序）�?List<DateTime> _activeDays(Map<DateTime, int> perDay) =>
+/// 有阅读记录的日期（升序）。
+List<DateTime> _activeDays(Map<DateTime, int> perDay) =>
     perDay.entries.where((e) => e.value > 0).map((e) => e.key).toList()..sort();
 
-/// 当前 / 最长连续阅读天数�?({int current, int longest}) _streak(List<DateTime> days, DateTime now) {
+/// 当前 / 最长连续阅读天数。
+({int current, int longest}) _streak(List<DateTime> days, DateTime now) {
   if (days.isEmpty) return (current: 0, longest: 0);
 
   var longest = 1;
@@ -226,7 +239,8 @@ int _heatLevel(int seconds) {
   return 4;
 }
 
-/// 最�?4 周（周一 �?周日）的阅读热力等级�?List<List<int>> _buildHeatmap(Map<DateTime, int> perDay, DateTime now) {
+/// 最近 4 周（周一 → 周日）的阅读热力等级。
+List<List<int>> _buildHeatmap(Map<DateTime, int> perDay, DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
   final thisMonday = today.subtract(Duration(days: today.weekday - 1));
   final start = thisMonday.subtract(const Duration(days: 21));
