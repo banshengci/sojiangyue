@@ -644,6 +644,24 @@ class Loader {
             : new Blob([resolvedData], { type: resolvedType })
         detail.type = blob.type || resolvedType
         detail.data = blob
+        // Images: use data URLs to avoid WebView blob URL compatibility issues
+        // (sandboxed iframes may not load parent-created blob: URLs on some WebKit/Chromium)
+        if (resolvedType && resolvedType.startsWith('image/')) {
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader()
+                reader.onloadend = () => resolve(reader.result)
+                reader.onerror = () => reject(reader.error)
+                reader.readAsDataURL(blob)
+            })
+            this.#cache.set(href, dataUrl)
+            this.#refCount.set(href, 1)
+            if (parent) {
+                const childList = this.#children.get(parent)
+                if (childList) childList.push(href)
+                else this.#children.set(parent, [href])
+            }
+            return dataUrl
+        }
         const url = URL.createObjectURL(blob)
         this.#cache.set(href, url)
         this.#refCount.set(href, 1)
