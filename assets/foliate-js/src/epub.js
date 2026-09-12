@@ -637,6 +637,7 @@ class Loader {
         const detail = { name: href, data, type }
         this.eventTarget.dispatchEvent(new CustomEvent('data', { detail }))
         const resolvedData = await detail.data
+        if (!resolvedData) return ''
         const resolvedType = detail.type ?? type
         const blob = resolvedData instanceof Blob
             ? resolvedData

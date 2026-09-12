@@ -558,8 +558,12 @@ const makeZipLoader = async file => {
   const reader = new ZipReader(new BlobReader(file))
   const entries = await reader.getEntries()
   const map = new Map(entries.map(entry => [entry.filename, entry]))
-  // Fallback lookup: try percent-decoded and suffix-matched names.
-  // Some EPUBs have filenames with chars (: *) that URL/decodeURI may mangle.
+  // Fallback lookup: try percent-decoded, suffix-matched, and
+  // normalization-insensitive names. Some EPUBs have filenames with
+  // special chars (: *) that URL/decodeURI may mangle.
+  const normalize = s => s.replace(/[%:]/g, m => m === '%' ? '%25' : '%3A')
+    .normalize('NFC')
+  const normMap = new Map(entries.map(entry => [normalize(entry.filename), entry]))
   const findEntry = name => {
     if (map.has(name)) return map.get(name)
     // Try decoding percent-encoding
@@ -572,11 +576,16 @@ const makeZipLoader = async file => {
       const encoded = name.replace(/:/g, '%3A').replace(/\*/g, '%2A')
       if (encoded !== name && map.has(encoded)) return map.get(encoded)
     } catch (e) { /* ignore */ }
+    // Normalization-insensitive lookup
+    const n = normalize(name)
+    if (normMap.has(n)) return normMap.get(n)
     // Suffix match as last resort
     const suffix = name.split('/').pop()
     if (suffix) {
+      const nSuffix = normalize(suffix)
       for (const [key, entry] of map) {
         if (key.endsWith('/' + suffix) || key === suffix) return entry
+        if (normalize(key).endsWith('/' + nSuffix)) return entry
       }
     }
     return null
