@@ -47,9 +47,9 @@ class ReadingStylePrefs {
     if (json == null) return BookStyle();
     final style = BookStyle.fromJson(json);
     // 旧版本默认 topMargin=90 / bottomMargin=50，留白过大。
-    // 若仍是旧默认值，自动重置为新默认值。
-    if (style.topMargin == 90.0) style.topMargin = 20.0;
-    if (style.bottomMargin == 50.0) style.bottomMargin = 16.0;
+    // 兜底：任何超过 40 的旧值都重置为新默认。
+    if (style.topMargin > 40) style.topMargin = 16;
+    if (style.bottomMargin > 40) style.bottomMargin = 12;
     return style;
   }
 
