@@ -703,9 +703,10 @@ class Loader {
         if (shouldReplace) return this.loadReplaced(targetItem, parents)
         let dataSource = detail.data ?? Promise.resolve().then(async () => {
             let blob = await this.loadBlob(href)
-            // Fallback: if exact path fails, try suffix match against ZIP entries
+            console.log(`[Loader] loadBlob("${href}") => ${blob ? 'ok (' + blob.size + ' bytes)' : 'NULL'}`)
             if (!blob && this.#findBlobBySuffix) {
                 const altPath = this.#findBlobBySuffix(href)
+                console.log(`[Loader] suffix fallback => ${altPath ?? 'null'}`)
                 if (altPath) blob = await this.loadBlob(altPath)
             }
             return blob
