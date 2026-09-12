@@ -655,10 +655,15 @@ class Loader {
         return url
     }
     ref(href, parent) {
+        // A top-level load has no parent — must always count.
+        // Without this, blob URLs can be revoked prematurely (Readest fix).
+        if (!parent) {
+            this.#refCount.set(href, (this.#refCount.get(href) ?? 0) + 1)
+            return this.#cache.get(href)
+        }
         const childList = this.#children.get(parent)
         if (!childList?.includes(href)) {
-            this.#refCount.set(href, this.#refCount.get(href) + 1)
-            //console.log(`referencing ${href}, now ${this.#refCount.get(href)}`)
+            this.#refCount.set(href, (this.#refCount.get(href) ?? 0) + 1)
             if (childList) childList.push(href)
             else this.#children.set(parent, [href])
         }

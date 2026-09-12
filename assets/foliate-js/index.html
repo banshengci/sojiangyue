@@ -1,7 +1,35 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SongJiang Reader</title>
+<script>
+// Polyfills for older Android WebView / Chromium.
+// foliate-js uses parents.at(-1) and findLastIndex; without these,
+// chapters silently fail to render (no images, no text).
+if (!Array.prototype.at) {
+  Object.defineProperty(Array.prototype, 'at', {
+    value(index) {
+      const length = this.length >>> 0
+      let k = Math.trunc(index) || 0
+      if (k < 0) k += length
+      if (k < 0 || k >= length) return undefined
+      return this[k]
+    },
+    writable: true, configurable: true,
+  })
+}
+if (!Array.prototype.findLastIndex) {
+  Object.defineProperty(Array.prototype, 'findLastIndex', {
+    value(fn) {
+      for (let i = this.length - 1; i >= 0; i--) {
+        if (fn(this[i], i, this)) return i
+      }
+      return -1
+    },
+    writable: true, configurable: true,
+  })
+}
+</script>
 <style>
   html {
     height: 100vh;
@@ -52,6 +80,53 @@
 <script>
   // Prevent the default WebView2 right-click context menu on Windows.
   document.addEventListener('contextmenu', e => { e.preventDefault(); });
+</script>
+<script>
+  // Polyfill Array.prototype.at for older WebKit/Chromium (Android 8–).
+  // foliate-js uses parents.at(-1) in Loader.loadItem; without this the
+  // method is undefined and the entire chapter silently fails to render.
+  if (!Array.prototype.at) {
+    Object.defineProperty(Array.prototype, 'at', {
+      value(index) {
+        const length = this.length >>> 0
+        let k = Math.trunc(index) || 0
+        if (k < 0) k += length
+        if (k < 0 || k >= length) return undefined
+        return this[k]
+      },
+      writable: true, configurable: true,
+    });
+  }
+</script>
+<script>
+  // Polyfill Array.prototype.at for older WebView/Chromium (< Android 8 / Chrome < 92)
+  // foliate-js uses parents.at(-1) in loadItem; without this, chapters silently fail.
+  if (!Array.prototype.at) {
+    Object.defineProperty(Array.prototype, 'at', {
+      value: function (index) {
+        var length = this.length >>> 0
+        var k = Math.trunc(index) || 0
+        if (k < 0) k += length
+        if (k < 0 || k >= length) return undefined
+        return this[k]
+      },
+      writable: true,
+      configurable: true,
+    })
+  }
+  // Polyfill Array.prototype.findLastIndex (Chrome < 97)
+  if (!Array.prototype.findLastIndex) {
+    Object.defineProperty(Array.prototype, 'findLastIndex', {
+      value: function (fn) {
+        for (var i = this.length - 1; i >= 0; i--) {
+          if (fn(this[i], i, this)) return i
+        }
+        return -1
+      },
+      writable: true,
+      configurable: true,
+    })
+  }
 </script>
 <script>
   (function () {
