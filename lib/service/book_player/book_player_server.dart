@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
@@ -144,6 +144,7 @@ class Server {
         content,
         headers: {
           'Content-Type': contentType,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
       );
     } else if (uriPath.startsWith('/bgimg/')) {
