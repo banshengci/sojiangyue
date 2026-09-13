@@ -16,7 +16,7 @@
 松江阅 (SongJiang Reader), a thoughtfully crafted e-book reader for book lovers. Featuring powerful AI capabilities and supporting various e-book formats, it makes reading smarter and more focused. With its modern interface design, we're committed to delivering pure reading pleasure.
 
 
-![](./docs/images/main.jpg)
+![](./docs/images/main.png)
 
 
 | Feature | Details | Status |
@@ -37,16 +37,16 @@ SongJiang Reader is built from source. See [Building](#building) below to compil
 
 
 ### Screenshots
-| ![](./docs/images/wide1.png) | ![](./docs/images/wide2.png) |
-| :------------------------------: | :----------------------------: |
-|   ![](./docs/images/wide3.png)   |  ![](./docs/images/wide4.png)  |
-|   ![](./docs/images/wide5.png)   |  ![](./docs/images/wide6.png)  |
-|   ![](./docs/images/wide7.png)   |  ![](./docs/images/wide8.png)  |
-
-
+| Search | Favorites | Mine |
+| :---: | :---: | :---: |
 | ![](./docs/images/mobile1.png) | ![](./docs/images/mobile2.png) | ![](./docs/images/mobile3.png) |
-| :----------------------------: | :----------------------------: | :----------------------------: |
+
+| Statistics | Achievements | Empty State |
+| :---: | :---: | :---: |
 | ![](./docs/images/mobile4.png) | ![](./docs/images/mobile5.png) | ![](./docs/images/mobile6.png) |
+
+| Library | AI Assistant | Sync |
+| :---: | :---: | :---: |
 | ![](./docs/images/mobile7.png) | ![](./docs/images/mobile8.png) | ![](./docs/images/mobile9.png) |
 
 ## Building
