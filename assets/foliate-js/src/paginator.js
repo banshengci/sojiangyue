@@ -209,7 +209,7 @@ class View {
     Object.assign(this.#iframe.style, {
       overflow: 'hidden',
       border: '0',
-      display: 'none',
+      visibility: 'hidden',
       width: '100%', height: '100%',
     })
     // `allow-scripts` is needed for events because of WebKit bug
@@ -230,10 +230,10 @@ class View {
         const doc = this.document
         afterLoad?.(doc)
 
-        // it needs to be visible for Firefox to get computed style
-        this.#iframe.style.display = 'block'
+        // Readest fix (#6041): use visibility:hidden instead of display:none
+        // so scripts measuring geometry get real box dimensions (0×0 canvas bug)
+        this.#iframe.style.visibility = 'hidden'
         const { vertical, rtl, writingMode } = getDirection(doc)
-        this.#iframe.style.display = 'none'
 
         this.#vertical = vertical
         this.#rtl = rtl
@@ -241,7 +241,7 @@ class View {
 
         this.#contentRange.selectNodeContents(doc.body)
         const layout = beforeRender?.({ vertical, rtl })
-        this.#iframe.style.display = 'block'
+        this.#iframe.style.visibility = 'visible'
         this.render(layout)
         this.#observer.observe(doc.body)
 

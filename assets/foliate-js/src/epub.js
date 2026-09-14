@@ -44,6 +44,32 @@ const getAttributes = (...xs) => el =>
 
 const getElementText = el => normalizeWhitespace(el?.textContent)
 
+// Readest pattern: repair malformed XHTML before DOMParser gives up.
+// Some EPUBs have unclosed void elements (<br>, <img>, <hr> without />).
+const VOID_ELEMENTS = new Set([
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+    'link', 'meta', 'param', 'source', 'track', 'wbr',
+])
+const closeVoidElements = html => html.replace(
+    /<(br|hr|img|input|meta|link|source|track|wbr|col|embed|param)\b(?![^>]*\/>)([^>]*)>/gi,
+    '<$1$2/>'
+)
+const isBrokenXHTML = doc => doc.querySelector('parsererror') !== null
+
+const parseContentDocument = (parser, str, mediaType) => {
+    let doc = parser.parseFromString(str, mediaType)
+    if (isBrokenXHTML(doc)) {
+        // Try repairing unclosed void elements
+        const repaired = closeVoidElements(str)
+        doc = parser.parseFromString(repaired, mediaType)
+    }
+    if (isBrokenXHTML(doc) && mediaType === MIME.XHTML) {
+        // Fall back to HTML parsing (more lenient)
+        doc = parser.parseFromString(str, MIME.HTML)
+    }
+    return doc
+}
+
 const childGetter = (doc, ns) => {
     // ignore the namespace if it doesn't appear in document at all
     const useNS = doc.lookupNamespaceURI(null) === ns || doc.lookupPrefix(ns)
@@ -510,6 +536,28 @@ class Encryption {
     }
 }
 
+// Readest pattern: synthesize manifest items for images/fonts referenced
+// in XHTML but missing from the OPF manifest.
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
+const FONT_EXTENSIONS = ['woff', 'woff2', 'ttf', 'otf']
+
+const getImageMediaType = path => {
+    const ext = path.split('.').pop()?.toLowerCase()
+    if (ext === 'png') return 'image/png'
+    if (ext === 'gif') return 'image/gif'
+    if (ext === 'webp') return 'image/webp'
+    if (ext === 'svg') return 'image/svg+xml'
+    return 'image/jpeg'
+}
+
+const getFontMediaType = path => {
+    const ext = path.split('.').pop()?.toLowerCase()
+    if (ext === 'woff2') return 'font/woff2'
+    if (ext === 'woff') return 'font/woff'
+    if (ext === 'otf') return 'font/otf'
+    return 'font/ttf'
+}
+
 class Resources {
     constructor({ opf, resolveHref }) {
         this.opf = opf
@@ -632,6 +680,26 @@ class Loader {
         // needed only when replacing in (X)HTML w/o parsing (see below)
         //.filter(({ mediaType }) => ![MIME.XHTML, MIME.HTML].includes(mediaType))
     }
+    // Readest-style fallback: create synthetic manifest item for images
+    // that exist in the ZIP but are missing from the OPF manifest.
+    #imageExtMap = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' }
+    #fontExtMap = { woff: 'font/woff', woff2: 'font/woff2',
+        ttf: 'font/ttf', otf: 'font/otf' }
+    tryImageEntryItem(path) {
+        const ext = path.split('.').pop()?.toLowerCase()
+        if (!this.#imageExtMap[ext]) return null
+        if (!this.#zipEntries) return null
+        const found = this.#zipEntries.some(e => e.filename === path)
+        return found ? { href: path, mediaType: this.#imageExtMap[ext] } : null
+    }
+    tryFontEntryItem(path) {
+        const ext = path.split('.').pop()?.toLowerCase()
+        if (!this.#fontExtMap[ext]) return null
+        if (!this.#zipEntries) return null
+        const found = this.#zipEntries.some(e => e.filename === path)
+        return found ? { href: path, mediaType: this.#fontExtMap[ext] } : null
+    }
     async createURL(href, data, type, parent) {
         if (!data) return ''
         const detail = { name: href, data, type }
@@ -703,6 +771,28 @@ class Loader {
         } else this.#refCount.set(href, count)
     }
     // load manifest item, recursively loading all resources as needed
+    // Readest pattern: synthesize image/font items from ZIP entries when
+    // the OPF manifest doesn't declare them (common in DRM-obfuscated EPUBs).
+    #imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
+    tryImageEntryItem(path) {
+        const ext = path.split('.').pop()?.toLowerCase()
+        if (!ext || !this.#imageExts.includes(ext)) return null
+        // Check ZIP entries map for this path
+        if (this.#zipEntries) {
+            for (const entry of this.#zipEntries) {
+                if (entry.filename === path) {
+                    const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+                        : ext === 'png' ? 'image/png'
+                        : ext === 'gif' ? 'image/gif'
+                        : ext === 'svg' ? 'image/svg+xml'
+                        : ext === 'webp' ? 'image/webp'
+                        : 'image/jpeg'
+                    return { href: path, mediaType: mime }
+                }
+            }
+        }
+        return null
+    }
     async loadItem(item, parents = []) {
         if (!item) return null
         const { href } = item
@@ -737,19 +827,35 @@ class Loader {
         })
         return this.createURL(href, dataSource, mediaType, parent)
     }
+    // Readest-style fallback: create synthetic manifest item for images/fonts
+    // referenced in XHTML but missing from the OPF manifest.
+    tryImageEntryItem(path) {
+        const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
+        if (!IMAGE_EXTS.some(ext => path.toLowerCase().endsWith('.' + ext))) return null
+        if (!this.#zipEntries) return null
+        for (const entry of this.#zipEntries) {
+            if (entry.filename === path) {
+                const ext = path.split('.').pop().toLowerCase()
+                const mt = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+                    gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' }[ext] || 'image/jpeg'
+                return { href: path, mediaType: mt }
+            }
+        }
+        return null
+    }
     async loadHref(href, base, parents = []) {
         if (isExternal(href)) return href
         const path = resolveURL(href, base)
         const item = this.manifest.find(item => item.href === path)
         if (!item) {
-            // Fallback for non-standard EPUBs with missing manifest entries
-            // Try to load the resource directly if it exists
+            // Readest-style fallback: create synthetic manifest item from ZIP entry
+            const synthetic = this.#tryImageEntryItem(path)
+            if (synthetic) return this.loadItem(synthetic, parents.concat(base))
+            // Existing fallback: try loading directly
             const parent = parents[parents.length - 1]
             if (this.#cache.has(path)) return this.ref(path, parent)
             try {
                 let blob = await this.loadBlob(path)
-                // Some EPUBs have filenames with special chars (e.g. : *) that
-                // get mangled by URL/decodeURI. Try a suffix match as fallback.
                 if (!blob && this.#findBlobBySuffix) {
                     const altPath = this.#findBlobBySuffix(path)
                     if (altPath) {
@@ -777,9 +883,9 @@ class Loader {
             : ext === 'css' ? 'text/css'
             : 'application/octet-stream'
     }
+    // Readest-style fallback: create synthetic manifest item for images
+    // not in OPF manifest (common in ZhangYue/encrypted EPUBs).
     #findBlobBySuffix(path) {
-        // Try to find a ZIP entry whose filename ends with the same suffix
-        // as the resolved path (handles encoding mismatches with special chars)
         const suffix = path.split('/').pop()
         if (!suffix || !this.#zipEntries) return null
         for (const entry of this.#zipEntries) {
@@ -788,6 +894,19 @@ class Loader {
             }
         }
         return null
+    }
+    #tryImageEntryItem(path) {
+        const ext = path.split('.').pop()?.toLowerCase()
+        if (!['jpg','jpeg','png','gif','webp','svg'].includes(ext)) return null
+        const found = this.#findBlobBySuffix(path)
+        if (!found) return null
+        const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+            : ext === 'png' ? 'image/png'
+            : ext === 'gif' ? 'image/gif'
+            : ext === 'svg' ? 'image/svg+xml'
+            : ext === 'webp' ? 'image/webp'
+            : 'image/jpeg'
+        return { href: found, mediaType: mime }
     }
     async loadReplaced(item, parents = []) {
         const { href, mediaType } = item
@@ -832,12 +951,29 @@ class Loader {
                 }
             }
             // replace hrefs (excluding anchors)
-            // TODO: srcset?
             const replace = async (el, attr) => el.setAttribute(attr,
                 await this.loadHref(el.getAttribute(attr), href, parents))
             for (const el of doc.querySelectorAll('link[href]')) await replace(el, 'href')
             for (const el of doc.querySelectorAll('[src]')) await replace(el, 'src')
             for (const el of doc.querySelectorAll('[poster]')) await replace(el, 'poster')
+            for (const el of doc.querySelectorAll('[srcset]')) {
+                // srcset: "url1 1x, url2 2x" → replace each URL
+                const srcset = el.getAttribute('srcset')
+                if (srcset) {
+                    const parts = srcset.split(',')
+                    const replaced = []
+                    for (const part of parts) {
+                        const m = part.trim().match(/^(\S+)(.*)$/)
+                        if (m) {
+                            const newUrl = await this.loadHref(m[1], href, parents)
+                            replaced.push(`${newUrl}${m[2]}`)
+                        } else {
+                            replaced.push(part.trim())
+                        }
+                    }
+                    el.setAttribute('srcset', replaced.join(', '))
+                }
+            }
             for (const el of doc.querySelectorAll('object[data]')) await replace(el, 'data')
             for (const el of doc.querySelectorAll('[*|href]:not([href])'))
                 el.setAttributeNS(NS.XLINK, 'href', await this.loadHref(
