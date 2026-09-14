@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   push:
@@ -7,13 +7,12 @@ on:
   pull_request:
     branches: [main]
 
-# 取消同一分支/同一 PR 上正在跑的旧 run，避免资源浪费
-concurrency:
+# 鍙栨秷鍚屼竴鍒嗘敮/鍚屼竴 PR 涓婃鍦ㄨ窇鐨勬棫 run锛岄伩鍏嶈祫婧愭氮璐?concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ============ 分析 + 单元测试 (Linux, 最快) ============
+  # ============ 鍒嗘瀽 + 鍗曞厓娴嬭瘯 (Linux, 鏈€蹇? ============
   analyze-and-test:
     name: Analyze & test (ubuntu)
     runs-on: ubuntu-latest
@@ -42,14 +41,13 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (l10n + build_runner)
+        shell: bash
         run: |
-          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
+          rm -f build.yaml
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
-      # Flutter analyze 在部分版本对 info 也会 exit 1（即使 --no-fatal-infos）。
-      # 以日志里是否出现 error 级问题为准，info/warning 不阻塞。
-      - name: Analyze
+      # Flutter analyze 鍦ㄩ儴鍒嗙増鏈 info 涔熶細 exit 1锛堝嵆浣?--no-fatal-infos锛夈€?      # 浠ユ棩蹇楅噷鏄惁鍑虹幇 error 绾ч棶棰樹负鍑嗭紝info/warning 涓嶉樆濉炪€?      - name: Analyze
         run: |
           set +e
           OUTPUT=$(flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings 2>&1)
@@ -71,9 +69,7 @@ jobs:
         run: flutter test --no-pub --reporter expanded
 
   # ============ Windows ============
-  # Flutter 3.35.3 的 CMake 生成器硬编码 "Visual Studio 16 2019"，
-  # 必须用 windows-2019 runner（自带 VS 2019），windows-latest 只有 VS 2022 不匹配。
-  build-windows:
+  # Flutter 3.35.3 鐨?CMake 鐢熸垚鍣ㄧ‖缂栫爜 "Visual Studio 16 2019"锛?  # 蹇呴』鐢?windows-2019 runner锛堣嚜甯?VS 2019锛夛紝windows-latest 鍙湁 VS 2022 涓嶅尮閰嶃€?  build-windows:
     name: Build Windows
     runs-on: windows-2019
     timeout-minutes: 60
@@ -108,8 +104,9 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (l10n + build_runner)
+        shell: bash
         run: |
-          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
+          rm -f build.yaml
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -156,16 +153,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      # 项目有多个 git 依赖（flutter_inappwebview 等），其源码路径很深。
-      # Windows 默认 260 字符路径限制会让 pub 克隆时静默漏掉部分源文件，
-      # 表现为编译期莫名其妙的“找不到符号”。必须先开启 long paths。
-      - name: Enable git long paths
+      # 椤圭洰鏈夊涓?git 渚濊禆锛坒lutter_inappwebview 绛夛級锛屽叾婧愮爜璺緞寰堟繁銆?      # Windows 榛樿 260 瀛楃璺緞闄愬埗浼氳 pub 鍏嬮殕鏃堕潤榛樻紡鎺夐儴鍒嗘簮鏂囦欢锛?      # 琛ㄧ幇涓虹紪璇戞湡鑾悕鍏跺鐨勨€滄壘涓嶅埌绗﹀彿鈥濄€傚繀椤诲厛寮€鍚?long paths銆?      - name: Enable git long paths
         run: git config --system core.longpaths true
 
-      # android/.gitignore 会忽略 gradlew / gradlew.bat / gradle-wrapper.jar
-      # （Flutter 模板默认如此），checkout 后项目里没有 wrapper。
-      # 首次 `flutter build apk` 生成 wrapper 时容易卡住，这里显式补齐。
-      - name: Ensure Gradle wrapper
+      # android/.gitignore 浼氬拷鐣?gradlew / gradlew.bat / gradle-wrapper.jar
+      # 锛團lutter 妯℃澘榛樿濡傛锛夛紝checkout 鍚庨」鐩噷娌℃湁 wrapper銆?      # 棣栨 `flutter build apk` 鐢熸垚 wrapper 鏃跺鏄撳崱浣忥紝杩欓噷鏄惧紡琛ラ綈銆?      - name: Ensure Gradle wrapper
         shell: bash
         run: |
           SDK="$(dirname "$(dirname "$(command -v flutter)")")"
@@ -174,7 +166,7 @@ jobs:
           mkdir -p android/gradle/wrapper
           cp "$SDK/bin/cache/artifacts/gradle_wrapper/gradle/wrapper/gradle-wrapper.jar" android/gradle/wrapper/gradle-wrapper.jar
 
-      # sqlite3_flutter_libs 等插件需要 CMake 编译 native 代码
+      # sqlite3_flutter_libs 绛夋彃浠堕渶瑕?CMake 缂栬瘧 native 浠ｇ爜
       - name: Install Android CMake & NDK
         shell: bash
         run: |
@@ -186,8 +178,9 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (l10n + build_runner)
+        shell: bash
         run: |
-          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
+          rm -f build.yaml
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -209,8 +202,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  # ============ Android release（打 tag 时才跑） ============
-  # 需要在仓库 Settings → Secrets 里配置：
+  # ============ Android release锛堟墦 tag 鏃舵墠璺戯級 ============
+  # 闇€瑕佸湪浠撳簱 Settings 鈫?Secrets 閲岄厤缃細
   #   KEYSTORE_BASE64      = base64 -w0 android/app/release.jks
   #   KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD
   build-android-release:
@@ -263,7 +256,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "未配置签名密钥，跳过（release 构建将使用 debug 签名）"
+            echo "鏈厤缃鍚嶅瘑閽ワ紝璺宠繃锛坮elease 鏋勫缓灏嗕娇鐢?debug 绛惧悕锛?
             exit 0
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.jks
@@ -278,8 +271,9 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (l10n + build_runner)
+        shell: bash
         run: |
-          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
+          rm -f build.yaml
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -299,9 +293,7 @@ jobs:
           retention-days: 30
 
   # ============ macOS ============
-  # Flutter 3.35 的 macos 子命令已无 --no-codesign；
-  # debug 默认不 codesign（--codesign defaultsTo release）。
-  build-macos:
+  # Flutter 3.35 鐨?macos 瀛愬懡浠ゅ凡鏃?--no-codesign锛?  # debug 榛樿涓?codesign锛?-codesign defaultsTo release锛夈€?  build-macos:
     name: Build macOS
     runs-on: macos-latest
     timeout-minutes: 60
@@ -330,8 +322,9 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (l10n + build_runner)
+        shell: bash
         run: |
-          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
+          rm -f build.yaml
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -353,10 +346,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  # ============ iOS（无开发者账号：打出未签名 IPA，供 TrollStore 侧载） ============
-  # 个人设备（如 iPhone 14 / iOS 16.1 + TrollStore）无需付费开发者账号。
-  # 产物为 --no-codesign 的 Runner.app 打成 .ipa，由设备端 TrollStore 重签安装。
-  build-ios-unsigned:
+  # ============ iOS锛堟棤寮€鍙戣€呰处鍙凤細鎵撳嚭鏈鍚?IPA锛屼緵 TrollStore 渚ц浇锛?============
+  # 涓汉璁惧锛堝 iPhone 14 / iOS 16.1 + TrollStore锛夋棤闇€浠樿垂寮€鍙戣€呰处鍙枫€?  # 浜х墿涓?--no-codesign 鐨?Runner.app 鎵撴垚 .ipa锛岀敱璁惧绔?TrollStore 閲嶇瀹夎銆?  build-ios-unsigned:
     name: Build iOS (unsigned IPA / TrollStore)
     runs-on: macos-latest
     timeout-minutes: 90
@@ -385,8 +376,9 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (l10n + build_runner)
+        shell: bash
         run: |
-          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
+          rm -f build.yaml
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -404,7 +396,7 @@ jobs:
         run: |
           set -euo pipefail
           APP_DIR="build/ios/iphoneos"
-          # 部分 Flutter 版本输出在 Release-iphoneos
+          # 閮ㄥ垎 Flutter 鐗堟湰杈撳嚭鍦?Release-iphoneos
           if [ ! -d "$APP_DIR/Runner.app" ]; then
             APP_DIR="build/ios/Release-iphoneos"
           fi
@@ -434,7 +426,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: analyze-and-test
-    # WPE WebKit 在部分 Ubuntu 镜像上包名不稳定；Linux 非主目标，失败不阻塞
+    # WPE WebKit 鍦ㄩ儴鍒?Ubuntu 闀滃儚涓婂寘鍚嶄笉绋冲畾锛汱inux 闈炰富鐩爣锛屽け璐ヤ笉闃诲
     continue-on-error: true
     steps:
       - name: Checkout
@@ -443,7 +435,7 @@ jobs:
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
-          # flutter_inappwebview_linux 需要 WPE WebKit
+          # flutter_inappwebview_linux 闇€瑕?WPE WebKit
           sudo apt-get install -y \
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libstdc++-12-dev \
@@ -478,8 +470,9 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (l10n + build_runner)
+        shell: bash
         run: |
-          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
+          rm -f build.yaml
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -493,3 +486,4 @@ jobs:
           path: build/linux/x64/debug/bundle
           if-no-files-found: warn
           retention-days: 7
+
