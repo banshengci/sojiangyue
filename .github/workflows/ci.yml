@@ -43,7 +43,7 @@ jobs:
 
       - name: Generate code (l10n + build_runner)
         run: |
-          rm -f build.yaml
+          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -109,7 +109,7 @@ jobs:
 
       - name: Generate code (l10n + build_runner)
         run: |
-          rm -f build.yaml
+          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -187,7 +187,7 @@ jobs:
 
       - name: Generate code (l10n + build_runner)
         run: |
-          rm -f build.yaml
+          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -279,7 +279,7 @@ jobs:
 
       - name: Generate code (l10n + build_runner)
         run: |
-          rm -f build.yaml
+          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -331,7 +331,7 @@ jobs:
 
       - name: Generate code (l10n + build_runner)
         run: |
-          rm -f build.yaml
+          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -386,7 +386,7 @@ jobs:
 
       - name: Generate code (l10n + build_runner)
         run: |
-          rm -f build.yaml
+          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
@@ -479,7 +479,7 @@ jobs:
 
       - name: Generate code (l10n + build_runner)
         run: |
-          rm -f build.yaml
+          Remove-Item -Path build.yaml -Force -ErrorAction SilentlyContinue
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
