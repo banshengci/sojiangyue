@@ -10,7 +10,7 @@
 松江阅，一款为热爱阅读的你精心打造的电子书阅读器。集成多种 AI 能力，支持丰富的电子书格式，让阅读更智能、更专注。现代化界面设计，只为提供纯粹的阅读体验。
 
 
-![](./docs/images/main.jpg)
+![](./docs/images/zh/main.png)
 
 
 | 功能模块 | 详细说明 | 状态 |
@@ -32,16 +32,16 @@
 查看[故障排除](./docs/troubleshooting.md#简体中文)
 
 ### 截图
-| ![](./docs/images/zh/wide1.png) | ![](./docs/images/zh/wide2.png) |
-| :--------------------------: | :--------------------------: |
-| ![](./docs/images/zh/wide3.png) | ![](./docs/images/zh/wide4.png) |
-| ![](./docs/images/zh/wide5.png) | ![](./docs/images/zh/wide6.png) |
-| ![](./docs/images/zh/wide7.png) | ![](./docs/images/zh/wide8.png) |
-
-
+| 搜索 | 收藏 | 我的 |
+| :---: | :---: | :---: |
 | ![](./docs/images/zh/mobile1.png) | ![](./docs/images/zh/mobile2.png) | ![](./docs/images/zh/mobile3.png) |
-| :----------------------------: | :----------------------------: | :----------------------------: |
+
+| 统计 | 成就 | 空状态 |
+| :---: | :---: | :---: |
 | ![](./docs/images/zh/mobile4.png) | ![](./docs/images/zh/mobile5.png) | ![](./docs/images/zh/mobile6.png) |
+
+| 书库 | AI 助理 | 多端同步 |
+| :---: | :---: | :---: |
 | ![](./docs/images/zh/mobile7.png) | ![](./docs/images/zh/mobile8.png) | ![](./docs/images/zh/mobile9.png) |
 
 ## 构建
