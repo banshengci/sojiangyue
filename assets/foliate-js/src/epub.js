@@ -662,6 +662,7 @@ class Resources {
 
 class Loader {
     #cache = new Map()
+    #cacheXHTMLContent = new Map()
     #children = new Map()
     #refCount = new Map()
     #zipEntries = null
@@ -707,6 +708,7 @@ class Loader {
         const resolvedData = await detail.data
         if (!resolvedData) return ''
         const resolvedType = detail.type ?? type
+        console.warn(`[Loader] createURL "${href}" type="${resolvedType}"`)
         const blob = resolvedData instanceof Blob
             ? resolvedData
             : new Blob([resolvedData], { type: resolvedType })
@@ -721,6 +723,7 @@ class Loader {
                 reader.onerror = () => reject(reader.error)
                 reader.readAsDataURL(blob)
             })
+            console.warn(`[Loader] createURL image "${href}" => dataUrl (${dataUrl.length} chars)`)
             this.#cache.set(href, dataUrl)
             this.#refCount.set(href, 1)
             if (parent) {
@@ -763,12 +766,19 @@ class Loader {
             //console.log(`unloading ${href}`)
             URL.revokeObjectURL(this.#cache.get(href))
             this.#cache.delete(href)
+            this.#cacheXHTMLContent.delete(href)
             this.#refCount.delete(href)
             // unref children
             const childList = this.#children.get(href)
             if (childList) while (childList.length) this.unref(childList.pop())
             this.#children.delete(href)
         } else this.#refCount.set(href, count)
+    }
+    // Readest pattern: return raw XHTML content for srcdoc loading.
+    // Reuses the existing cache entry rather than taking a new ref.
+    async loadItemXHTMLContent(item, parents = []) {
+        const url = this.#cache.get(item?.href) ?? await this.loadItem(item, parents)
+        if (url) return this.#cacheXHTMLContent.get(url)?.data
     }
     // load manifest item, recursively loading all resources as needed
     // Readest pattern: synthesize image/font items from ZIP entries when
@@ -987,7 +997,12 @@ class Loader {
                     await this.replaceCSS(el.getAttribute('style'), href, parents))
             // TODO: replace inline scripts? probably not worth the trouble
             const result = new XMLSerializer().serializeToString(doc)
-            return this.createURL(href, result, item.mediaType, parent)
+            const url = await this.createURL(href, result, item.mediaType, parent)
+            // Cache the serialized XHTML so loadContent() can return it for srcdoc
+            if (url && item.mediaType && (item.mediaType.includes('html') || item.mediaType.includes('xhtml'))) {
+                this.#cacheXHTMLContent.set(url, { data: result })
+            }
+            return url
         }
 
         const result = mediaType === MIME.CSS
@@ -1151,6 +1166,7 @@ ${doc.querySelector('parsererror').innerText}`)
             return {
                 id: item.href,
                 load: () => this.#loader.loadItem(item),
+                loadContent: () => this.#loader.loadItemXHTMLContent(item),
                 unload: () => this.#loader.unloadItem(item),
                 createDocument: () => this.loadDocument(item),
                 size: this.getSize(item.href),

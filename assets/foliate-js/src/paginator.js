@@ -223,8 +223,8 @@ class View {
   get document() {
     return this.#iframe.contentDocument
   }
-  async load(src, afterLoad, beforeRender) {
-    if (typeof src !== 'string') throw new Error(`${src} is not string`)
+  async load(src, data, afterLoad, beforeRender) {
+    if (typeof src !== 'string' && data == null) throw new Error(`${src} is not string`)
     return new Promise(resolve => {
       this.#iframe.addEventListener('load', () => {
         const doc = this.document
@@ -252,7 +252,13 @@ class View {
 
         resolve()
       }, { once: true })
-      this.#iframe.src = src
+      if (data) {
+        // Use srcdoc to inject HTML directly — avoids blob URL origin issues
+        // that prevent images from loading inside sandboxed iframes on iOS WebKit
+        this.#iframe.srcdoc = data
+      } else {
+        this.#iframe.src = src
+      }
     })
   }
   render(layout) {
@@ -1200,7 +1206,7 @@ export class Paginator extends HTMLElement {
     // }
   }
   async #display(promise) {
-    const { index, src, anchor, onLoad, select } = await promise
+    const { index, src, data, anchor, onLoad, select } = await promise
     this.#index = index
     if (src) {
       const view = this.#createView()
@@ -1215,7 +1221,7 @@ export class Paginator extends HTMLElement {
         onLoad?.({ doc, index })
       }
       const beforeRender = this.#beforeRender.bind(this)
-      await view.load(src, afterLoad, beforeRender)
+      await view.load(src, data, afterLoad, beforeRender)
       this.dispatchEvent(new CustomEvent('create-overlayer', {
         detail: {
           doc: view.document, index,
@@ -1240,7 +1246,10 @@ export class Paginator extends HTMLElement {
         this.dispatchEvent(new CustomEvent('load', { detail }))
       }
       await this.#display(Promise.resolve(this.sections[index].load())
-        .then(src => ({ index, src, anchor, onLoad, select }))
+        .then(async src => {
+          const data = await this.sections[index].loadContent?.()
+          return { index, src, data, anchor, onLoad, select }
+        })
         .catch(e => {
           console.warn(e)
           console.warn(new Error(`Failed to load section ${index}`))
