@@ -14,7 +14,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // Current app database version
-const int currentDbVersion = 10;
+const int currentDbVersion = 11;
 
 const createBookSQL = '''
 CREATE TABLE tb_books (
@@ -504,6 +504,11 @@ class DBHelper {
           await db.execute('ALTER TABLE tb_books ADD COLUMN series_name TEXT');
           await db.execute('ALTER TABLE tb_books ADD COLUMN series_index REAL');
         }
+        continue case10;
+      case10:
+      case 10:
+        // 松江阅 P0：角色卡 / 关系 / 设定 / 时间线
+        await applyCharacterSchema(db);
     }
 
     if (oldVersion != 0 && SyncPrefs.webdavStatus) {

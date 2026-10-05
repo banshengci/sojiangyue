@@ -125,6 +125,17 @@ class AiPrefs {
     _require.remove(enabledToolsKey);
   }
 
+  // ---- plugin: 导入后自动蒸馏 ----
+  static const String autoDistillOnImportKey = 'autoDistillOnImport';
+
+  /// 导入书籍后是否自动触发「人物蒸馏」插件（默认关闭，避免每次导入都消耗大量 token）。
+  static bool get autoDistillOnImport =>
+      _require.getBool(autoDistillOnImportKey) ?? false;
+
+  static set autoDistillOnImport(bool value) {
+    _require.setBool(autoDistillOnImportKey, value);
+  }
+
   // ---- user prompts ----
 
   static List<UserPrompt> get userPrompts {

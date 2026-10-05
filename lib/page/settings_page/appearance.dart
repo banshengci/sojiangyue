@@ -258,6 +258,15 @@ class _AppearanceSettingState extends State<AppearanceSetting> {
                 });
               },
             ),
+            SettingsTile.switchTile(
+              title: Text(L10n.of(context).navBarGameplay),
+              initialValue: BookshelfPrefs.bottomNavShowGameplay,
+              onToggle: (bool value) {
+                setState(() {
+                  BookshelfPrefs.bottomNavShowGameplay = value;
+                });
+              },
+            ),
           ],
         ),
       ],

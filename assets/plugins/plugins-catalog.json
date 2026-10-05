@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "updatedAt": "2026-10-04",
+  "entries": [
+    {
+      "id": "com.songjiang.translator",
+      "name": "随选即译",
+      "version": "1.0.0",
+      "description": "选中文本后一键调用 AI 翻译/注音/释义（随包预置示例，默认已加载）。",
+      "author": "songjiang-example",
+      "downloadUrl": "assets/plugins/translator.plugin.json",
+      "sha256": "bb7efd712ed64526728ae9f2468f726bbb8c7170ab815ac6b8ed582c03bc4010",
+      "minAppVersion": "1.0.0"
+    },
+    {
+      "id": "com.songjiang.poem_explain",
+      "name": "诗词赏析",
+      "version": "1.0.0",
+      "description": "选中诗句后调用 AI 做多步赏析：先白话串讲，再结合意象做手法与意境赏析（随包示例，经市场安装）。",
+      "author": "songjiang-example",
+      "downloadUrl": "assets/plugins/poem_explain.plugin.json",
+      "sha256": "d41977c355111826dfc04fbed2465c00feb3a057a3e0f2fdd4fe6a0e753b6e32",
+      "minAppVersion": "1.0.0"
+    }
+  ]
+}

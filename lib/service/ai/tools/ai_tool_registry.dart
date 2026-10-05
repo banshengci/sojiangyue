@@ -23,6 +23,9 @@ import 'package:songjiang_reader/service/ai/tools/repository/reading_history_rep
 import 'package:songjiang_reader/service/ai/tools/repository/tag_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:langchain_core/tools.dart';
+import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
+export 'package:songjiang_reader/service/ai/tools/base_tool.dart';
+import 'package:songjiang_reader/plugin/plugin_registry.dart';
 
 /// Context object shared by AI tools so builders don't need long constructors.
 class AiToolContext {
@@ -42,29 +45,7 @@ class AiToolContext {
   bool get isReading => ref.read(currentReadingProvider).isReading;
 }
 
-class AiToolDefinition {
-  const AiToolDefinition({
-    required this.id,
-    required this.displayNameBuilder,
-    required this.descriptionBuilder,
-    required this.build,
-  });
-
-  final String id;
-  final String Function(L10n l10n) displayNameBuilder;
-  final String Function(L10n l10n) descriptionBuilder;
-  final Tool Function(AiToolContext context) build;
-
-  String displayName(L10n l10n) => displayNameBuilder(l10n);
-
-  String description(L10n l10n) => descriptionBuilder(l10n);
-
-  String displayNameOrDefault([L10n? l10n]) =>
-      l10n == null ? id : displayName(l10n);
-
-  String descriptionOrDefault([L10n? l10n]) =>
-      l10n == null ? '' : description(l10n);
-}
+// AiToolDefinition 已下沉至 base_tool.dart（见该文件），避免与插件体系形成 import 环。
 
 class AiToolRegistry {
   static final List<AiToolDefinition> _definitions = [
@@ -83,19 +64,23 @@ class AiToolRegistry {
     tagsListToolDefinition,
     booksTagsListToolDefinition,
     applyBookTagsToolDefinition,
+    ...PluginRegistry.instance.builtinToolDefinitions,
   ];
 
-  static final Map<String, AiToolDefinition> _definitionMap = {
-    for (final def in _definitions) def.id: def,
-  };
+  // 动态聚合：核心工具 + 已启用的动态插件工具（第三方插件运行时加载）。
+  static List<AiToolDefinition> get _allDefinitions =>
+      [..._definitions, ...PluginRegistry.instance.enabledDynamicToolDefinitions];
+
+  static Map<String, AiToolDefinition> get _definitionMap =>
+      {for (final def in _allDefinitions) def.id: def};
 
   static List<AiToolDefinition> get definitions =>
-      List<AiToolDefinition>.unmodifiable(_definitions);
+      List<AiToolDefinition>.unmodifiable(_allDefinitions);
 
   static AiToolDefinition? byId(String id) => _definitionMap[id];
 
   static List<String> defaultEnabledToolIds() =>
-      _definitions.map((def) => def.id).toList(growable: false);
+      _allDefinitions.map((def) => def.id).toList(growable: false);
 
   static List<String> sanitizeIds(List<String> ids) {
     final seen = <String>{};
@@ -113,7 +98,7 @@ class AiToolRegistry {
     List<String> enabledIds,
   ) {
     final enabled = enabledIds.toSet();
-    return _definitions
+    return _allDefinitions
         .where((def) => enabled.contains(def.id))
         .map((def) => def.build(context))
         .toList(growable: false);

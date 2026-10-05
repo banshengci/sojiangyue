@@ -96,6 +96,55 @@ class RemoteConfig {
 
   static String get fontManifestUrl => '${fontBaseUrl}fonts-manifest.json';
 
+  // === 插件市场 ===
+
+  /// 插件市场镜像根 URL（最后需带 `/`）。留空时：市场功能降级为「随包示例目录」
+  /// （离线演示，仅安装随包 assets/plugins/ 下的示例插件）。
+  /// 配置后：从 `${pluginMirrorUrl}plugins-catalog.json` 拉取真实目录，
+  /// 条目下载地址相对路径也据此解析。
+  static const String _pluginMirrorUrl =
+      String.fromEnvironment('PLUGIN_MIRROR_URL', defaultValue: '');
+
+  /// 插件市场根 URL（保证以 `/` 结尾）。
+  static String get pluginMirrorUrl {
+    if (_pluginMirrorUrl.isEmpty) return '';
+    return _pluginMirrorUrl.endsWith('/') ? _pluginMirrorUrl : '$_pluginMirrorUrl/';
+  }
+
+  /// 插件目录文件 URL（plugins-catalog.json）。
+  static String get pluginCatalogUrl => '${pluginMirrorUrl}plugins-catalog.json';
+
+  static bool get enablePluginMarket => true; // 离线示例始终可用；远程镜像可选增强。
+
+  // === 玩法包市场（3.3）===
+
+  /// 玩法包市场镜像根 URL（最后需带 `/`）。留空时：玩法市场降级为「随包示例目录」
+  /// （离线演示，仅安装 assets/gameplay/ 下的示例玩法包）。
+  /// 配置后：从 `${gamepackMirrorUrl}gameplay-catalog.json` 拉取真实目录，
+  /// 条目下载地址相对路径也据此解析（与插件市场共用同一私有镜像哲学）。
+  static const String _gamepackMirrorUrl =
+      String.fromEnvironment('GAMEPACK_MIRROR_URL', defaultValue: '');
+
+  /// 玩法包市场根 URL（保证以 `/` 结尾）。
+  static String get gamepackMirrorUrl {
+    if (_gamepackMirrorUrl.isEmpty) return '';
+    return _gamepackMirrorUrl.endsWith('/')
+        ? _gamepackMirrorUrl
+        : '$_gamepackMirrorUrl/';
+  }
+
+  /// 玩法包目录文件 URL（gameplay-catalog.json）。
+  static String get gamepackCatalogUrl =>
+      '${gamepackMirrorUrl}gameplay-catalog.json';
+
+  static bool get enableGamepackMarket => true; // 离线示例始终可用；远程镜像可选增强。
+
+  /// 运行时配置中心端点（2.5）。留空时：RuntimeConfig 为空，所有读取回退构建期常量。
+  /// 配置后：应用启动拉取该 JSON，运行时覆盖 AI 提示词 / 书源规则 / 主题排版预设，
+  /// 避免为小改动反复发版（端点与「功能可用性」解耦，对齐造梦 PromptLoader 思路）。
+  static const String runtimeConfigUrl =
+      String.fromEnvironment('RUNTIME_CONFIG_URL', defaultValue: '');
+
   // === 文档 / 链接 ===
 
   static String get privacyUrl => _privacyUrl;

@@ -1,0 +1,12 @@
+services:
+  songjiang-server:
+    build: .
+    image: songjiang-server:1.0.0
+    container_name: songjiang-server
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      - SONGJIANG_DATA=/data

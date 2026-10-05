@@ -26,6 +26,7 @@ import 'package:songjiang_reader/widgets/common/color_picker_sheet.dart';
 import 'package:songjiang_reader/widgets/common/tag_chip.dart';
 import 'package:songjiang_reader/widgets/highlight_digit.dart';
 import 'package:songjiang_reader/widgets/hint/hint_banner.dart';
+import 'package:songjiang_reader/page/character/character_list_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -852,6 +853,21 @@ class _BookDetailState extends ConsumerState<BookDetail> {
                     ),
                   ),
                   centerTitle: true,
+                  actions: [
+                    IconButton(
+                      tooltip: '人物关系',
+                      icon: const Icon(Icons.group_outlined),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CharacterListPage(
+                            bookId: widget.book.id,
+                            bookTitle: widget.book.title,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 SliverToBoxAdapter(
                   child: Padding(

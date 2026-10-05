@@ -6,6 +6,7 @@ import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/widgets/common/axis_flex.dart';
 import 'package:songjiang_reader/widgets/context_menu/excerpt_menu.dart';
+import 'package:songjiang_reader/widgets/context_menu/plugin_action_menu.dart';
 import 'package:songjiang_reader/widgets/context_menu/reader_note_menu.dart';
 import 'package:songjiang_reader/widgets/context_menu/translation_menu.dart';
 import 'package:flutter/material.dart';
@@ -527,6 +528,19 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
                             ),
                           ],
                         ),
+                        if (PluginActionMenu.hasActions()) ...[
+                          const SizedBox.square(dimension: 10),
+                          AxisFlex(
+                            axis: widget.axis,
+                            children: [
+                              PluginActionMenu(
+                                content: widget.annoContent,
+                                decoration: widget.decoration,
+                                axis: widget.axis,
+                              ),
+                            ],
+                          ),
+                        ],
                         if (_showReaderNoteMenu) ...[
                           const SizedBox.square(dimension: 10),
                           AxisFlex(

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "id": "com.songjiang.translator",
+  "name": "随选即译",
+  "version": "1.0.0",
+  "description": "选中文本后一键调用 AI 翻译/注音/释义。",
+  "author": "songjiang-example",
+  "minAppVersion": "1.0.0",
+  "permissions": ["read.book.text", "ai.query"],
+  "hooks": [
+    {
+      "event": "onSelectText",
+      "tool": "translate",
+      "ui": { "actionLabel": "AI 译注", "icon": "translate" }
+    }
+  ],
+  "tools": [
+    {
+      "id": "translate",
+      "displayName": "文本翻译",
+      "description": "将选中的文本翻译或注音，返回 Markdown。",
+      "inputSchema": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "string", "description": "待处理的原文" },
+          "mode": { "type": "string", "enum": ["translate", "gloss", "pinyin"] }
+        }
+      },
+      "behavior": "ai_prompt",
+      "prompt": "你是中文阅读助手。用户输入原文与模式：\n模式={{mode}}\n原文={{text}}\n请按要求输出 Markdown。",
+      "model": "inherit"
+    }
+  ]
+}

@@ -17,6 +17,7 @@ class BookshelfPrefs {
   static const String bottomNavNoteKey = 'bottomNavigatorShowNote';
   static const String bottomNavStatsKey = 'bottomNavigatorShowStatistics';
   static const String bottomNavAiKey = 'bottomNavigatorShowAI';
+  static const String bottomNavGameplayKey = 'bottomNavigatorShowGameplay';
 
   static SharedPreferences? _sp;
 
@@ -106,5 +107,12 @@ class BookshelfPrefs {
 
   static set bottomNavShowAi(bool status) {
     _require.setBool(bottomNavAiKey, status);
+  }
+
+  static bool get bottomNavShowGameplay =>
+      _require.getBool(bottomNavGameplayKey) ?? true;
+
+  static set bottomNavShowGameplay(bool status) {
+    _require.setBool(bottomNavGameplayKey, status);
   }
 }

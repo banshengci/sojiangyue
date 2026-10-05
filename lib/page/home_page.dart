@@ -11,6 +11,7 @@ import 'package:songjiang_reader/page/home_page/bookshelf_page.dart';
 import 'package:songjiang_reader/page/home_page/notes_page.dart';
 import 'package:songjiang_reader/page/home_page/settings_page.dart';
 import 'package:songjiang_reader/page/home_page/statistics_page.dart';
+import 'package:songjiang_reader/page/gameplay/gameplay_center_page.dart';
 import 'package:songjiang_reader/service/receive_file/receive_share.dart';
 import 'package:songjiang_reader/service/vibration_service.dart';
 import 'package:songjiang_reader/utils/check_update.dart';
@@ -132,8 +133,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // 松江阅底部导航固定为四个：书架 / 统计 / 笔记 / 设置。
+    // 松江阅底部导航：书架 / 统计 / 笔记 / 设置 / 玩法（常驻）。
     // AI 不占用底栏入口，改由「更多设置 → AI 对话」与阅读页侧栏进入。
+    // 玩法中心（阅读剧本 / 名场面卡 / 读书挑战）为常驻入口，使用 Material 图标，
+    // 不依赖品牌 SVG 资源（与「搜索 / 我的」同例）。
     List<Map<String, dynamic>> navBarItems = [
       {
         'icon': SongJiangIcons.bookshelf,
@@ -165,6 +168,14 @@ class _HomePageState extends ConsumerState<HomePage> {
         'label': L10n.of(context).navBarSettings,
         'identifier': 'settings'
       },
+      if (BookshelfPrefs.bottomNavShowGameplay)
+        {
+          'icon': SongJiangIcons.gameplay,
+          'iconSelected': SongJiangIcons.gameplaySelected,
+          'brand': null,
+          'label': L10n.of(context).navBarGameplay,
+          'identifier': 'gameplay'
+        },
     ];
 
     // 品牌导航项（用于 SjBottomNav）
@@ -194,6 +205,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           StatisticPage(controller: controller),
         if (BookshelfPrefs.bottomNavShowNote) NotesPage(controller: controller),
         SettingsPage(controller: controller),
+        if (BookshelfPrefs.bottomNavShowGameplay)
+          GameplayCenterPage(controller: controller),
       ];
       return page[index];
     }
@@ -270,7 +283,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           return Scaffold(
             extendBody: true,
             body: BottomBar(
-              width: 330,
+              width: 392,
               body: (_, controller) =>
                   pages(currentIndex, constraints, controller),
               hideOnScroll: ReadingUiPrefs.autoHideBottomBar,

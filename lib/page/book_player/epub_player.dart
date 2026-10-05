@@ -33,6 +33,7 @@ import 'package:songjiang_reader/providers/book_list.dart';
 import 'package:songjiang_reader/providers/book_toc.dart';
 import 'package:songjiang_reader/providers/bookmark.dart';
 import 'package:songjiang_reader/providers/chapter_content_bridge.dart';
+import 'package:songjiang_reader/plugin/plugin_event_dispatcher.dart';
 import 'package:songjiang_reader/providers/current_reading.dart';
 import 'package:songjiang_reader/service/book_player/book_player_server.dart';
 import 'package:songjiang_reader/providers/toc_search.dart';
@@ -94,6 +95,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   String chapterHref = '';
   int chapterCurrentPage = 0;
   int chapterTotalPages = 0;
+  String _dispatchedChapterHref = '';
   OverlayEntry? contextMenuEntry;
   AnimationController? _animationController;
   Animation<double>? _animation;
@@ -665,6 +667,14 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
             writingMode =
                 WritingModeEnum.fromCode(location['writingMode'] ?? '');
           });
+          // 进入新章节时触发插件事件（发即弃，chapterHref 去重避免同章内翻页重复触发）。
+          if (chapterHref != _dispatchedChapterHref) {
+            _dispatchedChapterHref = chapterHref;
+            PluginEventDispatcher.instance.onChapterEntered(
+              widget.book.id,
+              chapterIndex: chapterCurrentPage,
+            );
+          }
           ref.read(currentReadingProvider.notifier).update(
                 cfi: cfi,
                 percentage: percentage,

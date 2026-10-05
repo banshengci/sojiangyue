@@ -5,6 +5,7 @@ import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/config/ai_prefs.dart';
+import 'package:songjiang_reader/plugin/plugin_event_dispatcher.dart';
 import 'package:songjiang_reader/dao/reading_time.dart';
 import 'package:songjiang_reader/dao/theme.dart';
 import 'package:songjiang_reader/enums/ai_panel_position.dart';
@@ -116,6 +117,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
 
     _book = widget.book;
     heroTag = widget.heroTag ?? 'preventHeroWhenStart';
+    // 触发插件「打开书籍」事件（发即弃，不阻塞阅读器初始化）。
+    PluginEventDispatcher.instance.onBookOpened(_book.id);
     // _volumeKeyBoard = VolumeKeyBoard.instance;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {

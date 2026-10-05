@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "entries": [
+    {
+      "id": "com.songjiang.hlm_quiz",
+      "name": "红楼诗词闯关",
+      "version": "1.0.0",
+      "author": "songjiang-demo",
+      "description": "红楼梦人物与诗词闯关：粘贴选段即出关系题与赏析（reading_script）",
+      "packType": "reading_script",
+      "downloadUrl": "assets/gameplay/hlm_quiz.sjgame.zip",
+      "sha256": "d4fba877f4e8a17fe314babdb0bed75384891187d23646fc341b4457abe8cd09"
+    },
+    {
+      "id": "com.songjiang.sanguo_scene",
+      "name": "三国名场面卡",
+      "version": "1.0.0",
+      "author": "songjiang-demo",
+      "description": "三国演义经典名场面分享卡（scene_card）",
+      "packType": "scene_card",
+      "downloadUrl": "assets/gameplay/sanguo_scene.sjgame.zip",
+      "sha256": "5991539422102278c4dda5564dcbce1ae6b301902158711caa8786f43ff8b439"
+    },
+    {
+      "id": "com.songjiang.daily",
+      "name": "每日阅读挑战",
+      "version": "1.0.0",
+      "author": "songjiang-demo",
+      "description": "轻量每日阅读目标 + 成就激励（reading_challenge）",
+      "packType": "reading_challenge",
+      "downloadUrl": "assets/gameplay/daily_challenge.sjgame.zip",
+      "sha256": "8ff516c84f3746463e00b2cbab51d2b83afab811b883375292d85e58cb4a7631"
+    }
+  ]
+}

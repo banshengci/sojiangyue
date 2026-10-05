@@ -1,13 +1,18 @@
 import 'package:songjiang_reader/config/ai_prefs.dart';
+import 'package:songjiang_reader/config/runtime_config.dart';
 import 'package:songjiang_reader/enums/ai_prompts.dart';
 import 'package:songjiang_reader/enums/ai_chat_display_mode.dart';
 import 'package:songjiang_reader/enums/ai_panel_position.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/page/settings_page/ai_provider_list_page.dart';
+import 'package:songjiang_reader/page/long_task/long_task_center_page.dart';
+import 'package:songjiang_reader/page/gameplay/gameplay_center_page.dart';
 import 'package:songjiang_reader/providers/ai_cache_count.dart';
 import 'package:songjiang_reader/providers/ai_providers.dart';
 import 'package:songjiang_reader/providers/user_prompts.dart';
 import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
+import 'package:songjiang_reader/plugin/plugin_registry.dart';
+import 'package:songjiang_reader/plugin/plugin_market_dialog.dart';
 import 'package:songjiang_reader/widgets/common/sj_button.dart';
 import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:songjiang_reader/widgets/delete_confirm.dart';
@@ -279,7 +284,122 @@ class _AISettingsState extends ConsumerState<AISettings> {
       SettingsSection(
         title: Text(l10n.settingsAiTools),
         tiles: [
+          SettingsTile.switchTile(
+            initialValue: AiPrefs.autoDistillOnImport,
+            onToggle: (value) {
+              AiPrefs.autoDistillOnImport = value;
+              setState(() {});
+            },
+            title: const Text('导入后自动蒸馏人物'),
+            description: const Text(
+              '导入书籍后自动抽取人物与关系（当前仅支持 TXT，会消耗较多 Token）',
+            ),
+          ),
           toolsTile,
+        ],
+      ),
+      SettingsSection(
+        title: const Text('插件'),
+        tiles: [
+          CustomSettingsTile(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final plugin in PluginRegistry.instance.plugins)
+                  ListTile(
+                    leading: const Icon(Icons.extension_outlined),
+                    title: Text(plugin.name),
+                    subtitle: Text('${plugin.version} · ${plugin.description}'),
+                    trailing: plugin is DeclarativePlugin
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Switch(
+                                value: PluginRegistry.instance.isEnabled(plugin.id),
+                                onChanged: (v) {
+                                  PluginRegistry.instance.setEnabled(plugin.id, v);
+                                  setState(() {});
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                tooltip: '卸载',
+                                onPressed: () {
+                                  PluginRegistry.instance.unload(plugin.id);
+                                  setState(() {});
+                                },
+                              ),
+                            ],
+                          )
+                        : const Chip(label: Text('内置')),
+                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    '内置插件为系统能力不可卸载；第三方插件可在此启用/禁用/卸载。'
+                    '「插件市场」会拉取目录并逐条校验 SHA256 后安装，缺失校验和的插件将被拒绝。',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.store_outlined, size: 18),
+                        label: const Text('插件市场'),
+                        onPressed: () async {
+                          final ctx = context;
+                          await showPluginMarketDialog(ctx);
+                          if (mounted) setState(() {});
+                        },
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.download_outlined, size: 18),
+                        label: const Text('加载随包示例插件'),
+                        onPressed: () async {
+                          await PluginRegistry.instance.ensureLoaded();
+                          setState(() {});
+                        },
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.cloud_sync_outlined, size: 18),
+                        label: const Text('刷新远程配置'),
+                        onPressed: () async {
+                          await RuntimeConfig.instance.refresh();
+                          if (mounted) setState(() {});
+                          SjToast.show(RuntimeConfig.instance.lastError == null
+                              ? '远程配置已刷新（${RuntimeConfig.instance.isLoaded ? '已生效' : ''}）'
+                              : '刷新失败：${RuntimeConfig.instance.lastError}');
+                        },
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.task_outlined, size: 18),
+                        label: const Text('任务中心'),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LongTaskCenterPage(),
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.casino_outlined, size: 18),
+                        label: const Text('玩法中心'),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const GameplayCenterPage(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
       SettingsSection(

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0",
+  "distill.systemPrompt": "你是一位严谨的中文小说人物分析师（云端覆盖版）。在原有规则基础上，额外输出每个人物的「经典台词」与「命运走向」字段。",
+  "distill.chunkBudget": 14000,
+  "bookSource.ruleVersion": "2026.10",
+  "theme.readingAccent": "#2E6B4F",
+  "x_songjiang_minApp": "1.0.0"
+}

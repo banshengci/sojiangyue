@@ -27,6 +27,7 @@ import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/utils/import_book.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
+import 'package:songjiang_reader/plugin/plugin_event_dispatcher.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/utils/webView/gererate_url.dart';
 import 'package:songjiang_reader/utils/webView/webview_console_message.dart';
@@ -645,6 +646,7 @@ Future<void> saveBook(
       updateTime: DateTime.now());
 
   book.id = await bookDao.insertBook(book);
+  PluginEventDispatcher.instance.onBookImported(book.id); // P0c: 触发插件钩子（导入后自动蒸馏等）
   SjToast.show(L10n.of(navigatorKey.currentContext!).serviceImportSuccess);
   await headlessInAppWebView?.dispose();
   headlessInAppWebView = null;

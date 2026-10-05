@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "id": "com.songjiang.poem_explain",
+  "name": "诗词赏析",
+  "version": "1.0.0",
+  "description": "选中诗句后调用 AI 做多步赏析：先白话串讲，再结合意象做手法与意境赏析，返回 Markdown。",
+  "author": "songjiang-example",
+  "minAppVersion": "1.0.0",
+  "permissions": ["read.book.text", "ai.query"],
+  "hooks": [
+    {
+      "event": "onSelectText",
+      "tool": "explain",
+      "ui": { "actionLabel": "赏析", "icon": "auto_stories" }
+    }
+  ],
+  "tools": [
+    {
+      "id": "explain",
+      "displayName": "诗句多步赏析",
+      "description": "两步走：先白话串讲，再结合串讲做修辞手法、意象与意境赏析，返回 Markdown。",
+      "inputSchema": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "string", "description": "待赏析的诗句" }
+        }
+      },
+      "behavior": "llmChain",
+      "steps": [
+        {
+          "as": "paraphrase",
+          "prompt": "你是古典诗词助教。请仅对下列诗句做准确、通俗的白话串讲，不要赏析，不要发挥：\n{{text}}"
+        },
+        {
+          "as": "analysis",
+          "prompt": "基于下面的白话串讲，对原诗句做修辞手法、意象与意境赏析，使用 Markdown 输出。\n原句：{{text}}\n串讲：{{paraphrase}}"
+        }
+      ]
+    }
+  ]
+}

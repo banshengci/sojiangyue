@@ -18,6 +18,10 @@ class SongJiangIcons {
   static const IconData settings = Icons.tune_outlined;
   static const IconData settingsSelected = Icons.tune_rounded;
 
+  // ---- 玩法中心（阅读剧本 / 名场面 / 挑战）----
+  static const IconData gameplay = Icons.sports_esports_outlined;
+  static const IconData gameplaySelected = Icons.sports_esports_rounded;
+
   // ---- 书架动作 ----
   static const IconData import = Icons.add_circle_outline_rounded;
   static const IconData importSelected = Icons.add_circle_rounded;
