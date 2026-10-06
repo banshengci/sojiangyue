@@ -106,7 +106,7 @@ dependencies:
   pretty_dio_logger: ^1.4.0
   dio_intercept_to_curl: ^0.2.0
   flutter_gemini: ^3.0.0
-  gpt_markdown: ^1.1.4
+  gpt_markdown: 1.2.1 # 锁定：1.3.x 引入的 val_latex_flutter 0.1.2 调用了 Flutter 3.35.3 不存在的 SemanticsService.sendAnnouncement
   pointer_interceptor: ^0.10.1+2
   connectivity_plus: ^6.1.3
   http: ^1.3.0

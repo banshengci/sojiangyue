@@ -190,7 +190,7 @@ class _GraphView extends StatelessWidget {
           final name = node.key?.value?.toString() ?? '';
           final card = byName[name];
           final importance = card?.importance ?? 50;
-          final box = (56 + importance / 100 * 40).clamp(56, 96);
+          final box = (56 + importance / 100 * 40).clamp(56.0, 96.0);
           return GestureDetector(
             onTap: () => onTapNode(name),
             child: Container(

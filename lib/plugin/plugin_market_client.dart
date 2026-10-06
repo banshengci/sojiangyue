@@ -214,7 +214,7 @@ class PluginMarketClient {
         PluginSecurity.hexToBytes(signatureHex),
         publicKey: publicKey,
       );
-      return ed.verify(bytes, signature);
+      return ed.verify(bytes, signature: signature);
     } catch (e) {
       SjLog.warning('PluginMarket: Ed25519 验签异常: $e');
       return false;

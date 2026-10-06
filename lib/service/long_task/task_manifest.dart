@@ -80,6 +80,8 @@ class TaskManifest {
 
   double get progress => total == 0 ? 0 : (processed / total).clamp(0, 1);
 
+  bool get isInterrupted => status.isInterrupted;
+
   TaskManifest copyWith({
     LongTaskStatus? status,
     int? processed,
