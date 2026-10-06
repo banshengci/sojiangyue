@@ -452,10 +452,15 @@ jobs:
             libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
             libasound2-dev
-          # WPE WebKit：flutter_inappwebview_linux 需要。
-          # 包名在不同 Ubuntu 版本间有变动（libwpewebkit-1.0-dev 为新名，
-          # libwpe-1.0-dev / libwpebackend-fdo-1.0-dev 为旧名），
-          # 逐包探测安装，只装当前镜像真实存在的那一个。
+          # WPE WebKit：flutter_inappwebview_linux 需要。逐包探测安装。
+          #
+          # 已知问题：自 ubuntu-24.04（noble）起，Ubuntu 官方源已不再提供
+          # WPE WebKit 开发包（libwpewebkit-1.0-dev 仅存在于 22.04 jammy）。
+          # 因此 ubuntu-latest 上该插件无法构建。这是 flutter_inappwebview
+          # 的上游缺陷（见 issue #2807 / #2862），社区暂无解。
+          #
+          # 处理方式：有包就装，没包就跳过，让后续构建失败时给出清晰结论，
+          # 而不是让依赖步骤本身先炸掉、掩盖真正原因。
           install_if_available() {
             for pkg in "$@"; do
               if apt-cache show "$pkg" >/dev/null 2>&1; then
@@ -493,10 +498,26 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
+      - name: Check WPE WebKit availability
+        id: wpe
+        run: |
+          if pkg-config --exists wpe-webkit-2.0 wpe-platform-2.0 \
+             || pkg-config --exists wpe-webkit-1.1 wpebackend-fdo-1.0 \
+             || pkg-config --exists wpe-webkit-1.0 wpebackend-fdo-1.0; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::WPE WebKit 在本镜像不可用（ubuntu-latest 已升至 24.04，\
+          Ubuntu 官方源不再提供该开发包）。跳过 Linux 构建——这是 flutter_inappwebview \
+          的上游限制，非本项目代码问题。"
+          fi
+
       - name: Build Linux (debug)
+        if: steps.wpe.outputs.available == 'true'
         run: flutter build linux --debug --no-pub
 
       - name: Upload artifact
+        if: steps.wpe.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: songjiang_reader-linux-debug
