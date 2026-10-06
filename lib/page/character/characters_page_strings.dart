@@ -22,8 +22,8 @@ class CharactersPageText {
   static const done = '完成';
   static const background = '后台运行';
   static const close = '关闭';
-  static const charactersCount = (int n) => '已识别 $n 位人物';
-  static const relationsCount = (int n) => '$n 条关系';
+  static String charactersCount(int n) => '已识别 $n 位人物';
+  static String relationsCount(int n) => '$n 条关系';
   static const importance = '重要度';
   static const identity = '身份';
   static const personality = '性格';
@@ -37,6 +37,6 @@ class CharactersPageText {
   static const worldSettingsTitle = '世界观设定';
   static const noRelation = '暂无记录的关系。';
   static const noWorld = '暂无世界观设定。';
-  static const relationTo = (String name) => '→ $name';
-  static const relationType = (String? t) => t == null || t.isEmpty ? '关联' : t;
+  static String relationTo(String name) => '→ $name';
+  static String relationType(String? t) => t == null || t.isEmpty ? '关联' : t;
 }

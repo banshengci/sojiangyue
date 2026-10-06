@@ -6,6 +6,7 @@ import 'package:songjiang_reader/utils/platform_utils.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
+import 'package:songjiang_reader/dao/character_schema.dart';
 import 'package:songjiang_reader/service/book.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
 import 'package:songjiang_reader/utils/get_path/databases_path.dart';

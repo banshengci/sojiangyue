@@ -6,6 +6,7 @@
 import 'dart:convert';
 
 import 'package:songjiang_reader/config/ai_prefs.dart';
+import 'package:langchain_core/prompts.dart';
 import 'package:songjiang_reader/service/ai/langchain_ai_config.dart';
 import 'package:songjiang_reader/service/ai/langchain_registry.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
@@ -52,7 +53,7 @@ class DeclarativePluginTool
     final config = LangchainAiConfig.fromPrefs(id, raw);
     final model = LangchainAiRegistry(null).resolve(config).model;
     final prompt = _renderTemplate(spec.prompt ?? '', input);
-    final res = await model.invoke(prompt);
+    final res = await model.invoke(PromptValue.string(prompt));
     final text = _extractText(res);
     return jsonEncode({
       'status': 'ok',
@@ -102,7 +103,7 @@ class DeclarativeChainTool
     var last = '';
     for (final step in spec.steps) {
       final rendered = _renderTemplate(step.prompt, vars);
-      final res = await model.invoke(rendered);
+      final res = await model.invoke(PromptValue.string(rendered));
       final text = _extractText(res);
       vars[step.as] = text;
       stepsOut[step.as] = text;
