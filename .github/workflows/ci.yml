@@ -338,7 +338,16 @@ jobs:
           rm -f macos/Podfile.lock
 
       - name: Build macOS (debug)
-        run: flutter build macos --debug --no-pub
+        # Runner 上没有项目里写死的 DEVELOPMENT_TEAM 证书（28W956D5K8 为上游
+        # 作者个人账号），默认会因「No signing certificate "Mac Development"」
+        # 失败。CI 只做可编译性验证，显式关掉签名。
+        # CODE_SIGN_IDENTITY="-" 即 ad-hoc 签名，本地/CI 通用且无需证书。
+        run: |
+          flutter build macos --debug --no-pub \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM=""
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
