@@ -33,7 +33,7 @@ class CharacterDistillPlugin implements SongjiangPlugin {
       ];
 
   @override
-  List<AiToolDefinition> get tools => const [distillCharactersToolDefinition];
+  List<AiToolDefinition> get tools => [distillCharactersToolDefinition];
 
   @override
   List<PluginHook> get hooks => const [

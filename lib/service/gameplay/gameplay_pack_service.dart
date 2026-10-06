@@ -110,7 +110,7 @@ class GameplayPackService {
   Future<Set<String>> activatedIds() async {
     try {
       final sp = await SharedPreferences.getInstance();
-      return sp.getStringList(_activatedKey).toSet();
+      return (sp.getStringList(_activatedKey) ?? const <String>[]).toSet();
     } catch (_) {
       return const {};
     }
@@ -118,14 +118,14 @@ class GameplayPackService {
 
   Future<void> _markActivated(String id) async {
     final sp = await SharedPreferences.getInstance();
-    final set = sp.getStringList(_activatedKey).toSet();
+    final set = (sp.getStringList(_activatedKey) ?? const <String>[]).toSet();
     set.add(id);
     await sp.setStringList(_activatedKey, set.toList());
   }
 
   Future<void> _unmarkActivated(String id) async {
     final sp = await SharedPreferences.getInstance();
-    final set = sp.getStringList(_activatedKey).toSet();
+    final set = (sp.getStringList(_activatedKey) ?? const <String>[]).toSet();
     set.remove(id);
     await sp.setStringList(_activatedKey, set.toList());
   }
