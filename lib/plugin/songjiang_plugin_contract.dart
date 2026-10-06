@@ -157,7 +157,8 @@ class PluginManifest {
         description: j['description'] as String? ?? '',
         author: j['author'] as String? ?? '',
         permissions: (j['permissions'] as List? ?? [])
-            .map((e) => PluginPermission.parse(e as String))
+            .whereType<String>()
+            .map(PluginPermission.parse)
             .whereType<PluginPermission>()
             .toList(),
         hooks: (j['hooks'] as List? ?? [])
