@@ -132,7 +132,7 @@ class TaskManifestStore {
         if (decoded is List) {
           _cache = decoded
               .whereType<Map>()
-              .map((m) => TaskManifest.fromJson(m))
+              .map((m) => TaskManifest.fromJson(m.cast<String, dynamic>()))
               .toList();
         }
       }

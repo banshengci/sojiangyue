@@ -61,8 +61,10 @@ DistillResult parseDistillJson(String raw, {required int bookId}) {
     final decoded = jsonDecode(jsonText);
     final now = DateTime.now();
     if (decoded is List) {
-      final characters =
-          decoded.whereType<Map>().map((m) => _toCard(m, bookId, now)).toList();
+      final characters = decoded
+          .whereType<Map>()
+          .map((m) => _toCard(m.cast<String, dynamic>(), bookId, now))
+          .toList();
       return DistillResult(characters: characters);
     }
     if (decoded is Map) {

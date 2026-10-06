@@ -249,7 +249,8 @@ final AiToolDefinition bookshelfOrganizeToolDefinition = AiToolDefinition(
   id: 'bookshelf_organize',
   displayNameBuilder: (L10n l10n) => l10n.aiToolBookshelfOrganizeName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolBookshelfOrganizeDescription,
-  build: (context) =>
-      BookshelfOrganizeTool(context.booksRepository, context.groupsRepository)
-          .tool,
+  build: (context) => BookshelfOrganizeTool(
+          (context as AiToolContext).booksRepository,
+          (context as AiToolContext).groupsRepository)
+      .tool,
 );
