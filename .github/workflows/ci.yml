@@ -119,7 +119,7 @@ jobs:
         with:
           name: songjiang_reader-windows-release
           path: build/windows/x64/runner/Release
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
   # ============ Android ============
@@ -203,7 +203,7 @@ jobs:
         with:
           name: songjiang_reader-android-debug
           path: build/app/outputs/flutter-apk/*.apk
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
   # ============ Android release（打 tag 时才跑） ============
@@ -291,7 +291,7 @@ jobs:
           path: |
             build/app/outputs/flutter-apk/*.apk
             build/app/outputs/bundle/release/*.aab
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
   # ============ macOS ============
@@ -354,7 +354,7 @@ jobs:
         with:
           name: songjiang_reader-macos-debug
           path: build/macos/Build/Products/Debug/*.app
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
   # ============ iOS（无开发者账号：打出未签名 IPA，供 TrollStore 侧载） ============
@@ -446,20 +446,28 @@ jobs:
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
-          # flutter_inappwebview_linux 需要 WPE WebKit
+          # 基础依赖：这些在所有受支持的 Ubuntu 版本上都存在，必须装成功
           sudo apt-get install -y \
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-            libasound2-dev \
-            libwpe-1.0-dev libwpebackend-fdo-1.0-dev \
-            libwpewebkit-1.0-dev || \
-          sudo apt-get install -y \
-            clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libstdc++-12-dev \
-            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-            libasound2-dev \
-            libwpe-1.0-dev libwpebackend-fdo-1.0-dev
+            libasound2-dev
+          # WPE WebKit：flutter_inappwebview_linux 需要。
+          # 包名在不同 Ubuntu 版本间有变动（libwpewebkit-1.0-dev 为新名，
+          # libwpe-1.0-dev / libwpebackend-fdo-1.0-dev 为旧名），
+          # 逐包探测安装，只装当前镜像真实存在的那一个。
+          install_if_available() {
+            for pkg in "$@"; do
+              if apt-cache show "$pkg" >/dev/null 2>&1; then
+                echo ">>> 安装 $pkg"
+                sudo apt-get install -y "$pkg"
+              else
+                echo ">>> 跳过（当前镜像无此包）: $pkg"
+              fi
+            done
+          }
+          install_if_available libwpewebkit-1.0-dev
+          install_if_available libwpe-1.0-dev libwpebackend-fdo-1.0-dev
 
       - name: Setup Flutter 3.35.3
         uses: subosito/flutter-action@v2
@@ -493,5 +501,5 @@ jobs:
         with:
           name: songjiang_reader-linux-debug
           path: build/linux/x64/debug/bundle
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
