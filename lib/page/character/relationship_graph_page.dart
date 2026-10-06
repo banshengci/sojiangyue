@@ -15,9 +15,9 @@ import 'characters_page_strings.dart';
 /// - 连线颜色随 [CharacterRelation.trust] 正负变化：正向=江青，负向=砂朱；
 /// - 连线粗细随 |trust| 变化。
 ///
-/// 布局算法用 graphview 的 [FruchterNakaoAlgorithm]（力导向，天然支持含环的
+/// 布局算法用 graphview 的 [FruchtermanReingoldAlgorithm]（力导向，天然支持含环的
 /// 一般图，不会因关系成环而崩溃）。如需更紧凑的层次布局，可替换为
-/// `BuchheimWalkerAlgorithm(config, ArrowEdgeRenderer(config))`。
+/// `BuchheimWalkerAlgorithm(config, TreeEdgeRenderer(config))`。
 class RelationshipGraphPage extends StatefulWidget {
   const RelationshipGraphPage({super.key, required this.bookId, this.bookTitle});
 
@@ -72,7 +72,9 @@ class _RelationshipGraphPageState extends State<RelationshipGraphPage> {
         final b = nodeFor(r.targetName);
         final trust = r.trust;
         final color = trust >= 0 ? _positive : _negative;
-        final width = (1 + (trust.abs() / 20).clamp(0, 5) * 1.0).clamp(1, 6);
+        final width = (1 + (trust.abs() / 20).clamp(0.0, 5.0))
+            .clamp(1.0, 6.0)
+            .toDouble();
         graph.addEdge(
           a,
           b,
@@ -83,7 +85,10 @@ class _RelationshipGraphPageState extends State<RelationshipGraphPage> {
         );
       }
 
-      final algorithm = FruchterNakaoAlgorithm(300, 1.0, graph);
+      final configuration = FruchtermanReingoldConfiguration()
+        ..iterations = 300
+        ..attractionRate = 1.0;
+      final algorithm = FruchtermanReingoldAlgorithm(configuration);
 
       if (!mounted) return;
       setState(() {

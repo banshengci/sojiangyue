@@ -84,5 +84,5 @@ final AiToolDefinition notesSearchToolDefinition = AiToolDefinition(
   id: 'notes_search',
   displayNameBuilder: (L10n l10n) => l10n.aiToolNotesSearchName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolNotesSearchDescription,
-  build: (context) => NotesSearchTool(context.notesRepository).tool,
+  build: (context) => NotesSearchTool((context as AiToolContext).notesRepository).tool,
 );

@@ -72,5 +72,5 @@ final AiToolDefinition currentBookTocToolDefinition = AiToolDefinition(
   id: 'current_book_toc',
   displayNameBuilder: (L10n l10n) => l10n.aiToolCurrentBookTocName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolCurrentBookTocDescription,
-  build: (context) => CurrentBookTocTool(context.ref).tool,
+  build: (context) => CurrentBookTocTool((context as AiToolContext).ref).tool,
 );

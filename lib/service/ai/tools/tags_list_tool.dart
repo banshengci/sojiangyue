@@ -11,7 +11,7 @@ final tagsListToolDefinition = AiToolDefinition(
   id: _tagsListToolId,
   displayNameBuilder: (L10n l10n) => l10n.aiToolTagsListName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolTagsListDescription,
-  build: (context) => TagsListTool(context.tagRepository).tool,
+  build: (context) => TagsListTool((context as AiToolContext).tagRepository).tool,
 );
 
 class TagsListTool

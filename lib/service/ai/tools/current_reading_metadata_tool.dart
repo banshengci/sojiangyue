@@ -77,5 +77,5 @@ final AiToolDefinition currentReadingMetadataToolDefinition = AiToolDefinition(
   displayNameBuilder: (L10n l10n) => l10n.aiToolCurrentReadingMetadataName,
   descriptionBuilder: (L10n l10n) =>
       l10n.aiToolCurrentReadingMetadataDescription,
-  build: (context) => CurrentReadingMetadataTool(context.ref).tool,
+  build: (context) => CurrentReadingMetadataTool((context as AiToolContext).ref).tool,
 );

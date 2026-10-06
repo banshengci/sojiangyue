@@ -12,7 +12,7 @@ final booksTagsListToolDefinition = AiToolDefinition(
   id: _booksTagsListToolId,
   displayNameBuilder: (L10n l10n) => l10n.aiToolBooksTagsListName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolBooksTagsListDescription,
-  build: (context) => BooksTagsListTool(context.tagRepository).tool,
+  build: (context) => BooksTagsListTool((context as AiToolContext).tagRepository).tool,
 );
 
 class BooksTagsListTool

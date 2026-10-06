@@ -76,5 +76,5 @@ final AiToolDefinition bookshelfLookupToolDefinition = AiToolDefinition(
   id: 'bookshelf_lookup',
   displayNameBuilder: (L10n l10n) => l10n.aiToolBookshelfLookupName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolBookshelfLookupDescription,
-  build: (context) => BookshelfLookupTool(context.booksRepository).tool,
+  build: (context) => BookshelfLookupTool((context as AiToolContext).booksRepository).tool,
 );

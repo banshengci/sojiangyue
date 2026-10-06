@@ -62,7 +62,7 @@ final AiToolDefinition chapterContentByHrefToolDefinition = AiToolDefinition(
   displayNameBuilder: (L10n l10n) => l10n.aiToolChapterContentByHrefName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolChapterContentByHrefDescription,
   build: (context) => ChapterContentByHrefTool(
-    context.ref,
+    (context as AiToolContext).ref,
     const ChapterContentRepository(),
   ).tool,
 );

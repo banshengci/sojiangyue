@@ -82,5 +82,6 @@ final AiToolDefinition readingHistoryToolDefinition = AiToolDefinition(
   id: 'reading_history',
   displayNameBuilder: (L10n l10n) => l10n.aiToolReadingHistoryName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolReadingHistoryDescription,
-  build: (context) => ReadingHistoryTool(context.readingHistoryRepository).tool,
+  build: (context) => ReadingHistoryTool(
+      (context as AiToolContext).readingHistoryRepository).tool,
 );

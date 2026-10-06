@@ -45,7 +45,6 @@ final AiToolDefinition currentChapterContentToolDefinition = AiToolDefinition(
   displayNameBuilder: (L10n l10n) => l10n.aiToolCurrentChapterContentName,
   descriptionBuilder: (L10n l10n) =>
       l10n.aiToolCurrentChapterContentDescription,
-  build: (context) =>
-      CurrentChapterContentTool(context.ref, const ChapterContentRepository())
-          .tool,
+  build: (context) => CurrentChapterContentTool(
+      (context as AiToolContext).ref, const ChapterContentRepository()).tool,
 );

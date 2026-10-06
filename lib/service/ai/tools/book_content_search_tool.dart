@@ -66,6 +66,6 @@ final AiToolDefinition bookContentSearchToolDefinition = AiToolDefinition(
   id: 'book_content_search',
   displayNameBuilder: (L10n l10n) => l10n.aiToolBookContentSearchName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolBookContentSearchDescription,
-  build: (context) =>
-      BookContentSearchTool(context.bookContentSearchRepository).tool,
+  build: (context) => BookContentSearchTool(
+      (context as AiToolContext).bookContentSearchRepository).tool,
 );
