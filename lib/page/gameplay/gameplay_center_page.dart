@@ -298,6 +298,20 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
             Text(mode.summary,
                 style: const TextStyle(
                     fontSize: 11, color: Colors.grey, height: 1.4)),
+            if (mode.hasRuntime) ...[
+              const SizedBox(height: 6),
+              Text(
+                [
+                  if (mode.stats.isNotEmpty) '带状态',
+                  if (mode.phases.isNotEmpty) '分幕',
+                  if (mode.setupPrompt != null) '有暗牌',
+                ].join(' · '),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -332,7 +346,8 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
           bookId: book.id,
           characterName: card.name,
           bookTitle: book.title,
-          gameplayDirective: mode.directive,
+          // 传完整玩法（不只一段提示词）：对局会开启状态追踪、分幕与暗牌
+          gameplayMode: mode,
           opening: scene,
         ),
       ),

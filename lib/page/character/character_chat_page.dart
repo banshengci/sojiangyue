@@ -9,6 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:songjiang_reader/dao/character_chat_dao.dart';
+import 'package:songjiang_reader/dao/gameplay_dao.dart';
+import 'package:songjiang_reader/models/gameplay_mode.dart';
+import 'package:songjiang_reader/models/gameplay_session.dart';
+import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
 import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
 import 'package:songjiang_reader/service/character/character_chat_service.dart';
@@ -32,6 +36,7 @@ class CharacterChatPage extends StatefulWidget {
     this.opening,
     this.titleOverride,
     this.gameplayDirective,
+    this.gameplayMode,
   });
 
   final CharacterChatSession? session;
@@ -49,6 +54,9 @@ class CharacterChatPage extends StatefulWidget {
   /// 玩法模式的规则外壳（如「规则怪谈」的规矩），会拼进角色的 system 设定。
   final String? gameplayDirective;
 
+  /// 玩法模式（带状态/分幕/暗牌的完整玩法）。传入后本局会开启玩法运行时。
+  final GameplayMode? gameplayMode;
+
   @override
   State<CharacterChatPage> createState() => _CharacterChatPageState();
 }
@@ -60,6 +68,13 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
   CharacterChatSession? _session;
   List<CharacterChatMessage> _messages = [];
+
+  /// 玩法运行时状态（仅当选了玩法模式时存在）。
+  GameplaySession? _gameplay;
+  bool _gameplayBusy = false;
+
+  /// 原始流式文本（含状态块）；展示时剥离，结算时解析。
+  String _streamingRaw = '';
   String _streaming = '';
   bool _loading = true;
   bool _sending = false;
@@ -75,6 +90,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   /// 玩法规则与开局情境合并后的额外设定。
   String? get _extraDirective {
     final parts = <String>[
+      if (widget.gameplayMode != null && _gameplay != null)
+        GameplayRuntime.buildDirective(
+            mode: widget.gameplayMode!, session: _gameplay!),
       if (widget.gameplayDirective?.trim().isNotEmpty ?? false)
         widget.gameplayDirective!.trim(),
       if (widget.opening?.trim().isNotEmpty ?? false)
@@ -128,6 +146,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         if (!mounted) return;
         setState(() => _messages = refreshed);
       }
+      await _initGameplay(session);
+
       if (_messages.isEmpty) await _generateGreeting();
       _scrollToEnd();
     } catch (e) {
@@ -137,6 +157,100 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         _loading = false;
       });
     }
+  }
+
+  /// 初始化玩法运行时：加载或新建本局状态，需要暗牌则先生成。
+  Future<void> _initGameplay(CharacterChatSession session) async {
+    final mode = widget.gameplayMode;
+    if (mode == null) return;
+
+    final existing = await gameplayDao.getByChatSession(session.id!);
+    if (existing != null) {
+      if (!mounted) return;
+      setState(() => _gameplay = existing);
+      return;
+    }
+
+    var fresh = GameplaySession(
+      chatSessionId: session.id!,
+      modeId: mode.id,
+      stats: {for (final d in mode.stats) d.key: d.initial},
+    );
+    fresh = fresh.copyWith(id: await gameplayDao.save(fresh));
+    if (!mounted) return;
+    setState(() => _gameplay = fresh);
+
+    // 玩法有暗牌（剧本杀真相 / 海龟汤汤底）时，开局先让模型写出来
+    if (mode.setupPrompt != null) await _setupSecret();
+  }
+
+  /// 生成暗牌。
+  Future<void> _setupSecret() async {
+    final mode = widget.gameplayMode;
+    if (mode == null || mode.setupPrompt == null) return;
+    if ((_gameplay?.secret?.isNotEmpty ?? false)) return;
+
+    setState(() => _gameplayBusy = true);
+    try {
+      final secret = await _service.generateGameplaySecret(
+        mode: mode,
+        characterName:
+            _session?.characterName ?? widget.characterName ?? '主角',
+        bookTitle: widget.bookTitle,
+        scene: widget.opening,
+      );
+      _gameplay = _gameplay!.copyWith(secret: secret);
+      await gameplayDao.save(_gameplay!);
+      if (mounted) setState(() {});
+    } catch (e) {
+      SjLog.warning('Gameplay: 生成开局设定失败: $e');
+      if (mounted) SjToast.show('开局设定生成失败：$e');
+    } finally {
+      if (mounted) setState(() => _gameplayBusy = false);
+    }
+  }
+
+  /// 揭晓暗牌（对局后的复盘）。
+  Future<void> _revealSecret() async {
+    final secret = _gameplay?.secret;
+    if (secret == null || secret.isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        final c = SjColors.of(ctx);
+        return AlertDialog(
+          title: Text(widget.gameplayMode?.secretLabel ?? '揭晓真相'),
+          content: SingleChildScrollView(
+            child: Text(secret, style: SjText.body(c.ink)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(CharactersPageText.close),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted) return;
+    _gameplay = _gameplay!.copyWith(revealed: true);
+    await gameplayDao.save(_gameplay!);
+    setState(() {});
+  }
+
+  /// 结算本回合：把状态变化累加进本局。
+  Future<void> _applyGameplayTurn(GameplayTurn turn) async {
+    final mode = widget.gameplayMode;
+    final session = _gameplay;
+    if (mode == null || session == null) return;
+    if (!turn.hasChanges && !turn.ended && turn.note == null) return;
+    _gameplay = GameplayRuntime.apply(
+      mode: mode,
+      session: session,
+      turn: turn,
+    );
+    await gameplayDao.save(_gameplay!);
+    if (mounted) setState(() {});
   }
 
   Future<void> _generateGreeting() async {
@@ -208,11 +322,15 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         extraDirective: _extraDirective,
       )) {
         if (!mounted) return;
-        setState(() => _streaming = chunk);
+        _streamingRaw = chunk;
+        // 状态块是给程序读的，展示时先剥掉
+        setState(() => _streaming = GameplayRuntime.parse(chunk).displayText);
         _scrollToEnd();
       }
 
-      final reply = _streaming;
+      // 从原始文本里解析状态块，正文用于展示与落库
+      final turn = GameplayRuntime.parse(_streamingRaw);
+      final reply = turn.displayText;
       if (reply.isEmpty) {
         throw StateError('模型没有返回内容');
       }
@@ -222,6 +340,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         reply,
       );
       await _service.touch(session.id!);
+      await _applyGameplayTurn(turn);
       if (!mounted) return;
       setState(() {
         _messages = [
@@ -321,15 +440,20 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         extraDirective: _extraDirective,
       )) {
         if (!mounted) return;
-        setState(() => _streaming = chunk);
+        _streamingRaw = chunk;
+        // 状态块是给程序读的，展示时先剥掉
+        setState(() => _streaming = GameplayRuntime.parse(chunk).displayText);
         _scrollToEnd();
       }
 
-      final reply = _streaming;
+      // 从原始文本里解析状态块，正文用于展示与落库
+      final turn = GameplayRuntime.parse(_streamingRaw);
+      final reply = turn.displayText;
       if (reply.isEmpty) throw StateError('模型没有返回内容');
       final id = await _service.saveCharacterMessage(
           session.id!, session.characterName, reply);
       await _service.touch(session.id!);
+      await _applyGameplayTurn(turn);
       if (!mounted) return;
       setState(() {
         _messages = [
@@ -489,6 +613,12 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
               ),
           ],
         ),
+        bottom: (widget.gameplayMode != null && _gameplay != null)
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(32),
+                child: _buildGameplayBar(c),
+              )
+            : null,
         actions: [
           IconButton(
             tooltip: '读心',
@@ -558,6 +688,60 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                 _buildInputBar(c),
               ],
             ),
+    );
+  }
+
+  /// 玩法状态条：玩法名 · 进度幕 · 各状态量 · 揭晓入口。
+  Widget _buildGameplayBar(SjColors c) {
+    final mode = widget.gameplayMode!;
+    final state = _gameplay!;
+    final phase = mode.phases.isEmpty
+        ? null
+        : mode.phases[state.phaseIndex.clamp(0, mode.phases.length - 1)];
+
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.centerLeft,
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Icon(mode.icon, size: 13, color: c.river),
+            const SizedBox(width: 6),
+            Text(mode.name, style: SjText.meta(c.ink)),
+            if (_gameplayBusy) ...[
+              const SizedBox(width: 8),
+              const SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(strokeWidth: 1.6),
+              ),
+            ],
+            if (phase != null) ...[
+              const SizedBox(width: 10),
+              Text('第 ${state.phaseIndex + 1}/${mode.phases.length} 幕 · $phase',
+                  style: SjText.meta(c.inkSoft)),
+            ],
+            for (final def in mode.stats) ...[
+              const SizedBox(width: 12),
+              Text('${def.name} ${state.stats[def.key] ?? def.initial}',
+                  style: SjText.meta(def.isScore ? c.clay : c.inkSoft)),
+            ],
+            if ((state.secret?.isNotEmpty ?? false) && !state.revealed) ...[
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: _revealSecret,
+                child: Text('揭晓${mode.secretLabel ?? '真相'}',
+                    style: SjText.meta(c.pine)),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

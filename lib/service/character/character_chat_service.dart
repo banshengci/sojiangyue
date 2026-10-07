@@ -15,8 +15,10 @@ import 'package:songjiang_reader/dao/character_chat_dao.dart';
 import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
+import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_persona.dart';
+import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
 /// AI 未配置时抛出的错误（调用方据此提示用户去配置）。
@@ -65,6 +67,38 @@ class CharacterChatService {
       }
     }
     return out;
+  }
+
+  /// 生成玩法开局需要的「暗牌」（剧本杀的真相 / 海龟汤的汤底）。
+  ///
+  /// 只交给模型，不展示给玩家——玩家要靠对话把它问出来。
+  Future<String> generateGameplaySecret({
+    required GameplayMode mode,
+    required String characterName,
+    String? bookTitle,
+    String? scene,
+  }) async {
+    final model = resolveCurrentModel();
+    if (model == null) {
+      throw CharacterChatException('尚未配置 AI 服务，无法开始这个玩法。');
+    }
+    final prompt = GameplayRuntime.buildSetupPrompt(
+      mode: mode,
+      characterName: characterName,
+      bookTitle: bookTitle,
+      scene: scene,
+    );
+    final buffer = StringBuffer();
+    await for (final event
+        in model.stream(PromptValue.chat([ChatMessage.humanText(prompt)]))) {
+      buffer.write(event.output.content);
+    }
+    final text = buffer.toString().trim();
+    if (text.isEmpty) {
+      throw CharacterChatException('模型没有返回开局设定，请检查 AI 服务。');
+    }
+    SjLog.info('CharacterChat: 玩法暗牌已生成（${mode.id}，${text.length} 字）');
+    return text;
   }
 
   /// 读心：让角色把「没说出口的念头」写出来。

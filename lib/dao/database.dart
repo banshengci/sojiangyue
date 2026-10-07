@@ -7,6 +7,7 @@ import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/character_chat_schema.dart';
 import 'package:songjiang_reader/dao/character_extras_schema.dart';
+import 'package:songjiang_reader/dao/gameplay_schema.dart';
 import 'package:songjiang_reader/dao/character_schema.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
 import 'package:songjiang_reader/utils/get_path/databases_path.dart';
@@ -15,7 +16,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // Current app database version
-const int currentDbVersion = 14;
+const int currentDbVersion = 15;
 
 const createBookSQL = '''
 CREATE TABLE tb_books (
@@ -532,6 +533,11 @@ class DBHelper {
       case 13:
         // 松江阅：人物卡头像路径
         await addCharacterAvatarColumn(db);
+        continue case14;
+      case14:
+      case 14:
+        // 松江阅：玩法对局状态
+        await applyGameplaySchema(db);
     }
 
     if (oldVersion != 0 && SyncPrefs.webdavStatus) {
@@ -557,6 +563,7 @@ Future<void> ensureSchemaIntegrity(Database db) async {
     await applyCharacterChatSchema(db);
     await applyCharacterExtrasSchema(db);
     await addCharacterAvatarColumn(db);
+    await applyGameplaySchema(db);
 
     // tb_books 历史上分几次加的列
     await _ensureColumn(db, 'tb_books', 'rating', 'REAL');
