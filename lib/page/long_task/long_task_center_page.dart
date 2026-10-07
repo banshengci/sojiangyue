@@ -11,6 +11,7 @@ import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/character_distill_service.dart';
+import 'package:songjiang_reader/service/character/distill_background.dart';
 import 'package:songjiang_reader/service/long_task/task_manifest.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
@@ -26,6 +27,11 @@ class _LongTaskCenterPageState extends State<LongTaskCenterPage> {
   List<TaskManifest> _tasks = [];
   bool _loading = true;
 
+  /// 真实在跑的后台任务（tag → 展示名）。以 DistillBackground 为准，
+  /// 而不是清单里的 status——进程被系统回收后清单会残留「进行中」。
+  List<String> _runningTags = [];
+  final Map<String, String> _runningLabels = {};
+
   @override
   void initState() {
     super.initState();
@@ -34,7 +40,28 @@ class _LongTaskCenterPageState extends State<LongTaskCenterPage> {
 
   Future<void> _reload() async {
     setState(() => _loading = true);
-    final tasks = await TaskManifestStore.instance.list();
+    final store = TaskManifestStore.instance;
+    var tasks = await store.list();
+
+    // 清单里标着「进行中」但其实没有对应任务（进程重启 / 被系统杀掉）
+    // → 改成「待续跑」，否则用户会以为它还在跑。
+    for (final t in tasks) {
+      if (t.status != LongTaskStatus.running) continue;
+      final tag = _tagOf(t);
+      if (tag != null && DistillBackground.isRunning(tag)) continue;
+      final updated =
+          await store.upsert(t.copyWith(status: LongTaskStatus.pending));
+      tasks = [for (final e in tasks) if (e.key == updated.key) updated else e];
+    }
+
+    // 正在运行的以 DistillBackground 为唯一依据：这样知识抽取这种
+    // 尚未登记清单的任务也能被看见并停止。
+    _runningTags = DistillBackground.runningTags;
+    _runningLabels.clear();
+    for (final tag in _runningTags) {
+      _runningLabels[tag] = await _labelForTag(tag);
+    }
+
     if (!mounted) return;
     // 最新更新在前。
     tasks.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
@@ -42,6 +69,46 @@ class _LongTaskCenterPageState extends State<LongTaskCenterPage> {
       _tasks = tasks;
       _loading = false;
     });
+  }
+
+  /// 任务清单项 → 后台任务 tag。
+  String? _tagOf(TaskManifest t) {
+    final bookId = t.bookId;
+    if (bookId == null) return null;
+    switch (t.kind) {
+      case 'distill':
+        return DistillBackground.charactersTag(bookId);
+      case 'knowledge':
+        return DistillBackground.knowledgeTag(bookId);
+      default:
+        return null;
+    }
+  }
+
+  /// 把 tag（如 `characters-3`）翻成「人物蒸馏 · 书名」。
+  Future<String> _labelForTag(String tag) async {
+    final idx = tag.lastIndexOf('-');
+    if (idx <= 0) return tag;
+    final kind = tag.substring(0, idx);
+    final bookId = int.tryParse(tag.substring(idx + 1));
+    final kindLabel = switch (kind) {
+      'characters' => '人物蒸馏',
+      'knowledge' => '原著知识抽取',
+      _ => kind,
+    };
+    if (bookId == null) return kindLabel;
+    try {
+      final book = await bookDao.selectBookById(bookId);
+      return '$kindLabel · ${book.title}';
+    } catch (_) {
+      return '$kindLabel · 书#$bookId';
+    }
+  }
+
+  Future<void> _stop(String tag) async {
+    final ok = await DistillBackground.cancel(tag);
+    SjToast.show(ok ? '已停止' : '任务已结束');
+    await _reload();
   }
 
   Future<void> _remove(String key) async {
@@ -147,84 +214,144 @@ class _LongTaskCenterPageState extends State<LongTaskCenterPage> {
       ),
       body: _loading
           ? const AppLoadingHint()
-          : _tasks.isEmpty
+          : (_tasks.isEmpty && _runningTags.isEmpty)
               ? EmptyStateHint(
                   icon: Icons.task_outlined,
                   title: '任务中心',
-                  subtitle: '大书导入 / 角色蒸馏等长任务会在此记录，中断后可续跑。',
+                  subtitle: '大书导入 / 角色蒸馏等长任务会在此记录；'
+                      '正在运行的任务也可以在这里停止。',
                 )
-              : ListView.builder(
+              : ListView(
                   padding: const EdgeInsets.all(12),
-                  itemCount: _tasks.length,
-                  itemBuilder: (context, index) {
-                    final t = _tasks[index];
-                    final canResume = t.isInterrupted && t.bookId != null;
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    '${t.kind}${t.bookId != null ? ' · 书#${t.bookId}' : ''}',
-                                    style: SjText.cardTitle(c.ink),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: _statusColor(t.status, c)
-                                        .withAlpha(28),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    _statusLabel(t.status),
-                                    style: SjText.meta(c.inkSoft),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            LinearProgressIndicator(
-                              value: t.progress,
-                              backgroundColor: c.divider,
-                              valueColor:
-                                  AlwaysStoppedAnimation(_statusColor(t.status, c)),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '进度 ${t.processed}/${t.total}'
-                              '${t.error != null ? ' · ${t.error}' : ''}',
-                              style: SjText.meta(c.inkSoft),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                if (canResume)
-                                  TextButton.icon(
-                                    icon: const Icon(Icons.play_arrow, size: 18),
-                                    label: const Text('继续'),
-                                    onPressed: () =>
-                                        _resumeDistill(t.bookId!),
-                                  ),
-                                TextButton(
-                                  onPressed: () => _remove(t.key),
-                                  child: const Text('清除'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                  children: [
+                    if (_runningTags.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 6),
+                        child:
+                            Text('正在运行', style: SjText.sectionTitle(c.ink)),
                       ),
-                    );
-                  },
+                      for (final tag in _runningTags)
+                        Card(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          child: ListTile(
+                            leading: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: c.river,
+                              ),
+                            ),
+                            title: Text(
+                              _runningLabels[tag] ?? tag,
+                              style: SjText.cardTitle(c.ink),
+                            ),
+                            subtitle: Text('后台运行中，可随时停止',
+                                style: SjText.meta(c.inkSoft)),
+                            trailing: TextButton.icon(
+                              icon: const Icon(Icons.stop_circle_outlined,
+                                  size: 18),
+                              label: const Text('停止'),
+                              onPressed: () => _stop(tag),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 6),
+                    ],
+                    if (_tasks.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 6),
+                        child:
+                            Text('任务记录', style: SjText.sectionTitle(c.ink)),
+                      ),
+                      for (final t in _tasks) _buildTaskCard(t, c),
+                    ],
+                  ],
                 ),
     );
   }
+
+  /// 单条任务记录。
+  Widget _buildTaskCard(TaskManifest t, SjColors c) {
+    final tag = _tagOf(t);
+    final running = tag != null && DistillBackground.isRunning(tag);
+    // 正在跑的时候「继续」没有意义，只有真的中断了才给
+    final canResume = !running && t.isInterrupted && t.bookId != null;
+    final status = running ? LongTaskStatus.running : t.status;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _kindLabel(t.kind) +
+                        (t.bookId != null ? ' · 书#${t.bookId}' : ''),
+                    style: SjText.cardTitle(c.ink),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _statusColor(status, c).withAlpha(28),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    _statusLabel(status),
+                    style: SjText.meta(c.inkSoft),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: t.progress,
+              backgroundColor: c.divider,
+              valueColor: AlwaysStoppedAnimation(_statusColor(status, c)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '进度 ${t.processed}/${t.total}'
+              '${t.error != null ? ' · ${t.error}' : ''}',
+              style: SjText.meta(c.inkSoft),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (running)
+                  TextButton.icon(
+                    icon: const Icon(Icons.stop_circle_outlined, size: 18),
+                    label: const Text('停止'),
+                    onPressed: () => _stop(tag),
+                  ),
+                if (canResume)
+                  TextButton.icon(
+                    icon: const Icon(Icons.play_arrow, size: 18),
+                    label: const Text('继续'),
+                    onPressed: () => _resumeDistill(t.bookId!),
+                  ),
+                TextButton(
+                  onPressed: () => _remove(t.key),
+                  child: const Text('清除'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _kindLabel(String kind) => switch (kind) {
+        'distill' => '人物蒸馏',
+        'knowledge' => '原著知识抽取',
+        _ => kind,
+      };
 }

@@ -10,6 +10,10 @@ import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/character_distill_service.dart';
 import 'package:songjiang_reader/service/character/distill_background.dart';
+import 'package:songjiang_reader/service/long_task/task_manifest.dart';
+import 'package:songjiang_reader/utils/log/common.dart';
+import 'package:songjiang_reader/utils/toast/common.dart';
+import 'package:songjiang_reader/widgets/distill/distill_progress_dialog.dart';
 import 'package:songjiang_reader/service/enhancement_pack/enhancement_pack_service.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 
@@ -54,16 +58,19 @@ class _CharacterListPageState extends State<CharacterListPage> {
     });
   }
 
-  /// 把蒸馏流交给后台：由进程级持有者托住订阅，
-  /// 这样即便用户离开本页，任务也会跑完。
-  void _detachDistillToBackground(Stream<DistillProgress> stream) {
-    DistillBackground.run(
-      stream,
-      tag: 'characters',
-      onDone: () {
-        if (mounted) _reload();
-      },
-    );
+  /// 用户停止蒸馏后，把任务清单里的状态改成「已取消」，
+  /// 免得任务中心一直显示「进行中」。
+  Future<void> _markDistillCanceled() async {
+    try {
+      final store = TaskManifestStore.instance;
+      for (final t in await store.list()) {
+        if (t.kind == 'distill' && t.bookId == widget.bookId) {
+          await store.upsert(t.copyWith(status: LongTaskStatus.canceled));
+        }
+      }
+    } catch (e) {
+      SjLog.warning('Distill: 标记取消状态失败: $e');
+    }
   }
 
   /// 已有数据时先让用户选增量还是全量：增量只跑新增内容，
@@ -110,8 +117,8 @@ class _CharacterListPageState extends State<CharacterListPage> {
 
   Future<void> _runDistill({bool incremental = true}) async {
     // 统一解析：优先新的 provider 体系，再回退旧 aiConfig_* 体系。
-    // 之前这里只读 AiPrefs.getConfig(selectedServiceId)，而 AI 设置页只写
-    // aiProviders，导致配置明明填好了却仍弹出「请先配置 AI」。
+    // 只读 AiPrefs.getConfig(selectedServiceId) 会漏掉新体系，导致配置好了
+    // 仍提示「请先配置 AI」。
     final model = resolveCurrentModel();
     if (model == null) {
       if (mounted) {
@@ -122,83 +129,61 @@ class _CharacterListPageState extends State<CharacterListPage> {
       return;
     }
 
+    // 同一本书同一时刻只允许跑一个蒸馏：重复点击直接提示，
+    // 避免并发出多个任务把 token 烧两遍。
+    final tag = DistillBackground.charactersTag(widget.bookId);
+    if (DistillBackground.isRunning(tag)) {
+      SjToast.show(CharactersPageText.distillAlreadyRunning);
+      return;
+    }
+
     final service = CharacterDistillService(
       dao: characterDao,
       repository: CharacterDistillRepository(bookDao: bookDao),
     );
-    // 广播流：点「后台运行」后对话框会关闭、StreamBuilder 退订，
-    // 若用单订阅流会把生成器一并取消——那样"后台运行"其实是"中止"。
-    final stream = service.distill(
-      bookId: widget.bookId,
-      model: model,
-      chapterCharBudget: 12000,
-      incremental: incremental,
-    ).asBroadcastStream();
+
+    final view = ValueNotifier<DistillProgressView?>(null);
+    final error = ValueNotifier<Object?>(null);
+
+    // 订阅交给 DistillBackground 持有：关掉对话框任务继续跑（后台运行），
+    // 想停随时可以在对话框里点「停止」，或到任务中心停。
+    DistillBackground.run(
+      service.distill(
+        bookId: widget.bookId,
+        model: model,
+        chapterCharBudget: 12000,
+        incremental: incremental,
+      ),
+      tag: tag,
+      onEvent: (e) {
+        final p = e as DistillProgress;
+        view.value = DistillProgressView(
+          message: p.message,
+          ratio:
+              p.totalChunks == 0 ? null : p.processedChunks / p.totalChunks,
+          done: p.phase == DistillPhase.done,
+          failed: p.phase == DistillPhase.failed,
+          countText: p.charactersFound > 0
+              ? CharactersPageText.charactersCount(p.charactersFound)
+              : null,
+          skipped: p.skippedChunks,
+        );
+      },
+      onError: (e) => error.value = e,
+      onCanceled: _markDistillCanceled,
+    );
 
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) {
-        return StreamBuilder<DistillProgress>(
-          stream: stream,
-          builder: (context, snap) {
-            final p = snap.data;
-            final phase = p?.phase ?? DistillPhase.preparing;
-            final done = phase == DistillPhase.done;
-            final failed = phase == DistillPhase.failed || snap.hasError;
-            final total = p?.totalChunks ?? 0;
-            final processed = p?.processedChunks ?? 0;
-            final count = p?.charactersFound ?? 0;
-            final skipped = p?.skippedChunks ?? 0;
-            final message = snap.hasError
-                ? CharactersPageText.distillFailed + snap.error.toString()
-                : (p?.message ?? '');
-
-            return AlertDialog(
-              title: Text(done
-                  ? CharactersPageText.done
-                  : CharactersPageText.generatingTitle),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!done && !failed)
-                    LinearProgressIndicator(
-                      value: total == 0 ? null : processed / total,
-                    ),
-                  const SizedBox(height: 12),
-                  Text(message),
-                  if (count > 0) ...[
-                    const SizedBox(height: 8),
-                    Text(CharactersPageText.charactersCount(count)),
-                  ],
-                  if (skipped > 0) ...[
-                    const SizedBox(height: 4),
-                    Text(CharactersPageText.distillSkipped(skipped)),
-                  ],
-                ],
-              ),
-              actions: [
-                if (done || failed)
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: const Text(CharactersPageText.close),
-                  )
-                else
-                  TextButton(
-                    onPressed: () {
-                      // 真正跑到后台：留一个订阅让生成器继续执行完。
-                      _detachDistillToBackground(stream);
-                      Navigator.of(ctx).pop();
-                    },
-                    child: const Text(CharactersPageText.background),
-                  ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (_) => DistillProgressDialog(
+        view: view,
+        error: error,
+        tag: tag,
+        runningTitle: CharactersPageText.generatingTitle,
+        doneTitle: CharactersPageText.done,
+      ),
     );
     if (mounted) await _reload();
   }

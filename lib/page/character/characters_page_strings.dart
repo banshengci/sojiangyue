@@ -18,6 +18,8 @@ class CharactersPageText {
   static const distillFullHint = '整本书重新蒸馏一遍，覆盖现有图谱';
   static const distillFullConfirm = '全量重跑会重新消耗全书 token，确定继续？';
   static String distillSkipped(int n) => '已跳过 $n 段未变内容';
+  static const distillAlreadyRunning = '这本书的蒸馏已经在跑了，可在任务中心停止';
+  static const distillStopped = '已停止蒸馏';
   static const viewGraph = '关系图谱';
   static const generatingTitle = '正在蒸馏全书…';
   static const generatingHint =

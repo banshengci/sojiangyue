@@ -14,6 +14,7 @@ import 'package:songjiang_reader/models/character_extras.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/distill_background.dart';
+import 'package:songjiang_reader/widgets/distill/distill_progress_dialog.dart';
 import 'package:songjiang_reader/service/character/knowledge_distill_service.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
@@ -72,75 +73,58 @@ class _KnowledgePageState extends State<KnowledgePage> {
       SjToast.show(CharactersPageText.needAiConfig);
       return;
     }
+
+    // 同一本书的知识抽取同时只跑一个，避免重复烧 token
+    final tag = DistillBackground.knowledgeTag(widget.bookId);
+    if (DistillBackground.isRunning(tag)) {
+      SjToast.show('这本书的知识抽取已经在跑了，可在任务中心停止');
+      return;
+    }
+
     final incremental = _items.isNotEmpty;
     final service = KnowledgeDistillService(
       repository: CharacterDistillRepository(bookDao: bookDao),
     );
+
+    final view = ValueNotifier<DistillProgressView?>(null);
+    final error = ValueNotifier<Object?>(null);
+
+    // 订阅交给 DistillBackground：关掉对话框继续跑，想停随时能停
+    DistillBackground.run(
+      service.distill(
+        bookId: widget.bookId,
+        model: model,
+        incremental: incremental,
+      ),
+      tag: tag,
+      onEvent: (e) {
+        final p = e as KnowledgeProgress;
+        view.value = DistillProgressView(
+          message: p.message,
+          ratio: p.total == 0 ? null : p.processed / p.total,
+          done: p.done,
+          failed: p.failed,
+          countText:
+              p.itemsFound > 0 ? '已获得 ${p.itemsFound} 条知识' : null,
+          skipped: p.skipped,
+        );
+      },
+      onError: (e) => error.value = e,
+      onDone: () {
+        if (mounted) _reload();
+      },
+    );
+
     if (!mounted) return;
-
-    // 流必须在 showDialog 之前建好：若写在 StreamBuilder 的 builder 里，
-    // 每次重建都会新建一条流 → 反复向模型发起抽取（重复烧 token）。
-    final stream = service.distill(
-      bookId: widget.bookId,
-      model: model,
-      incremental: incremental,
-    ).asBroadcastStream();
-
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => StreamBuilder<KnowledgeProgress>(
-        stream: stream,
-        builder: (context, snap) {
-          final p = snap.data;
-          final done = p?.done ?? false;
-          final failed = (p?.failed ?? false) || snap.hasError;
-          final total = p?.total ?? 0;
-          final processed = p?.processed ?? 0;
-          return AlertDialog(
-            title: Text(done ? '完成' : '正在抽取原著知识…'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!done && !failed)
-                  LinearProgressIndicator(
-                    value: total == 0 ? null : processed / total,
-                  ),
-                const SizedBox(height: 12),
-                Text(snap.hasError
-                    ? '抽取失败：${snap.error}'
-                    : (p?.message ?? '')),
-                if ((p?.itemsFound ?? 0) > 0) ...[
-                  const SizedBox(height: 8),
-                  Text('已获得 ${p!.itemsFound} 条知识'),
-                ],
-              ],
-            ),
-            actions: [
-              if (done || failed)
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text(CharactersPageText.close),
-                )
-              else
-                TextButton(
-                  onPressed: () {
-                    // 真正转到后台：由进程级持有者托住，关掉页面也会跑完
-                    DistillBackground.run(
-                      stream,
-                      tag: 'knowledge',
-                      onDone: () {
-                        if (mounted) _reload();
-                      },
-                    );
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text(CharactersPageText.background),
-                ),
-            ],
-          );
-        },
+      builder: (_) => DistillProgressDialog(
+        view: view,
+        error: error,
+        tag: tag,
+        runningTitle: '正在抽取原著知识…',
+        doneTitle: '完成',
       ),
     );
     await _reload();
