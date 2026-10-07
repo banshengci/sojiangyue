@@ -5,11 +5,9 @@ import 'package:songjiang_reader/utils/platform_utils.dart';
 
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/config/sync_prefs.dart';
-import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/character_chat_schema.dart';
 import 'package:songjiang_reader/dao/character_extras_schema.dart';
 import 'package:songjiang_reader/dao/character_schema.dart';
-import 'package:songjiang_reader/service/book.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
 import 'package:songjiang_reader/utils/get_path/databases_path.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -153,14 +151,17 @@ class DBHelper {
       case SjPlatformEnum.ohos:
         final databasePath = await getSjDatabasesPath();
         final path = join(databasePath, 'app_database.db');
-        return await openDatabase(
+        final db = await openDatabase(
           path,
           version: dbVersion,
           onCreate: (db, version) async {
-            onUpgradeDatabase(db, 0, version);
+            await onUpgradeDatabase(db, 0, version);
           },
           onUpgrade: onUpgradeDatabase,
         );
+        // 打开后做一次幂等结构自检，兜住历史上可能中断的迁移
+        await ensureSchemaIntegrity(db);
+        return db;
       case SjPlatformEnum.ios:
       case SjPlatformEnum.windows:
         sqfliteFfiInit();
@@ -170,16 +171,18 @@ class DBHelper {
         SjLog.info('Database: database path: $databasePath');
         final path = join(databasePath, 'app_database.db');
 
-        return await databaseFactory.openDatabase(
+        final db = await databaseFactory.openDatabase(
           path,
           options: OpenDatabaseOptions(
             version: dbVersion,
             onCreate: (db, version) async {
-              onUpgradeDatabase(db, 0, version);
+              await onUpgradeDatabase(db, 0, version);
             },
             onUpgrade: onUpgradeDatabase,
           ),
         );
+        await ensureSchemaIntegrity(db);
+        return db;
     }
   }
 
@@ -415,13 +418,15 @@ class DBHelper {
       case 3:
         // remove former book style
         ReadingStylePrefs.removeBookStyle();
-        bookDao.selectBooks().then((books) {
-          for (var book in books) {
-            if (!File(book.coverFullPath).existsSync()) {
-              resetBookCover(book);
-            }
-          }
-        });
+        // 原先这里会 `.then` 遍历所有书、对缺封面的调用 resetBookCover()，
+        // 而它内部走 getBookMetadata（headless WebView 重新解析）。两个问题：
+        //   1) 迁移此刻仍在 openDatabase 内部，_database 还没赋值，任何 DAO 调用
+        //      都会触发二次 openDatabase 并复入同一把锁，抛
+        //      "Bad state: inner synchronized block spawned outside the block"
+        //      （实测安装后启动即报一条 SEVERE，见 2026-10-07 日志）；
+        //   2) 对老库每本书都启一次 WebView，启动开销极大。
+        // 该逻辑属于历史遗留（v2→v3 的封面路径变更），导入侧现已具备兜底解析，
+        // 不再需要在迁移中做，故移除以免拖垮启动。
         continue case4;
       case4:
       case 4:
@@ -532,5 +537,55 @@ class DBHelper {
     if (oldVersion != 0 && SyncPrefs.webdavStatus) {
       updatedDB = true;
     }
+  }
+}
+
+// ---- 打开数据库后的结构自检 ----
+
+/// 幂等补齐「必须存在的表与列」。
+///
+/// 为什么需要它：迁移是一次性的。历史上 case3 曾在迁移过程中调用 DAO，
+/// 触发 openDatabase 复入同一把锁而抛异常（见 2026-10-07 实机日志）。
+/// 一旦某个 case 因意外中断，库结构就会停在中间状态，而 sqflite 已把
+/// user_version 写成最新值，之后**永远不会重跑迁移**——用户只能清数据重装。
+///
+/// 这里每次打开数据库都做一遍幂等补齐（表用 CREATE TABLE IF NOT EXISTS，
+/// 列先 PRAGMA 判存在再 ALTER），从而具备自愈能力。
+Future<void> ensureSchemaIntegrity(Database db) async {
+  try {
+    await applyCharacterSchema(db);
+    await applyCharacterChatSchema(db);
+    await applyCharacterExtrasSchema(db);
+    await addCharacterAvatarColumn(db);
+
+    // tb_books 历史上分几次加的列
+    await _ensureColumn(db, 'tb_books', 'rating', 'REAL');
+    await _ensureColumn(db, 'tb_books', 'group_id', 'INTEGER');
+    await _ensureColumn(db, 'tb_books', 'file_md5', 'TEXT');
+    await _ensureColumn(db, 'tb_books', 'series_name', 'TEXT');
+    await _ensureColumn(db, 'tb_books', 'series_index', 'REAL');
+    // 其他表的历史新增列
+    await _ensureColumn(db, 'tb_notes', 'reader_note', 'TEXT');
+    await _ensureColumn(db, 'tb_themes', 'name', 'TEXT');
+  } catch (e, st) {
+    // 自检失败不应阻断启动
+    SjLog.severe('Database: 结构自检失败: $e\n$st');
+  }
+}
+
+Future<void> _ensureColumn(
+  Database db,
+  String table,
+  String column,
+  String type,
+) async {
+  try {
+    final cols = await db.rawQuery('PRAGMA table_info($table)');
+    if (cols.isEmpty) return; // 表不存在，交给各自的 create 语句
+    if (cols.any((c) => c['name'] == column)) return;
+    await db.execute('ALTER TABLE $table ADD COLUMN $column $type');
+    SjLog.info('Database: 自检补列 $table.$column');
+  } catch (e) {
+    SjLog.warning('Database: 自检补列失败 $table.$column: $e');
   }
 }

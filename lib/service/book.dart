@@ -20,6 +20,7 @@ import 'package:songjiang_reader/providers/toc_search.dart';
 import 'package:songjiang_reader/service/convert_to_epub/txt/convert_from_txt.dart';
 import 'package:songjiang_reader/service/convert_to_epub/document/convert_document.dart';
 import 'package:songjiang_reader/service/import_file_normalizer.dart';
+import 'package:songjiang_reader/service/epub_metadata.dart';
 import 'package:songjiang_reader/service/md5_service.dart';
 import 'package:songjiang_reader/utils/webView/sj_headless_webview.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
@@ -517,8 +518,37 @@ Future<void> importBook(File file, WidgetRef ref) async {
     file = tempFile;
   }
 
-  await getBookMetadata(file, md5: md5, ref: ref);
+  try {
+    await getBookMetadata(file, md5: md5, ref: ref);
+  } catch (e, st) {
+    // 老设备的系统 WebView 可能跑不动 foliate-js（实测 Android 10 / Chrome 83
+    // 上加载后不再回调），元数据永远拿不到 → 导入必失败。
+    // 这里用纯 Dart 解析兜底，让这类设备也能把书导进来。
+    SjLog.warning('Import: WebView 元数据解析失败，改用内置解析器兜底。原因: $e\n$st');
+    await importBookByBuiltinParser(file, md5: md5, ref: ref);
+  }
   ref.read(bookListProvider.notifier).refresh();
+}
+
+/// 用内置（纯 Dart）解析器取元数据后落库。
+///
+/// 与 WebView 路径的差别：拿不到 foliate 那种精确的语言/出版信息，
+/// 但书名、作者、简介、封面这四项足以支撑书架展示与阅读。
+Future<void> importBookByBuiltinParser(
+  File file, {
+  String? md5,
+  WidgetRef? ref,
+}) async {
+  final meta = await EpubMetadataExtractor.extract(file);
+  await saveBook(
+    file,
+    meta.title,
+    meta.author.isEmpty ? 'Unknown' : meta.author,
+    meta.description,
+    md5,
+    meta.cover,
+  );
+  ref?.read(bookListProvider.notifier).refresh();
 }
 
 Future<void> pushToReadingPage(
@@ -763,6 +793,9 @@ Future<void> getBookMetadata(
     },
     onConsoleMessage: (controller, consoleMessage) {
       if (consoleMessage.messageLevel == ConsoleMessageLevel.ERROR) {
+        // 先把原因记进日志再中断：老设备的系统 WebView 跑不动 foliate-js 时，
+        // 往往就是在这里失败的，原代码直接抛异常，日志里反而看不到线索。
+        SjLog.severe('Import: WebView 控制台报错: ${consoleMessage.message}');
         headlessInAppWebView?.dispose();
         headlessInAppWebView = null;
         throw Exception('Webview: ${consoleMessage.message}');
