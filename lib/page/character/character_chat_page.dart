@@ -31,6 +31,7 @@ class CharacterChatPage extends StatefulWidget {
     this.mode = CharacterChatMode.single,
     this.opening,
     this.titleOverride,
+    this.gameplayDirective,
   });
 
   final CharacterChatSession? session;
@@ -44,6 +45,9 @@ class CharacterChatPage extends StatefulWidget {
 
   /// 覆盖标题（穿越场景直接用场景名）。
   final String? titleOverride;
+
+  /// 玩法模式的规则外壳（如「规则怪谈」的规矩），会拼进角色的 system 设定。
+  final String? gameplayDirective;
 
   @override
   State<CharacterChatPage> createState() => _CharacterChatPageState();
@@ -66,6 +70,17 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   void initState() {
     super.initState();
     _init();
+  }
+
+  /// 玩法规则与开局情境合并后的额外设定。
+  String? get _extraDirective {
+    final parts = <String>[
+      if (widget.gameplayDirective?.trim().isNotEmpty ?? false)
+        widget.gameplayDirective!.trim(),
+      if (widget.opening?.trim().isNotEmpty ?? false)
+        '当前情境：${widget.opening!.trim()}',
+    ];
+    return parts.isEmpty ? null : parts.join('\n\n');
   }
 
   @override
@@ -190,7 +205,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         session: session,
         history: history,
         input: text,
-        extraDirective: widget.opening,
+        extraDirective: _extraDirective,
       )) {
         if (!mounted) return;
         setState(() => _streaming = chunk);
@@ -303,7 +318,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         session: session,
         history: history,
         input: prompt,
-        extraDirective: widget.opening,
+        extraDirective: _extraDirective,
       )) {
         if (!mounted) return;
         setState(() => _streaming = chunk);

@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 
 import 'package:songjiang_reader/dao/base_dao.dart';
 import 'package:songjiang_reader/models/character_card.dart';
+import 'package:songjiang_reader/utils/log/common.dart';
 
 /// 角色卡 / 关系 / 世界观 / 时间线 的持久化访问层，对齐既有 BookDao / BaseDao 写法。
 class CharacterDao extends BaseDao {
@@ -26,6 +27,29 @@ class CharacterDao extends BaseDao {
       return card.id!;
     }
     return insert(tableCard, card.copyWith(updatedAt: now).toMap());
+  }
+
+  /// 批量删除人物（连同引用它们的关系一起清掉）。
+  ///
+  /// 用于「蒸馏后挑选」：一次抽出几百个龙套时，用户勾掉不要的，
+  /// 关系表里指向这些人的连线也必须一起删，否则关系图会出现连不上人的孤立线。
+  Future<void> deleteCharacters(int bookId, List<String> names) async {
+    if (names.isEmpty) return;
+    await transaction((txn) async {
+      for (final name in names) {
+        await txn.delete(
+          tableCard,
+          where: 'book_id = ? AND name = ?',
+          whereArgs: [bookId, name],
+        );
+        await txn.delete(
+          tableRelation,
+          where: 'book_id = ? AND (source_name = ? OR target_name = ?)',
+          whereArgs: [bookId, name, name],
+        );
+      }
+    });
+    SjLog.info('CharacterDao: 已删除 ${names.length} 个人物（含其关系）');
   }
 
   /// 保存人物卡，并在改名时同步所有「按姓名关联」的引用。

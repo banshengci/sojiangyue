@@ -15,7 +15,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/plugin/plugin_security.dart';
-import 'package:songjiang_reader/service/gameplay/gameplay_pack_models.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_service.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 

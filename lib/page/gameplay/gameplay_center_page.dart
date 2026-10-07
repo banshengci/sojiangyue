@@ -8,6 +8,7 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +16,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/plugin/declarative_plugin_tool.dart';
+import 'package:songjiang_reader/dao/book.dart';
+import 'package:songjiang_reader/dao/character_dao.dart';
+import 'package:songjiang_reader/models/book.dart';
+import 'package:songjiang_reader/models/character_card.dart';
+import 'package:songjiang_reader/models/gameplay_mode.dart';
+import 'package:songjiang_reader/page/character/character_chat_page.dart';
+import 'package:songjiang_reader/service/gameplay/gameplay_modes.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_models.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_service.dart';
@@ -182,44 +190,202 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _packs.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
+          : ListView(
+              controller: widget.controller,
+              padding: const EdgeInsets.all(12),
+              children: [
+                _buildModesSection(context),
+                if (_packs.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 26, bottom: 12),
                     child: Text(
-                      '暂无玩法包。\n可从插件市场获取「阅读剧本 / 读书挑战 / 名场面卡」玩法包，'
+                      '暂无玩法包。\n'
+                      '可从插件市场获取「阅读剧本 / 读书挑战 / 名场面卡」玩法包，'
                       '或导入 .sjgame.zip。',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
+                  )
+                else ...[
+                  _buildSection(
+                    context,
+                    '名场面卡',
+                    Icons.auto_stories_outlined,
+                    byType[GameplayPackType.sceneCard] ?? [],
                   ),
-                )
-              : ListView(
-                  controller: widget.controller,
-                  padding: const EdgeInsets.all(12),
-                  children: [
-                    _buildSection(
-                      context,
-                      '名场面卡',
-                      Icons.auto_stories_outlined,
-                      byType[GameplayPackType.sceneCard] ?? [],
-                    ),
-                    _buildSection(
-                      context,
-                      '读书挑战',
-                      Icons.flag_outlined,
-                      byType[GameplayPackType.readingChallenge] ?? [],
-                    ),
-                    _buildSection(
-                      context,
-                      '阅读剧本 / 闯关',
-                      Icons.theater_comedy_outlined,
-                      byType[GameplayPackType.readingScript] ?? [],
-                    ),
-                  ],
-                ),
+                  _buildSection(
+                    context,
+                    '读书挑战',
+                    Icons.flag_outlined,
+                    byType[GameplayPackType.readingChallenge] ?? [],
+                  ),
+                  _buildSection(
+                    context,
+                    '阅读剧本 / 闯关',
+                    Icons.theater_comedy_outlined,
+                    byType[GameplayPackType.readingScript] ?? [],
+                  ),
+                ],
+              ],
+            ),
     );
   }
+
+  // ---- 玩法模式：选玩法 → 选书 → 选人物 → 开一局 ----
+
+  Widget _buildModesSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.local_play_outlined,
+                size: 18, color: Theme.of(context).primaryColor),
+            const SizedBox(width: 8),
+            const Text('玩法模式',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 8),
+            Text('${kBuiltinGameplayModes.length}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(left: 26, top: 4, bottom: 10),
+          child: Text('选一个玩法，挑一位人物，立刻开一局',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 26),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final mode in kBuiltinGameplayModes)
+                _modeCard(context, mode),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _modeCard(BuildContext context, GameplayMode mode) {
+    return InkWell(
+      onTap: () => _startMode(mode),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 156,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(mode.icon, size: 16),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(mode.name,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(mode.summary,
+                style: const TextStyle(
+                    fontSize: 11, color: Colors.grey, height: 1.4)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startMode(GameplayMode mode) async {
+    final books = await bookDao.selectNotDeleteBooks();
+    if (!mounted) return;
+    if (books.isEmpty) {
+      SjToast.show('书架里还没有书');
+      return;
+    }
+    final book = books.length == 1 ? books.first : await _pickBook(books);
+    if (book == null || !mounted) return;
+
+    final cards = await characterDao.getCharacters(book.id);
+    if (!mounted) return;
+    if (cards.isEmpty) {
+      SjToast.show('《${book.title}》还没有人物，先做一次人物蒸馏');
+      return;
+    }
+    final card = await _pickCharacter(cards);
+    if (card == null || !mounted) return;
+
+    // 玩法自带场景提示：随机取一条当开局情境
+    final scene = mode.randomSceneHint(Random());
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CharacterChatPage(
+          bookId: book.id,
+          characterName: card.name,
+          bookTitle: book.title,
+          gameplayDirective: mode.directive,
+          opening: scene,
+        ),
+      ),
+    );
+  }
+
+  Future<Book?> _pickBook(List<Book> books) => showModalBottomSheet<Book>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Text('选一本书'),
+              ),
+              for (final b in books)
+                ListTile(
+                  title: Text(b.title),
+                  onTap: () => Navigator.pop(ctx, b),
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      );
+
+  Future<CharacterCard?> _pickCharacter(List<CharacterCard> cards) =>
+      showModalBottomSheet<CharacterCard>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Text('选一位出场人物'),
+              ),
+              for (final card in cards.take(80))
+                ListTile(
+                  title: Text(card.name),
+                  subtitle: (card.role != null && card.role!.isNotEmpty)
+                      ? Text(card.role!)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, card),
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      );
 
   Widget _buildSection(
     BuildContext context,
@@ -314,7 +480,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -357,7 +523,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -389,7 +555,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
                 padding: const EdgeInsets.only(right: 6),
                 child: Chip(
                   label: const Text('已激活', style: TextStyle(fontSize: 10)),
-                  backgroundColor: Colors.green.withOpacity(0.15),
+                  backgroundColor: Colors.green.withValues(alpha: 0.15),
                   padding: EdgeInsets.zero,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -425,7 +591,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
       margin: const EdgeInsets.only(bottom: 6, right: 4),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

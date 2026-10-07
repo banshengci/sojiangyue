@@ -20,6 +20,7 @@ import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 import 'card_library_page.dart';
 import 'character_avatar.dart';
 import 'character_chat_sessions_page.dart';
+import 'character_cleanup_page.dart';
 import 'character_detail_page.dart';
 import 'characters_page_strings.dart';
 import 'crossover_page.dart';
@@ -73,49 +74,97 @@ class _CharacterListPageState extends State<CharacterListPage> {
     }
   }
 
-  /// 已有数据时先让用户选增量还是全量：增量只跑新增内容，
-  /// 全量会把整本书重新烧一遍 token，不该是默认动作。
+  /// 蒸馏前的选项面板：增量 / 全量 + 收录范围，并把蒸馏原理讲清楚。
   Future<void> _startDistill() async {
     if (_cards.isEmpty) {
       await _runDistill();
       return;
     }
-    final mode = await showModalBottomSheet<String>(
+
+    // 变量声明在 showModalBottomSheet 之外：StatefulBuilder 重建时不会重置
+    var incremental = true;
+    var majorOnly = false;
+
+    final opts = await showModalBottomSheet<_DistillOptions>(
       context: context,
       showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Text(
-                CharactersPageText.distillModeTitle,
-                style: SjText.sectionTitle(SjColors.of(ctx).ink),
+      isScrollControlled: true,
+      builder: (ctx) {
+        final c = SjColors.of(ctx);
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                    child: Text(CharactersPageText.distillModeTitle,
+                        style: SjText.sectionTitle(c.ink)),
+                  ),
+                  SwitchListTile(
+                    value: incremental,
+                    onChanged: (v) => setSheetState(() => incremental = v),
+                    title: const Text(CharactersPageText.distillIncrementalSwitch),
+                    subtitle:
+                        const Text(CharactersPageText.distillIncrementalSwitchHint),
+                  ),
+                  SwitchListTile(
+                    value: majorOnly,
+                    onChanged: (v) => setSheetState(() => majorOnly = v),
+                    title: const Text(CharactersPageText.distillMajorOnlySwitch),
+                    subtitle:
+                        const Text(CharactersPageText.distillMajorOnlyHint),
+                  ),
+                  const Divider(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+                    child: Text(CharactersPageText.distillHowItWorksTitle,
+                        style: SjText.meta(c.ink)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
+                    child: Text(
+                      CharactersPageText.distillHowItWorks,
+                      style: SjText.meta(c.inkSoft).copyWith(height: 1.7),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(
+                          ctx,
+                          _DistillOptions(
+                            incremental: incremental,
+                            majorOnly: majorOnly,
+                          ),
+                        ),
+                        child: const Text(CharactersPageText.distillStart),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.bolt_outlined),
-              title: const Text(CharactersPageText.distillIncremental),
-              subtitle: const Text(CharactersPageText.distillIncrementalHint),
-              onTap: () => Navigator.pop(ctx, 'incremental'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.refresh),
-              title: const Text(CharactersPageText.distillFull),
-              subtitle: const Text(CharactersPageText.distillFullHint),
-              onTap: () => Navigator.pop(ctx, 'full'),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
-    if (mode == null || !mounted) return;
-    await _runDistill(incremental: mode == 'incremental');
+
+    if (opts == null || !mounted) return;
+    await _runDistill(
+      incremental: opts.incremental,
+      minImportance: opts.majorOnly ? 50 : 0,
+    );
   }
 
-  Future<void> _runDistill({bool incremental = true}) async {
+  Future<void> _runDistill({
+    bool incremental = true,
+    int minImportance = 0,
+  }) async {
     // 统一解析：优先新的 provider 体系，再回退旧 aiConfig_* 体系。
     // 只读 AiPrefs.getConfig(selectedServiceId) 会漏掉新体系，导致配置好了
     // 仍提示「请先配置 AI」。
@@ -153,6 +202,7 @@ class _CharacterListPageState extends State<CharacterListPage> {
         model: model,
         chapterCharBudget: 12000,
         incremental: incremental,
+        minImportance: minImportance,
       ),
       tag: tag,
       onEvent: (e) {
@@ -241,6 +291,11 @@ class _CharacterListPageState extends State<CharacterListPage> {
   Future<void> _handleMenu(String value) async {
     Widget? page;
     switch (value) {
+      case 'cleanup':
+        page = CharacterCleanupPage(
+          bookId: widget.bookId,
+          bookTitle: widget.bookTitle,
+        );
       case 'world':
         page = WorldTimelinePage(
           bookId: widget.bookId,
@@ -326,6 +381,8 @@ class _CharacterListPageState extends State<CharacterListPage> {
             tooltip: '更多',
             onSelected: _handleMenu,
             itemBuilder: (_) => [
+              _menuItem('cleanup', Icons.cleaning_services_outlined,
+                  CharactersPageText.cleanupTitle),
               _menuItem('world', Icons.public_outlined,
                   CharactersPageText.worldTimelineTitle),
               _menuItem('cards', Icons.style_outlined,
@@ -396,4 +453,12 @@ class _CharacterListPageState extends State<CharacterListPage> {
                 ),
     );
   }
+}
+
+/// 蒸馏前的选项。
+class _DistillOptions {
+  const _DistillOptions({required this.incremental, required this.majorOnly});
+
+  final bool incremental;
+  final bool majorOnly;
 }

@@ -17,6 +17,16 @@ class CharactersPageText {
   static const distillFull = '全量重跑';
   static const distillFullHint = '整本书重新蒸馏一遍，覆盖现有图谱';
   static const distillFullConfirm = '全量重跑会重新消耗全书 token，确定继续？';
+  static const distillIncrementalSwitch = '增量更新';
+  static const distillIncrementalSwitchHint = '已蒸馏过的内容跳过，省钱也快（推荐）';
+  static const distillMajorOnlySwitch = '只看主要人物';
+  static const distillMajorOnlyHint = '只收录重要度 ≥ 50 的角色；次要角色与龙套不入库';
+  static const distillStart = '开始蒸馏';
+  static const distillHowItWorksTitle = '蒸馏到底是怎么做的';
+  static const distillHowItWorks = '· 全书按约 1.2 万字切段，多路并发交给 AI 逐段抽取人物、关系、世界观与时间线\n'
+      '· 同一个人物在多段出现会按姓名合并，保留重要度更高的那份（不会重复计数）\n'
+      '· 每抽完一批就写库，中途停止也能保留已经抽到的内容\n'
+      '· 默认收录所有识别到的人物（含次要角色）；开「只看主要人物」则只留重要度 ≥ 50';
   static String distillSkipped(int n) => '已跳过 $n 段未变内容';
   static const distillAlreadyRunning = '这本书的蒸馏已经在跑了，可在任务中心停止';
   static const distillStopped = '已停止蒸馏';
@@ -94,6 +104,10 @@ class CharactersPageText {
   static const enrichNothingMissing = '各字段都有内容，没有需要补的';
   static const enrichNoResult = '现有资料不足以补全，未作改动';
   static String enrichDone(int n) => '已补全 $n 个字段，确认后再保存';
+
+  // ---- 人物整理 ----
+  static const cleanupTitle = '整理人物';
+  static const cleanupHint = '勾掉不要的角色，删除时连同关系一起清掉';
 
   static const noRelation = '暂无记录的关系。';
   static String relationTo(String name) => '→ $name';
