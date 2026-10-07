@@ -1,5 +1,6 @@
 {
   "ar": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -73,6 +74,7 @@
   ],
 
   "de": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -146,6 +148,7 @@
   ],
 
   "es": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -219,6 +222,7 @@
   ],
 
   "fr": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -292,6 +296,7 @@
   ],
 
   "it": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -365,6 +370,7 @@
   ],
 
   "ja": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -438,6 +444,7 @@
   ],
 
   "ko": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -511,6 +518,7 @@
   ],
 
   "pt": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -584,6 +592,7 @@
   ],
 
   "ro": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -657,6 +666,7 @@
   ],
 
   "ru": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -730,6 +740,7 @@
   ],
 
   "tr": [
+    "navBarGameplay",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
