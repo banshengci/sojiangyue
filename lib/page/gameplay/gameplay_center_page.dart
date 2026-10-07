@@ -22,6 +22,7 @@ import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/page/character/character_chat_page.dart';
+import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_modes.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_models.dart';
@@ -319,6 +320,13 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
   }
 
   Future<void> _startMode(GameplayMode mode) async {
+    // 有暗牌的玩法（剧本杀/海龟汤/规则怪谈）必须先让 AI 生成开局设定，
+    // 没配 AI 就开局只会得到一场没有真相可问的空戏，不如提前拦下。
+    if (mode.setupPrompt != null && resolveCurrentModel() == null) {
+      SjToast.show('「${mode.name}」需要 AI 生成开局设定，请先在「设置 → AI」中配置');
+      return;
+    }
+
     final books = await bookDao.selectNotDeleteBooks();
     if (!mounted) return;
     if (books.isEmpty) {

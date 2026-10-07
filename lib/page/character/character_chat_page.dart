@@ -75,6 +75,11 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
   /// 原始流式文本（含状态块）；展示时剥离，结算时解析。
   String _streamingRaw = '';
+
+  /// 本回合开始前的状态快照。
+  /// 「重新生成」会重走同一回合，若直接再结算一次会把好感计两遍，
+  /// 因此先把状态回滚到这一轮的起点再重新结算。
+  Map<String, int>? _statsBeforeTurn;
   String _streaming = '';
   bool _loading = true;
   bool _sending = false;
@@ -294,11 +299,14 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
     final history = List<CharacterChatMessage>.from(_messages);
     final isFirstRound = history.isEmpty;
+    _statsBeforeTurn =
+        _gameplay == null ? null : Map<String, int>.from(_gameplay!.stats);
 
     setState(() {
       _sending = true;
       _error = null;
       _streaming = '';
+      _streamingRaw = '';
       _messages = [
         ..._messages,
         CharacterChatMessage(
@@ -324,7 +332,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         if (!mounted) return;
         _streamingRaw = chunk;
         // 状态块是给程序读的，展示时先剥掉
-        setState(() => _streaming = GameplayRuntime.parse(chunk).displayText);
+        setState(() => _streaming =
+            GameplayRuntime.parse(chunk, streaming: true).displayText);
         _scrollToEnd();
       }
 
@@ -421,10 +430,17 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         .toList();
     final history = _messages.sublist(0, userIndex);
 
+    // 重走这一轮：先把状态回滚到本轮开始前，避免重复计分
+    if (_gameplay != null && _statsBeforeTurn != null) {
+      _gameplay =
+          _gameplay!.copyWith(stats: Map<String, int>.from(_statsBeforeTurn!));
+    }
+
     setState(() {
       _sending = true;
       _error = null;
       _streaming = '';
+      _streamingRaw = '';
       _messages = history;
     });
 
@@ -442,7 +458,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         if (!mounted) return;
         _streamingRaw = chunk;
         // 状态块是给程序读的，展示时先剥掉
-        setState(() => _streaming = GameplayRuntime.parse(chunk).displayText);
+        setState(() => _streaming =
+            GameplayRuntime.parse(chunk, streaming: true).displayText);
         _scrollToEnd();
       }
 
@@ -588,6 +605,15 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     await characterChatDao.clearMessages(session.id!);
     if (!mounted) return;
     setState(() => _messages = []);
+
+    // 玩法对局也重新开局：否则状态会停留在清空前的数值上
+    if (widget.gameplayMode != null) {
+      await gameplayDao.deleteByChatSession(session.id!);
+      _gameplay = null;
+      await _initGameplay(session);
+      if (!mounted) return;
+    }
+
     await _generateGreeting();
   }
 
@@ -784,7 +810,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                 controller: _inputController,
                 minLines: 1,
                 maxLines: 4,
-                enabled: !_sending,
+                enabled: !_sending && !_gameplayBusy,
                 decoration: InputDecoration(
                   hintText: CharactersPageText.chatInputHint,
                   border: const OutlineInputBorder(),

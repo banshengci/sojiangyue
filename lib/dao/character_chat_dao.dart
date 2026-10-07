@@ -80,6 +80,12 @@ class CharacterChatDao extends BaseDao {
         where: 'session_id = ?',
         whereArgs: [id],
       );
+      // 对局状态跟着对话一起删，否则会留下指向已删会话的孤儿记录
+      await txn.delete(
+        'tb_gameplay_sessions',
+        where: 'chat_session_id = ?',
+        whereArgs: [id],
+      );
       await txn.delete(
         tableSession,
         where: 'id = ?',
@@ -95,6 +101,11 @@ class CharacterChatDao extends BaseDao {
         await txn.delete(
           tableMessage,
           where: 'session_id = ?',
+          whereArgs: [id],
+        );
+        await txn.delete(
+          'tb_gameplay_sessions',
+          where: 'chat_session_id = ?',
           whereArgs: [id],
         );
         await txn.delete(

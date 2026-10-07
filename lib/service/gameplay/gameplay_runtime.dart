@@ -122,19 +122,28 @@ class GameplayRuntime {
   }
 
   /// 从模型回复中剥离状态块并解析。
-  static GameplayTurn parse(String raw) {
+  ///
+  /// [streaming] 为真表示这是流式过程中的中间文本：状态块往往只写了一半
+  /// （只有 `<sj-state>` 没有闭合标签），此时**不解析、也不记日志**，
+  /// 只把状态块之前的部分作为正文展示，避免每帧刷一条解析失败日志。
+  static GameplayTurn parse(String raw, {bool streaming = false}) {
     final start = raw.indexOf(kStateOpen);
     if (start < 0) {
       return GameplayTurn(displayText: raw.trim());
     }
     final end = raw.indexOf(kStateClose, start);
-    final jsonText = end < 0
-        ? raw.substring(start + kStateOpen.length)
-        : raw.substring(start + kStateOpen.length, end);
+    if (end < 0) {
+      // 状态块还没写完（或模型格式不完整）：截掉它，正文照常显示
+      if (!streaming) {
+        SjLog.warning('GameplayRuntime: 状态块未闭合，本回合按无变化处理');
+      }
+      return GameplayTurn(displayText: raw.substring(0, start).trim());
+    }
 
-    // 正文 = 状态块之前的内容 + 状态块之后的内容
+    final jsonText = raw.substring(start + kStateOpen.length, end);
+    // 正文 = 状态块之前 + 状态块之后
     final before = raw.substring(0, start);
-    final after = end < 0 ? '' : raw.substring(end + kStateClose.length);
+    final after = raw.substring(end + kStateClose.length);
     final display = (before + after).trim();
 
     final deltas = <String, int>{};
