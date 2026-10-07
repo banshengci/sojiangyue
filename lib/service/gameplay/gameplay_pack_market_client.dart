@@ -86,15 +86,24 @@ class GameplayPackMarketClient {
   Future<GameplayPackMarketCatalog> fetchCatalog() async {
     final url = RemoteConfig.gamepackCatalogUrl;
     if (url.isNotEmpty) {
-      try {
-        final res = await Dio().get(url);
-        final data = res.data;
-        if (data is! Map) {
-          throw StateError('目录响应格式错误（期望 JSON 对象）');
+      // 先校验是不是一个真的能请求的绝对地址：镜像未配置或写错时，
+      // 这里拼出来的可能是相对路径，直接交给 Dio 会抛
+      // "No host specified in URI"（实机日志里就是这条）。
+      final uri = Uri.tryParse(url);
+      if (uri == null || uri.host.isEmpty) {
+        SjLog.warning('GamepackMarket: 目录 URL 不合法（缺少 host），改用随包示例: $url');
+      } else {
+        try {
+          final res = await Dio().get(url);
+          final data = res.data;
+          if (data is! Map) {
+            throw StateError('目录响应格式错误（期望 JSON 对象）');
+          }
+          return GameplayPackMarketCatalog.fromJson(
+              data as Map<String, dynamic>);
+        } catch (e, st) {
+          SjLog.warning('GamepackMarket: 拉取远程目录失败，回退随包示例: $e\n$st');
         }
-        return GameplayPackMarketCatalog.fromJson(data as Map<String, dynamic>);
-      } catch (e, st) {
-        SjLog.warning('GamepackMarket: 拉取远程目录失败，回退随包示例: $e\n$st');
       }
     }
     final text = await rootBundle.loadString(_bundledCatalogAsset);

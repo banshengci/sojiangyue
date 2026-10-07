@@ -134,8 +134,13 @@ class RemoteConfig {
   }
 
   /// 玩法包目录文件 URL（gameplay-catalog.json）。
-  static String get gamepackCatalogUrl =>
-      '${gamepackMirrorUrl}gameplay-catalog.json';
+  ///
+  /// 未配置镜像时返回**空串**：调用方据此直接走「随包示例目录」。
+  /// （原先无论是否配置都会拼出 `gameplay-catalog.json` 这个没有 host 的
+  /// 相对地址，导致每次都白发一次请求并抛 "No host specified in URI"。）
+  static String get gamepackCatalogUrl => gamepackMirrorUrl.isEmpty
+      ? ''
+      : '${gamepackMirrorUrl}gameplay-catalog.json';
 
   static bool get enableGamepackMarket => true; // 离线示例始终可用；远程镜像可选增强。
 

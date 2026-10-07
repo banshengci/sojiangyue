@@ -1,5 +1,4 @@
-﻿import 'package:songjiang_reader/utils/log/common.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -110,8 +109,9 @@ class AsyncSkeletonWrapper<T> extends StatelessWidget {
     if (T == double) return 1.0 as T;
     if (T == String) return 'a ' * 5 as T;
     if (T == bool) return false as T;
-    SjLog.severe('No default mock available for type $T');
-
+    // 自定义类型没有默认 mock 属于**预期情况**（调用方未传 mock），
+    // 上层会 catch 并降级为进度圈。这不是错误，故不记 severe，
+    // 免得每次加载都往日志里扔一条 SEVERE 造成误判。
     throw Exception('No default mock available for type $T');
   }
 }
