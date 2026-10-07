@@ -469,6 +469,22 @@ void _showImportDialog(
                       setState(() {
                         finished = true;
                       });
+
+                      // 给出明确汇总：原先只有图标变化，用户分不清
+                      // 「真导入了」「被判重复跳过了」「其实失败了」。
+                      final okCount =
+                          filesToImport.length - errorFiles.length;
+                      final skipped =
+                          skipDuplicates ? duplicateFiles.length : 0;
+                      SjToast.show(
+                        '导入完成：成功 $okCount 本'
+                        '${errorFiles.isEmpty ? '' : '，失败 ${errorFiles.length} 本'}'
+                        '${skipped == 0 ? '' : '，跳过重复 $skipped 本'}',
+                      );
+
+                      // refresh 之后再 invalidate 一次：确保书架不残留旧列表
+                      ref.read(bookListProvider.notifier).refresh();
+                      ref.invalidate(bookListProvider);
                       ref.read(syncProvider.notifier).syncData(
                           SyncDirection.upload, ref,
                           trigger: SyncTrigger.auto);
@@ -630,6 +646,8 @@ Future<void> saveBook(
   if (md5 != null) {
     provideBook ??= await bookDao.getBookByMd5(md5);
   }
+  SjLog.info(
+      'Import: 落库前 title=$effectiveTitle md5=$md5 命中已有书籍=${provideBook?.id}');
 
   Book book = Book(
       id: provideBook != null ? provideBook.id : -1,
@@ -646,6 +664,28 @@ Future<void> saveBook(
       updateTime: DateTime.now());
 
   book.id = await bookDao.insertBook(book);
+
+  // 落库后立刻回查：insert 返回了 id 不代表真的写进去了——
+  // 走 update 分支时若目标行不存在（sqlite 影响 0 行且不报错），
+  // 就会出现「提示导入成功、重启后书却不在」这种情况。这里把假成功拦下来。
+  final persisted = await bookDao.querySingle<Book>(
+    BookDao.table,
+    mapper: Book.fromDb,
+    where: 'id = ?',
+    whereArgs: [book.id],
+  );
+  final visible = await bookDao.selectNotDeleteBooks();
+  final inList = visible.any((b) => b.id == book.id);
+  SjLog.info(
+      'Import: 落库校验 id=${book.id} 回查=${persisted != null} 书架可见=$inList 当前书架共 ${visible.length} 本');
+  if (persisted == null) {
+    throw Exception('书籍未能写入数据库（id=${book.id}），请重试或反馈此现象');
+  }
+  if (!inList) {
+    throw Exception(
+        '书籍已入库但被标记为不可见（id=${book.id}，is_deleted=${persisted.isDeleted}）');
+  }
+
   PluginEventDispatcher.instance.onBookImported(book.id); // P0c: 触发插件钩子（导入后自动蒸馏等）
   SjToast.show(L10n.of(navigatorKey.currentContext!).serviceImportSuccess);
   await headlessInAppWebView?.dispose();
@@ -665,6 +705,12 @@ Future<void> getBookMetadata(
 
   String bookUrl = "http://127.0.0.1:${Server().port}/$serverFileName";
   SjLog.info("import start: book url: $bookUrl");
+
+  // 元数据回调的结果：原先异常在回调里被吞掉，外层等待循环只看到
+  // 「webview 已释放」就正常返回，于是导入失败在 UI 上表现为「成功但没书」。
+  // 这里把结果带出来，由外层决定抛错。
+  bool saved = false;
+  Object? saveError;
 
   SjHeadlessWebView webview = SjHeadlessWebView(
     webViewEnvironment: webViewEnvironment,
@@ -692,9 +738,6 @@ Future<void> getBookMetadata(
             // base64 cover
             String cover = metadata['cover'] ?? '';
             String description = metadata['description'] ?? '';
-            // 必须 await 并捕获异常：saveBook 内部会释放 headless webview，
-            // 若它抛异常且未被捕获，外层的等待循环会空转到 30 秒超时，
-            // 用户界面上就只表现为「导入了但书架没反应」。
             try {
               await saveBook(
                 file,
@@ -706,7 +749,10 @@ Future<void> getBookMetadata(
                 provideBook: book,
               );
               ref?.read(bookListProvider.notifier).refresh();
+              saved = true;
+              SjLog.info('Import: 保存成功: $title');
             } catch (e, stackTrace) {
+              saveError = e;
               SjLog.severe('Import: 保存书籍失败: $e');
               SjLog.severe('Stack trace: $stackTrace');
               await headlessInAppWebView?.dispose();
@@ -731,6 +777,14 @@ Future<void> getBookMetadata(
   int count = 0;
   while (count < 300) {
     if (headlessInAppWebView == null) {
+      // 解析结束：把真实结果抛给上层，不再伪装成功
+      if (saveError != null) {
+        throw Exception('保存书籍失败：$saveError');
+      }
+      if (!saved) {
+        throw Exception(
+            '未取到书籍信息（文件可能不是有效的 EPUB/TXT，或解析超时）');
+      }
       return;
     }
     await Future.delayed(const Duration(milliseconds: 100));

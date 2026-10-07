@@ -120,7 +120,7 @@ class Book {
 
   factory Book.fromDb(Map<String, dynamic> map) {
     return Book(
-      id: map['id'] as int,
+      id: (map['id'] as int?) ?? -1,
       title: map['title'] as String? ?? '',
       coverPath: map['cover_path'] as String? ?? '',
       filePath: map['file_path'] as String? ?? '',
@@ -132,10 +132,21 @@ class Book {
       rating: (map['rating'] as num?)?.toDouble() ?? 0.0,
       groupId: map['group_id'] as int? ?? 0,
       md5: map['file_md5'] as String?,
-      createTime: DateTime.parse(map['create_time'] as String),
-      updateTime: DateTime.parse(map['update_time'] as String),
+      // 时间字段用 tryParse 兜底：原先用 DateTime.parse，只要有**一条**记录的
+      // 时间列为空或格式异常，整个 selectNotDeleteBooks() 就会抛异常，
+      // 表现为书架/搜索全部空白——一条坏数据毁掉整个书架。
+      createTime: _parseDbTime(map['create_time']),
+      updateTime: _parseDbTime(map['update_time']),
       seriesName: map['series_name'] as String?,
       seriesIndex: (map['series_index'] as num?)?.toDouble(),
     );
   }
+}
+
+/// 容错解析数据库里的时间列（空 / 非法格式 / 毫秒时间戳都能兜住）。
+DateTime _parseDbTime(Object? value) {
+  if (value == null) return DateTime.fromMillisecondsSinceEpoch(0);
+  if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+  return DateTime.tryParse(value.toString()) ??
+      DateTime.fromMillisecondsSinceEpoch(0);
 }
