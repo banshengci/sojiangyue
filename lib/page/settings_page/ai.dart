@@ -6,7 +6,9 @@ import 'package:songjiang_reader/enums/ai_panel_position.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/page/settings_page/ai_provider_list_page.dart';
 import 'package:songjiang_reader/page/long_task/long_task_center_page.dart';
+import 'package:songjiang_reader/page/character/crossover_page.dart';
 import 'package:songjiang_reader/page/gameplay/gameplay_center_page.dart';
+import 'package:songjiang_reader/page/plugin/plugin_workshop_page.dart';
 import 'package:songjiang_reader/providers/ai_cache_count.dart';
 import 'package:songjiang_reader/providers/ai_providers.dart';
 import 'package:songjiang_reader/providers/user_prompts.dart';
@@ -373,6 +375,26 @@ class _AISettingsState extends ConsumerState<AISettings> {
                               ? '远程配置已刷新（${RuntimeConfig.instance.isLoaded ? '已生效' : ''}）'
                               : '刷新失败：${RuntimeConfig.instance.lastError}');
                         },
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.construction_outlined, size: 18),
+                        label: const Text('插件工坊'),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PluginWorkshopPage(),
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.swap_horiz, size: 18),
+                        label: const Text('穿越联动'),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CrossoverPage(),
+                          ),
+                        ),
                       ),
                       TextButton.icon(
                         icon: const Icon(Icons.task_outlined, size: 18),

@@ -6,6 +6,8 @@ import 'package:songjiang_reader/utils/platform_utils.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
+import 'package:songjiang_reader/dao/character_chat_schema.dart';
+import 'package:songjiang_reader/dao/character_extras_schema.dart';
 import 'package:songjiang_reader/dao/character_schema.dart';
 import 'package:songjiang_reader/service/book.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
@@ -15,7 +17,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // Current app database version
-const int currentDbVersion = 11;
+const int currentDbVersion = 14;
 
 const createBookSQL = '''
 CREATE TABLE tb_books (
@@ -510,6 +512,21 @@ class DBHelper {
       case 10:
         // 松江阅 P0：角色卡 / 关系 / 设定 / 时间线
         await applyCharacterSchema(db);
+        continue case11;
+      case11:
+      case 11:
+        // 松江阅：角色对话（会话 + 消息）
+        await applyCharacterChatSchema(db);
+        continue case12;
+      case12:
+      case 12:
+        // 松江阅：自设卡 / 穿越场景 / 原著知识 / 剧情回顾
+        await applyCharacterExtrasSchema(db);
+        continue case13;
+      case13:
+      case 13:
+        // 松江阅：人物卡头像路径
+        await addCharacterAvatarColumn(db);
     }
 
     if (oldVersion != 0 && SyncPrefs.webdavStatus) {

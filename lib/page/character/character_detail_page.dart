@@ -5,6 +5,9 @@ import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 
+import 'character_avatar.dart';
+import 'character_chat_page.dart';
+import 'character_edit_page.dart';
 import 'characters_page_strings.dart';
 
 /// 单人详情页：角色卡字段 + 其参与的人物关系。
@@ -25,6 +28,7 @@ class CharacterDetailPage extends StatefulWidget {
 class _CharacterDetailPageState extends State<CharacterDetailPage> {
   List<CharacterRelation> _relations = [];
   Map<String, CharacterCard> _byName = {};
+  late CharacterCard _card = widget.character;
   bool _loading = true;
 
   @override
@@ -42,9 +46,25 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
     if (!mounted) return;
     _byName = {for (final c in cards) c.name: c};
     setState(() {
+      // 重新读一遍自己：编辑页保存后回来能立刻看到新资料
+      _card = _byName[widget.character.name] ?? widget.character;
       _relations = relations;
       _loading = false;
     });
+  }
+
+  /// 校对资料（改字段 / 配头像 / AI 补全）。
+  Future<void> _edit() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CharacterEditPage(
+          bookId: widget.bookId,
+          card: _card,
+        ),
+      ),
+    );
+    if (changed == true && mounted) await _load();
   }
 
   void _openOther(String name) {
@@ -61,14 +81,47 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
   @override
   Widget build(BuildContext context) {
     final c = SjColors.of(context);
-    final card = widget.character;
+    final card = _card;
     return Scaffold(
-      appBar: AppBar(title: Text(card.name)),
+      appBar: AppBar(
+        title: Text(card.name),
+        actions: [
+          IconButton(
+            tooltip: CharactersPageText.editTitle,
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _edit,
+          ),
+          IconButton(
+            tooltip: CharactersPageText.chatTitle,
+            icon: const Icon(Icons.forum_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CharacterChatPage(
+                  bookId: widget.bookId,
+                  characterName: card.name,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: _loading
           ? const AppLoadingHint()
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // 头像 + 姓名（配过头像的会显示图片）
+                Center(
+                  child: Column(
+                    children: [
+                      characterAvatar(card, c, radius: 40),
+                      const SizedBox(height: 8),
+                      Text(card.name, style: SjText.sectionTitle(c.ink)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 // 身份 / 重要度
                 Row(
                   children: [

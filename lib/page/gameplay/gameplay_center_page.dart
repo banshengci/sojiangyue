@@ -13,11 +13,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/plugin/declarative_plugin_tool.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_models.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_service.dart';
 import 'package:songjiang_reader/page/gameplay/gamepack_market_dialog.dart';
+import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 
 class GameplayCenterPage extends ConsumerStatefulWidget {
@@ -41,8 +43,19 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
     _reload();
   }
 
+  /// 随包示例玩法包资源（离线演示：红楼诗词闯关 / 三国名场面 / 每日挑战）。
+  static const List<String> _bundledSampleAssets = [
+    'assets/gameplay/hlm_quiz.sjgame.zip',
+    'assets/gameplay/sanguo_scene.sjgame.zip',
+    'assets/gameplay/daily_challenge.sjgame.zip',
+  ];
+
+  /// 随包示例是否已装载过（只自动装一次，用户手动移除后不再塞回来）。
+  static const String _bundledLoadedKey = 'gameplay.bundledSamplesLoaded';
+
   Future<void> _reload() async {
     setState(() => _loading = true);
+    await _ensureBundledSamples();
     final packs = await GameplayPackService.instance.listInstalled();
     // 重启后恢复已激活脚本包的工具注入（能力持久化）。
     await GameplayPackService.instance.restoreActivated(packs);
@@ -53,6 +66,28 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
         _activated = activated;
         _loading = false;
       });
+    }
+  }
+
+  /// 首次进入玩法中心时自动装载随包示例。
+  ///
+  /// 否则用户第一次打开只会看到一个空页面，需要自己去点右上角按钮才知道
+  /// 有示例可加载——表现上就是「玩法中心用不了」。
+  Future<void> _ensureBundledSamples() async {
+    final sp = await SharedPreferences.getInstance();
+    if (sp.getBool(_bundledLoadedKey) ?? false) return;
+    // 先落标记：即便加载失败也不反复重试，避免每次进页面都弹一堆提示。
+    await sp.setBool(_bundledLoadedKey, true);
+
+    for (final asset in _bundledSampleAssets) {
+      try {
+        final data = await rootBundle.load(asset);
+        final bytes = data.buffer.asUint8List();
+        final manifest = await GameplayPackService.instance.importPack(bytes);
+        await GameplayPackService.instance.saveInstalled(manifest);
+      } catch (e) {
+        SjLog.warning('Gameplay: 自动装载示例失败 $asset：$e');
+      }
     }
   }
 

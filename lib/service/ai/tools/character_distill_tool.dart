@@ -1,10 +1,6 @@
-import 'dart:convert';
-
-import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/character_dao.dart';
-import 'package:songjiang_reader/service/ai/langchain_ai_config.dart';
-import 'package:songjiang_reader/service/ai/langchain_registry.dart';
+import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/character_distill_service.dart';
 
@@ -58,15 +54,10 @@ class DistillCharactersTool
 
   @override
   Future<Map<String, dynamic>> run(DistillCharactersInput input) async {
-    final id = AiPrefs.selectedServiceId;
-    final raw = AiPrefs.getConfig(id);
-    if (raw.isEmpty) {
+    final model = resolveCurrentModel();
+    if (model == null) {
       return {'status': 'error', 'message': '尚未配置 AI 服务，无法蒸馏。'};
     }
-    final config = LangchainAiConfig.fromPrefs(id, raw);
-    final registry = LangchainAiRegistry(null);
-    final pipeline = registry.resolve(config);
-
     final service = CharacterDistillService(
       dao: _dao,
       repository: CharacterDistillRepository(bookDao: _bookDao),
@@ -75,7 +66,7 @@ class DistillCharactersTool
     var last = const DistillProgress(phase: DistillPhase.preparing);
     await for (final p in service.distill(
       bookId: input.bookId,
-      model: pipeline.model,
+      model: model,
       chapterCharBudget: input.chapterCharBudget ?? 12000,
     )) {
       last = p;

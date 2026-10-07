@@ -8,6 +8,7 @@ import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/distill_prompt.dart';
+import 'package:songjiang_reader/service/character/distill_snapshot.dart';
 import 'package:songjiang_reader/service/long_task/task_manifest.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
@@ -27,6 +28,7 @@ class DistillProgress {
     required this.phase,
     this.processedChunks = 0,
     this.totalChunks = 0,
+    this.skippedChunks = 0,
     this.charactersFound = 0,
     this.message = '',
   });
@@ -34,6 +36,9 @@ class DistillProgress {
   final DistillPhase phase;
   final int processedChunks;
   final int totalChunks;
+
+  /// 增量蒸馏时因内容未变化而跳过的切片数。
+  final int skippedChunks;
   final int charactersFound;
   final String message;
 }
@@ -74,28 +79,19 @@ class DistillChunkPlanner {
   }
 }
 
-/// 断点续传状态：记录已成功处理的切片下标，存于 SharedPreferences（bookId 维度）。
+/// 断点续传状态（已废弃）。
+///
+/// 原实现按「切片下标」记录已完成，章节增删会让下标整体错位，反而跳过
+/// 真正没蒸馏过的内容。现由 [DistillSnapshotStore] 的**内容指纹快照**接管——
+/// 指纹相同即跳过，与切片位置无关，且同一份快照天然覆盖「续跑」与「增量」
+/// 两种需求（每完成一段就落一次，中断后重跑自动跳过已完成的）。
+///
+/// 这里保留一个清理入口，供老版本残留数据回收。
 class DistillResumeState {
   static const String _prefix = 'distillResume_';
 
-  static Future<Set<int>> load(int bookId) async {
-    final sp = await SharedPreferences.getInstance();
-    final raw = sp.getString('$_prefix$bookId');
-    if (raw == null) return {};
-    try {
-      final list = (jsonDecode(raw) as List).cast<int>();
-      return list.toSet();
-    } catch (_) {
-      return {};
-    }
-  }
-
-  static Future<void> save(int bookId, Set<int> done) async {
-    final sp = await SharedPreferences.getInstance();
-    await sp.setString('$_prefix$bookId', jsonEncode(done.toList()));
-  }
-
-  static Future<void> clear(int bookId) async {
+  /// 清掉历史版本留下的下标快照。
+  static Future<void> clearLegacy(int bookId) async {
     final sp = await SharedPreferences.getInstance();
     await sp.remove('$_prefix$bookId');
   }
@@ -109,11 +105,16 @@ class CharacterDistillService {
   final CharacterDao dao;
   final CharacterDistillRepository repository;
 
+  /// 增量蒸馏：只处理「内容指纹」不在上次快照里的切片。
+  ///
+  /// false 时行为同以前——全书重跑（会整图覆盖）。
+  static const bool defaultIncremental = true;
+
   Stream<DistillProgress> distill({
     required int bookId,
     required BaseChatModel model,
     int chapterCharBudget = 12000,
-    bool resume = true,
+    bool incremental = defaultIncremental,
   }) async* {
     yield const DistillProgress(
         phase: DistillPhase.preparing, message: '读取章节…');
@@ -125,28 +126,77 @@ class CharacterDistillService {
     final chapters = await repository.getChapters(bookId);
     final planner = DistillChunkPlanner(chapterCharBudget: chapterCharBudget);
     final chunks = planner.plan(chapters);
+
+    // 空文本直接失败：否则会一路走到「完成：0 个人物」，用户完全不知道原因。
+    if (chunks.isEmpty) {
+      await store.upsert(
+        manifest.copyWith(status: LongTaskStatus.failed, total: 0),
+      );
+      yield const DistillProgress(
+        phase: DistillPhase.failed,
+        message: '未从书中提取到任何正文（当前蒸馏仅支持 EPUB / TXT）',
+      );
+      return;
+    }
+
     yield DistillProgress(
       phase: DistillPhase.preparing,
       totalChunks: chunks.length,
       message: '共 ${chunks.length} 个切片',
     );
 
-    final resumeDone = resume ? await DistillResumeState.load(bookId) : <int>{};
+    // 增量：先算出每个切片的指纹，与上次快照比对。
+    // 注意不能只按「下标」判断——章节增删会让下标整体错位。
+    final fingerprints = chunks.map((c) => chunkFingerprint(c.text)).toList();
+    final snapshot = incremental
+        ? await DistillSnapshotStore.load(bookId)
+        : DistillSnapshot.empty;
+    // 快照为空时退化为全量（首次蒸馏 / 用户清过缓存）。
+    final doIncremental = incremental && !snapshot.isEmpty;
+
+    if (doIncremental) {
+      yield DistillProgress(
+        phase: DistillPhase.preparing,
+        totalChunks: chunks.length,
+        message: '增量模式：上次已处理 ${snapshot.hashes.length} 段',
+      );
+    }
+
     final allCharacters = <String, CharacterCard>{};
     final allRelations = <CharacterRelation>[];
     final allWorld = <WorldSetting>[];
     final allTimeline = <TimelineEvent>[];
-    var processed = 0;
 
-    for (final chunk in chunks) {
-      if (resumeDone.contains(chunk.index)) {
-        processed++;
+    // 增量模式下，先把库里已有的图读出来作为基础，
+    // 新抽取的内容与之合并；否则整图会被新结果覆盖掉未变动的部分。
+    if (doIncremental) {
+      for (final c in await dao.getCharacters(bookId)) {
+        allCharacters[c.name] = c;
+      }
+      allRelations.addAll(await dao.getRelations(bookId));
+      allWorld.addAll(await dao.getWorldSettings(bookId));
+      allTimeline.addAll(await dao.getTimeline(bookId));
+    }
+
+    var processed = 0;
+    var skipped = 0;
+    var failedChunks = 0;
+    final processedHashes = <String>{...snapshot.hashes};
+
+    for (var i = 0; i < chunks.length; i++) {
+      final chunk = chunks[i];
+      final hash = fingerprints[i];
+
+      // 增量：内容没变过就直接跳过（不消耗 token）
+      if (doIncremental && snapshot.hashes.contains(hash)) {
+        skipped++;
         continue;
       }
       yield DistillProgress(
         phase: DistillPhase.extracting,
         processedChunks: processed,
         totalChunks: chunks.length,
+        skippedChunks: skipped,
         charactersFound: allCharacters.length,
         message: '抽取：${chunk.title}',
       );
@@ -154,9 +204,17 @@ class CharacterDistillService {
         final raw = await _extract(model, chunk);
         _mergeInto(allCharacters, allRelations, allWorld, allTimeline, raw,
             bookId);
-        resumeDone.add(chunk.index);
-        await DistillResumeState.save(bookId, resumeDone);
+        processedHashes.add(hash);
+        await DistillSnapshotStore.save(
+          bookId,
+          DistillSnapshot(
+            hashes: processedHashes,
+            updatedAt: DateTime.now(),
+            chunkCount: chunks.length,
+          ),
+        );
       } catch (e, st) {
+        failedChunks++;
         SjLog.warning('CharacterDistill: chunk ${chunk.index} 失败: $e\n$st');
       }
       processed++;
@@ -164,6 +222,7 @@ class CharacterDistillService {
         phase: DistillPhase.extracting,
         processedChunks: processed,
         totalChunks: chunks.length,
+        skippedChunks: skipped,
         charactersFound: allCharacters.length,
         message: '已抽取 ${allCharacters.length} 个人物',
       );
@@ -172,10 +231,29 @@ class CharacterDistillService {
       );
     }
 
+    // 全是旧内容：一个切片都没重跑，直接结束，不落库也不算失败。
+    if (processed == 0 && skipped > 0) {
+      await store.upsert(manifest.copyWith(
+        status: LongTaskStatus.done,
+        processed: skipped,
+        total: chunks.length,
+      ));
+      yield DistillProgress(
+        phase: DistillPhase.done,
+        processedChunks: 0,
+        totalChunks: chunks.length,
+        skippedChunks: skipped,
+        charactersFound: allCharacters.length,
+        message: '全书 $skipped 段内容都蒸馏过了，没有新增内容',
+      );
+      return;
+    }
+
     yield DistillProgress(
       phase: DistillPhase.merging,
       processedChunks: processed,
       totalChunks: chunks.length,
+      skippedChunks: skipped,
       charactersFound: allCharacters.length,
       message: '归并关系…',
     );
@@ -183,6 +261,24 @@ class CharacterDistillService {
     final now = DateTime.now();
     final characters =
         allCharacters.values.map((c) => c.copyWith(updatedAt: now)).toList();
+
+    // 所有切片都失败：不要落库覆盖已有数据，直接报失败并说明最可能的原因，
+    // 避免用户看到「完成：0 个人物」却无从下手。
+    if (characters.isEmpty && failedChunks > 0) {
+      await store.upsert(manifest.copyWith(
+        status: LongTaskStatus.failed,
+        processed: processed,
+        total: chunks.length,
+      ));
+      yield DistillProgress(
+        phase: DistillPhase.failed,
+        processedChunks: processed,
+        totalChunks: chunks.length,
+        message: '全部 $failedChunks 个切片调用失败：多为密钥无效、'
+            '模型不支持该请求或返回内容无法解析为 JSON，请检查 AI 服务配置。',
+      );
+      return;
+    }
 
     yield DistillProgress(
       phase: DistillPhase.saving,
@@ -196,7 +292,17 @@ class CharacterDistillService {
       settings: allWorld,
       events: allTimeline,
     );
-    await DistillResumeState.clear(bookId);
+    await DistillResumeState.clearLegacy(bookId);
+
+    // 落库成功后再写快照：中途失败下次仍会重跑这些切片。
+    await DistillSnapshotStore.save(
+      bookId,
+      DistillSnapshot(
+        hashes: processedHashes,
+        updatedAt: DateTime.now(),
+        chunkCount: chunks.length,
+      ),
+    );
 
     await store.upsert(manifest.copyWith(
       status: LongTaskStatus.done,
@@ -204,13 +310,15 @@ class CharacterDistillService {
       total: chunks.length,
     ));
 
+    final skippedNote = skipped > 0 ? '（跳过 $skipped 段未变内容）' : '';
     yield DistillProgress(
       phase: DistillPhase.done,
       processedChunks: processed,
       totalChunks: chunks.length,
+      skippedChunks: skipped,
       charactersFound: characters.length,
       message:
-          '完成：${characters.length} 个人物 / ${allRelations.length} 条关系',
+          '完成：${characters.length} 个人物 / ${allRelations.length} 条关系$skippedNote',
     );
   }
 

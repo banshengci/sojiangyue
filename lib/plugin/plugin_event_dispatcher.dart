@@ -12,8 +12,7 @@ import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
-import 'package:songjiang_reader/service/ai/langchain_ai_config.dart';
-import 'package:songjiang_reader/service/ai/langchain_registry.dart';
+import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/character_distill_service.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -74,7 +73,7 @@ class PluginEventDispatcher {
     int? chapterIndex,
     Map<String, dynamic>? payload,
   }) async {
-    if (AiPrefs.getConfig(AiPrefs.selectedServiceId).isEmpty) {
+    if (!hasUsableAiConfig) {
       SjLog.info('Plugin: 未配置 AI 服务，跳过事件 $event bookId=$bookId');
       return;
     }
@@ -135,9 +134,11 @@ class PluginEventDispatcher {
   }
 
   Future<void> _runCharacterDistill(int bookId) async {
-    final id = AiPrefs.selectedServiceId;
-    final config = LangchainAiConfig.fromPrefs(id, AiPrefs.getConfig(id));
-    final model = LangchainAiRegistry(null).resolve(config).model;
+    final model = resolveCurrentModel();
+    if (model == null) {
+      SjLog.info('Plugin: 未配置 AI 服务，跳过自动蒸馏 bookId=$bookId');
+      return;
+    }
     final service = CharacterDistillService(
       dao: characterDao,
       repository: CharacterDistillRepository(bookDao: bookDao),

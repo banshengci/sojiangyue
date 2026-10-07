@@ -37,6 +37,7 @@ class CharacterCard {
     this.appearance,
     this.firstAppearanceChapter,
     this.description,
+    this.avatarPath,
     this.source = 'ai_distill',
     required this.createdAt,
     required this.updatedAt,
@@ -55,6 +56,9 @@ class CharacterCard {
   final String? appearance;
   final String? firstAppearanceChapter;
   final String? description;
+
+  /// 人物头像的本地文件路径（读者自己配的，可为空）。
+  final String? avatarPath;
   final String source;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -73,6 +77,7 @@ class CharacterCard {
         appearance: map['appearance'] as String?,
         firstAppearanceChapter: map['first_appearance_chapter'] as String?,
         description: map['description'] as String?,
+        avatarPath: map['avatar_path'] as String?,
         source: (map['source'] as String?) ?? 'ai_distill',
         createdAt: DateTime.tryParse(map['created_at'] as String? ?? '') ??
             DateTime.now(),
@@ -93,35 +98,46 @@ class CharacterCard {
         'appearance': appearance,
         'first_appearance_chapter': firstAppearanceChapter,
         'description': description,
+        'avatar_path': avatarPath,
         'source': source,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };
 
+  /// 传 null 表示该字段不变；要清空请显式传空字符串 / 空列表。
   CharacterCard copyWith({
+    String? name,
+    List<String>? aliases,
+    String? gender,
+    String? role,
+    int? importance,
     String? personality,
     String? background,
     String? motivation,
+    String? appearance,
+    String? firstAppearanceChapter,
     String? description,
-    int? importance,
-    String? role,
+    String? avatarPath,
+    String? source,
     DateTime? updatedAt,
   }) =>
       CharacterCard(
         id: id,
         bookId: bookId,
-        name: name,
-        aliases: aliases,
-        gender: gender,
+        name: name ?? this.name,
+        aliases: aliases ?? this.aliases,
+        gender: gender ?? this.gender,
         role: role ?? this.role,
         importance: importance ?? this.importance,
         personality: personality ?? this.personality,
         background: background ?? this.background,
         motivation: motivation ?? this.motivation,
-        appearance: appearance,
-        firstAppearanceChapter: firstAppearanceChapter,
+        appearance: appearance ?? this.appearance,
+        firstAppearanceChapter:
+            firstAppearanceChapter ?? this.firstAppearanceChapter,
         description: description ?? this.description,
-        source: source,
+        avatarPath: avatarPath ?? this.avatarPath,
+        source: source ?? this.source,
         createdAt: createdAt,
         updatedAt: updatedAt ?? DateTime.now(),
       );

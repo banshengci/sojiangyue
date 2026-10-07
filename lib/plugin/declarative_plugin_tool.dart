@@ -5,12 +5,14 @@
 
 import 'dart:convert';
 
-import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:langchain_core/prompts.dart';
-import 'package:songjiang_reader/service/ai/langchain_ai_config.dart';
-import 'package:songjiang_reader/service/ai/langchain_registry.dart';
+import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
+
+/// AI 未配置时的统一提示（新 provider 体系与旧 aiConfig 体系都取不到时）。
+const String _notConfiguredMessage =
+    '尚未配置 AI 服务，无法运行插件。请到「设置 → AI」中配置服务与密钥。';
 
 /// 把 {{input}}（整体 JSON）与 {{key}}（逐字段）替换为变量内容。
 /// 声明式工具与多步链共用同一套模板渲染规则。
@@ -45,13 +47,10 @@ class DeclarativePluginTool
 
   @override
   Future<String> run(Map<String, dynamic> input) async {
-    final id = AiPrefs.selectedServiceId;
-    final raw = AiPrefs.getConfig(id);
-    if (raw.isEmpty) {
-      return jsonEncode({'status': 'error', 'message': '尚未配置 AI 服务，无法运行插件。'});
+    final model = resolveCurrentModel();
+    if (model == null) {
+      return jsonEncode({'status': 'error', 'message': _notConfiguredMessage});
     }
-    final config = LangchainAiConfig.fromPrefs(id, raw);
-    final model = LangchainAiRegistry(null).resolve(config).model;
     final prompt = _renderTemplate(spec.prompt ?? '', input);
     final res = await model.invoke(PromptValue.string(prompt));
     final text = _extractText(res);
@@ -91,13 +90,10 @@ class DeclarativeChainTool
 
   @override
   Future<String> run(Map<String, dynamic> input) async {
-    final id = AiPrefs.selectedServiceId;
-    final raw = AiPrefs.getConfig(id);
-    if (raw.isEmpty) {
-      return jsonEncode({'status': 'error', 'message': '尚未配置 AI 服务，无法运行插件。'});
+    final model = resolveCurrentModel();
+    if (model == null) {
+      return jsonEncode({'status': 'error', 'message': _notConfiguredMessage});
     }
-    final config = LangchainAiConfig.fromPrefs(id, raw);
-    final model = LangchainAiRegistry(null).resolve(config).model;
     final vars = <String, dynamic>{...input};
     final stepsOut = <String, String>{};
     var last = '';

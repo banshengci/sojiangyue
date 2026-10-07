@@ -22,6 +22,7 @@ import 'package:songjiang_reader/page/search/search_page.dart';
 import 'package:songjiang_reader/utils/get_path/get_temp_dir.dart';
 import 'package:songjiang_reader/utils/color/hash_color.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
+import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/bookshelf/book_bottom_sheet.dart';
 import 'package:songjiang_reader/widgets/bookshelf/book_folder.dart';
 import 'package:songjiang_reader/widgets/bookshelf/sync_button.dart';
@@ -79,31 +80,54 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
   }
 
   Future<void> _importBook() async {
+    // withData: true —— 必须显式打开。
+    // 安卓上 file_picker 返回的 path 可能为空、或指向无法直接 File 读取的
+    // content:// / 已被清理的缓存路径，而 file.bytes 才是各平台都可靠的来源。
+    // 之前未设置该参数，bytes 恒为 null，只能走 path 兜底：iOS 能读通、
+    // 安卓读不通，表现就是「点了导入，书架没有任何反应」。
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.any,
       allowMultiple: true,
+      withData: true,
     );
 
-    if (result == null) {
+    if (result == null || result.files.isEmpty) {
       return;
     }
 
     List<PlatformFile> files = result.files;
-    SjLog.info('importBook files: ${files.toString()}');
+    SjLog.info('importBook files: ${files.map((f) => f.name).join(', ')}');
 
-    // 统一从 file.bytes 写入我们自己的临时目录，
-    // 不依赖 file_picker 在各平台返回的路径（安卓上该路径
-    // 可能是 content:// URI、缓存路径被清理、或扩展名丢失）。
-    final List<File> fileList = await Future.wait(files.map((file) async {
-      final bytes = file.bytes;
-      if (bytes != null && bytes.isNotEmpty) {
-        return _writeToTemp(bytes: bytes, fileName: file.name);
+    // 逐个处理：单个文件失败不影响其余文件，避免一个失败整批静默丢失。
+    final List<File> fileList = [];
+    for (final file in files) {
+      try {
+        final bytes = file.bytes;
+        if (bytes != null && bytes.isNotEmpty) {
+          fileList.add(await _writeToTemp(bytes: bytes, fileName: file.name));
+          continue;
+        }
+        // bytes 为 null 时兜底：仅当 path 可用且确实能读到时才走复制
+        final path = file.path;
+        if (path == null ||
+            path.isEmpty ||
+            !File(path).existsSync()) {
+          SjLog.severe(
+              'importBook: 文件不可读取（bytes 为空且 path 不可用），跳过：${file.name}');
+          continue;
+        }
+        SjLog.warning('importBook: bytes 为空，从路径读取: $path');
+        fileList.add(await _copyToTempFile(sourcePath: path, fileName: file.name));
+      } catch (e) {
+        SjLog.severe('importBook: 写入临时文件失败 ${file.name}: $e');
       }
-      // bytes 为 null 时兜底：从 file.path 复制（可能在某些平台失效）
-      SjLog.warning(
-          'importBook: file.bytes 为空，尝试从路径读取: ${file.path}');
-      return _copyToTempFile(sourcePath: file.path!, fileName: file.name);
-    }).toList());
+    }
+
+    if (fileList.isEmpty) {
+      if (!mounted) return;
+      SjToast.show(L10n.of(context).importCannotGetFilePath);
+      return;
+    }
 
     await importBookList(fileList, context, ref);
   }

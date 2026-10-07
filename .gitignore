@@ -80,3 +80,6 @@ songjiang-yue-delivery-20260911/
 songjiang-yue-delivery-20260911.zip
 .flutter
 .flutter_tool_state
+
+# 本地 AI 助手的工作目录（记忆/临时脚本），与工程无关
+.workbuddy/

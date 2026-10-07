@@ -28,6 +28,53 @@ class CharacterDao extends BaseDao {
     return insert(tableCard, card.copyWith(updatedAt: now).toMap());
   }
 
+  /// 保存人物卡，并在改名时同步所有「按姓名关联」的引用。
+  ///
+  /// 关系表（tb_character_relations）与对话会话（tb_character_chat_sessions）
+  /// 都存在人物**姓名**而不是 id。用户在资料校对页改了名字，若不同步更新，
+  /// 这个人物的全部关系会瞬间失联、已有对话也找不到对应人物。
+  Future<void> saveCharacterWithRename({
+    required CharacterCard card,
+    required String previousName,
+  }) async {
+    final now = DateTime.now();
+    final map = card.copyWith(updatedAt: now).toMap();
+    final newName = card.name.trim();
+    final oldName = previousName.trim();
+    final renamed =
+        oldName.isNotEmpty && newName.isNotEmpty && oldName != newName;
+
+    await transaction((txn) async {
+      if (card.id != null) {
+        await txn.update(tableCard, map, where: 'id = ?', whereArgs: [card.id]);
+      } else {
+        await txn.insert(tableCard, map);
+      }
+
+      if (!renamed) return;
+
+      await txn.update(
+        tableRelation,
+        {'source_name': newName},
+        where: 'book_id = ? AND source_name = ?',
+        whereArgs: [card.bookId, oldName],
+      );
+      await txn.update(
+        tableRelation,
+        {'target_name': newName},
+        where: 'book_id = ? AND target_name = ?',
+        whereArgs: [card.bookId, oldName],
+      );
+      // 单人会话标题跟着改；群聊/穿越会话存的是 "bookId:姓名" 串，不会被误伤。
+      await txn.update(
+        'tb_character_chat_sessions',
+        {'character_name': newName},
+        where: 'book_id = ? AND character_name = ?',
+        whereArgs: [card.bookId, oldName],
+      );
+    });
+  }
+
   Future<void> batchSaveCharacters(List<CharacterCard> cards) async {
     await transaction((txn) async {
       for (final c in cards) {

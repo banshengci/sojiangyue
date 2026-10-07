@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS tb_character_cards (
   first_appearance_chapter TEXT,
   description TEXT,
   source TEXT NOT NULL DEFAULT 'ai_distill',
+  avatar_path TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 )
@@ -94,4 +95,14 @@ Future<void> applyCharacterSchema(Database db) async {
   await db.execute(createWorldSettingSQL);
   await db.execute(createTimelineEventSQL);
   await db.execute(createCharacterIndexesSQL);
+}
+
+/// v14：人物卡增加「头像路径」列（读者自配的形象图）。
+Future<void> addCharacterAvatarColumn(Database db) async {
+  final cols = await db.rawQuery('PRAGMA table_info(tb_character_cards)');
+  final has = cols.any((c) => c['name'] == 'avatar_path');
+  if (!has) {
+    await db.execute(
+        'ALTER TABLE tb_character_cards ADD COLUMN avatar_path TEXT');
+  }
 }

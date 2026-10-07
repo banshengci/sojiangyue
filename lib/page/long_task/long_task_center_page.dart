@@ -5,13 +5,10 @@
 
 import 'package:flutter/material.dart';
 
-import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
-import 'package:songjiang_reader/models/character_card.dart';
-import 'package:songjiang_reader/service/ai/langchain_ai_config.dart';
-import 'package:songjiang_reader/service/ai/langchain_registry.dart';
+import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/character_distill_service.dart';
 import 'package:songjiang_reader/service/long_task/task_manifest.dart';
@@ -53,23 +50,25 @@ class _LongTaskCenterPageState extends State<LongTaskCenterPage> {
   }
 
   Future<void> _resumeDistill(int bookId) async {
-    final id = AiPrefs.selectedServiceId;
-    final raw = AiPrefs.getConfig(id);
-    if (raw.isEmpty) {
+    final model = resolveCurrentModel();
+    if (model == null) {
       SjToast.show('尚未配置 AI 服务，无法续跑蒸馏');
       return;
     }
-    final config = LangchainAiConfig.fromPrefs(id, raw);
-    final model = LangchainAiRegistry(null).resolve(config).model;
     final service = CharacterDistillService(
       dao: characterDao,
       repository: CharacterDistillRepository(bookDao: bookDao),
     );
+    // 提前建流：写在 StreamBuilder 的 builder 里会导致每次重建都重新发起蒸馏。
+    // 内容指纹快照会跳过上次已完成的部分，所以这里天然就是「续跑」。
+    final stream = service
+        .distill(bookId: bookId, model: model)
+        .asBroadcastStream();
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StreamBuilder<DistillProgress>(
-        stream: service.distill(bookId: bookId, model: model),
+        stream: stream,
         builder: (context, snap) {
           final p = snap.data;
           final done = p?.phase == DistillPhase.done;
