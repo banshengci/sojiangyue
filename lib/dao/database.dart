@@ -236,6 +236,21 @@ class DBHelper {
     _database = null;
   }
 
+  /// 仅供 `test/` 使用：把单例指向给定数据库（传 `null` 复位）。
+  ///
+  /// 为什么需要它：`BookDao` 等 DAO 经由 BaseDao 取 `DBHelper().database`，
+  /// 一旦为空就会走 [initDB] → path_provider / 按 [SjPlatform.type] 分叉，
+  /// 测试里根本拿不到内存库 —— 这是 DAO 层至今没有单测的结构性原因
+  /// （阶段三报告 §4 阻塞 B8）。
+  ///
+  /// 生产行为不变，且有两道门：
+  ///   1) `assert(allow)` —— debug/profile 下必须显式传 `allow: true`，release 下被剥离；
+  ///   2) 仅赋值内存字段，不触发任何 I/O，不改变 [initDB]/[close] 的既有语义。
+  static void debugOverrideDatabase(Database? db, {bool allow = false}) {
+    assert(allow, 'debugOverrideDatabase() 仅供 test/ 使用，必须显式 allow: true');
+    _database = db;
+  }
+
   /// Checkpoint WAL to merge data into main database file
   /// Returns true if checkpoint was successful or not needed
   static Future<bool> checkpointWal() async {
