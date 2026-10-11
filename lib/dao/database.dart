@@ -171,6 +171,85 @@ const ensureVocabIndexSQL = '''
 CREATE INDEX IF NOT EXISTS idx_vocab_term ON tb_vocab_items(term)
 ''';
 
+// ---------- 无损 md5 去重（patch 0010）----------
+//
+// 目标：让 `tb_books.file_md5` 能加上唯一索引，同时**不删除、不合并任何书籍行**。
+//
+// 为什么无损方案成立（关键语义）：SQLite 的唯一索引把 **NULL 视为互不相等**，
+// 因此多行 `file_md5 IS NULL` 可以共存；而 `''`（空串）不是 NULL，会互相冲突。
+// 于是：① 把 `''` 统一置 NULL；② 重复组里只保留一行持有 md5，其余置 NULL。
+// 两件事都不动其它列、不删行，索引即可建立。
+//
+// 保留谁：同一 md5 组内 `update_time` 最新者；并列时取 `id` 最大者（确定性）。
+// 依据：`update_time` 最新的一行最可能是用户最近在用的那本，把 md5 留给它
+// 可以保证"再次导入同一文件"仍然命中它。所有被清空的行都写进审计表，可人工还原。
+
+/// 审计表：记录"哪一行的 file_md5 被清空、因为保留了哪一行"。
+const md5AuditTableSQL = '''
+CREATE TABLE IF NOT EXISTS tb_book_md5_dedup_audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id INTEGER NOT NULL,
+  old_md5 TEXT NOT NULL,
+  kept_book_id INTEGER,
+  reason TEXT NOT NULL,
+  created_at TEXT NOT NULL
+)
+''';
+
+/// 先建**非唯一**索引：让后面的相关子查询走索引，避免 O(n²)。
+/// （顺带也让 `getBookByMd5` 的等值查询有索引可用。）
+const md5LookupIndexSQL = '''
+CREATE INDEX IF NOT EXISTS idx_books_file_md5 ON tb_books (file_md5)
+''';
+
+/// 审计：`file_md5 = ''` 的行（语义统一为"缺失"，即将置 NULL）。
+const md5AuditEmptySQL = '''
+INSERT INTO tb_book_md5_dedup_audit (book_id, old_md5, kept_book_id, reason, created_at)
+SELECT id, '', id, 'empty_string_normalized_to_null', datetime('now')
+  FROM tb_books
+ WHERE file_md5 = ''
+''';
+
+/// 语义统一：空串 → NULL。
+const md5NormalizeEmptySQL = '''
+UPDATE tb_books SET file_md5 = NULL WHERE file_md5 = ''
+''';
+
+/// 审计：重复组里的"非保留者"（保留者 = 组内 update_time 最新、其次 id 最大）。
+const md5AuditDuplicateSQL = '''
+INSERT INTO tb_book_md5_dedup_audit (book_id, old_md5, kept_book_id, reason, created_at)
+SELECT b.id, b.file_md5,
+       (SELECT o.id FROM tb_books o
+         WHERE o.file_md5 = b.file_md5
+         ORDER BY COALESCE(o.update_time, '') DESC, o.id DESC
+         LIMIT 1),
+       'duplicate_file_md5_released', datetime('now')
+  FROM tb_books b
+ WHERE b.file_md5 IS NOT NULL
+   AND EXISTS (SELECT 1 FROM tb_books o
+                WHERE o.file_md5 = b.file_md5
+                  AND (COALESCE(o.update_time, '') > COALESCE(b.update_time, '')
+                       OR (COALESCE(o.update_time, '') = COALESCE(b.update_time, '') AND o.id > b.id)))
+''';
+
+/// 无损去重本体：把"非保留者"的 `file_md5` 置 NULL。**不删行、不改其它列。**
+const md5ClearDuplicateSQL = '''
+UPDATE tb_books SET file_md5 = NULL
+ WHERE file_md5 IS NOT NULL
+   AND EXISTS (SELECT 1 FROM tb_books o
+                WHERE o.file_md5 = tb_books.file_md5
+                  AND (COALESCE(o.update_time, '') > COALESCE(tb_books.update_time, '')
+                       OR (COALESCE(o.update_time, '') = COALESCE(tb_books.update_time, '') AND o.id > tb_books.id)))
+''';
+
+/// 部分唯一索引：只约束"非 NULL 且非空"的 md5。
+/// 用部分索引把语义写进 schema —— NULL/空串合法共存，真 md5 必须唯一。
+const md5UniqueIndexSQL = '''
+CREATE UNIQUE INDEX IF NOT EXISTS idx_books_file_md5_unique
+  ON tb_books (file_md5)
+  WHERE file_md5 IS NOT NULL AND file_md5 <> ''
+''';
+
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
   static Database? _database;
@@ -709,10 +788,43 @@ Future<void> ensureSchemaIntegrity(Database db) async {
     // 其他表的历史新增列
     await _ensureColumn(db, 'tb_notes', 'reader_note', 'TEXT');
     await _ensureColumn(db, 'tb_themes', 'name', 'TEXT');
+
+    // 放在最后：本步骤包含"无损去重 + 建唯一索引"，万一失败也不该拖累上面的补列/补表。
+    await _ensureFileMd5Unique(db);
   } catch (e, st) {
     // 自检失败不应阻断启动
     SjLog.severe('Database: 结构自检失败: $e\n$st');
   }
+}
+
+/// 幂等：把 `tb_books.file_md5` 收敛成"可加唯一索引"的状态，然后建索引。
+///
+/// 顺序是刻意的：审计 → 规范化空串 → 审计重复 → 清重复 → 建索引。
+/// 每一步都幂等（第二次运行命中 0 行 / `IF NOT EXISTS` 为空操作），
+/// 因此它挂在 `ensureSchemaIntegrity` 里、**每次打开数据库都会跑**：
+/// 这样既覆盖"刚升级的老库"，也覆盖"user_version 已经是 15、再也不会跑迁移"的库。
+///
+/// 为什么不写成一次 v15→v16 的迁移：那会把 `currentDbVersion` 顶到 16，
+/// 进而改变 `DatabaseSyncManager` 的版本比较（v15 的远端文件会被判"更旧"而拒绝），
+/// 为一个纯数据整理动作引入同步侧副作用，不划算。见 patch 说明。
+Future<void> _ensureFileMd5Unique(Database db) async {
+  // 防御：迁移若在 case6 之前中断，tb_books 可能还没有 file_md5 列。
+  // （正常情况下上面的 _ensureColumn 已经把它补出来了，这里只是兜底。）
+  // 写成"先算布尔再判否定"的形式，抽取器（tool/extract_migration.py）能识别成
+  // 列守卫并跳过整段 —— 否则 harness 会在缺列的库上执行建索引语句。
+  final cols = await db.rawQuery('PRAGMA table_info(tb_books)');
+  final hasFileMd5 = cols.any((c) => c['name'] == 'file_md5');
+  if (!hasFileMd5) {
+    SjLog.warning('Database: tb_books.file_md5 不存在，跳过 md5 去重与唯一索引（迁移可能中断过）');
+    return;
+  }
+  await db.execute(md5AuditTableSQL);
+  await db.execute(md5LookupIndexSQL);
+  await db.execute(md5AuditEmptySQL);
+  await db.execute(md5NormalizeEmptySQL);
+  await db.execute(md5AuditDuplicateSQL);
+  await db.execute(md5ClearDuplicateSQL);
+  await db.execute(md5UniqueIndexSQL);
 }
 
 /// 幂等补齐由早期 case 建立、但原先漏在自愈范围外的表。

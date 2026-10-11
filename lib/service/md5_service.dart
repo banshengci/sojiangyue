@@ -109,8 +109,17 @@ class MD5Service {
 
       final md5 = await calculateFileMd5(book.fileFullPath);
       if (md5 != null) {
-        await bookDao.updateBookMd5(book.id, md5);
-        calculated++;
+        // 有了 idx_books_file_md5_unique 之后，`file_md5` 可能已属于另一本书（历史上
+        // 的重复行被无损去重后，md5 留给了保留者）。此时写入会被 ignore 掉，
+        // 受影响行数为 0 —— 这不是失败，而是"这本就是重复本"，单独记账。
+        final affected = await bookDao.updateBookMd5(book.id, md5);
+        if (affected > 0) {
+          calculated++;
+        } else {
+          skipped++;
+          SjLog.warning(
+              'MD5: 跳过回填 —— md5 已属于另一本书（本行保持不变）bookId=${book.id} title=${book.title}');
+        }
       } else {
         failed++;
       }

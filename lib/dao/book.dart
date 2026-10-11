@@ -124,7 +124,13 @@ class BookDao extends BaseDao {
     );
   }
 
-  Future<void> updateBookMd5(int bookId, String md5) {
+  /// 回填/重算 md5。返回**受影响行数**。
+  ///
+  /// 加了 `idx_books_file_md5_unique`（patch 0010）之后，写入一个"已属于另一本书"的
+  /// md5 会撞唯一约束。这里用 `ConflictAlgorithm.ignore` 把它降级成"不写入、不抛"，
+  /// 由调用方看返回值决定怎么记账 —— 否则 `batchCalculateMd5` 的整批回填会中途抛异常。
+  /// （`ignore` 只跳过该行，`update_time` 也不会被改，符合"不丢数据"的要求。）
+  Future<int> updateBookMd5(int bookId, String md5) {
     return update(
       table,
       {
@@ -133,6 +139,7 @@ class BookDao extends BaseDao {
       },
       where: 'id = ?',
       whereArgs: [bookId],
+      conflictAlgorithm: ConflictAlgorithm.ignore,
     );
   }
 
