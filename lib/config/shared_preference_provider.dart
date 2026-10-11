@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:core';
 
 import 'package:songjiang_reader/enums/reading_info.dart';
+import 'package:songjiang_reader/enums/statistics_dashboard_tile_type.dart';
 import 'package:songjiang_reader/enums/translation_mode.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/models/reading_info.dart';
-import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart';
 import 'package:songjiang_reader/service/translate/index.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:flutter/material.dart';

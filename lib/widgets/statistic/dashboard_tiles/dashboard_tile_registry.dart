@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/enums/statistics_dashboard_tile_type.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_base.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/tiles/books_total_tile.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/tiles/completion_progress_tile.dart';
@@ -11,36 +12,6 @@ import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/tiles/reading
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/tiles/continue_reading_tile.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/tiles/top_book_tile.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/tiles/total_time_tile.dart';
-
-/// Types of dashboard tiles that can appear in the statistics dashboard.
-enum StatisticsDashboardTileType {
-  totalTime,
-  libraryTotals,
-  periodSummary,
-  booksTotal,
-  readingDaysTotal,
-  notesTotal,
-  readingStreak,
-  randomHighlight,
-  readingDurationLast7,
-  readingDurationLast30,
-  completionProgress,
-  topBook,
-  continueReading,
-}
-
-/// Default order for dashboard tiles when the user has not customized the layout.
-const List<StatisticsDashboardTileType> defaultStatisticsDashboardTiles = [
-  StatisticsDashboardTileType.readingDaysTotal,
-  StatisticsDashboardTileType.booksTotal,
-  StatisticsDashboardTileType.periodSummary,
-  StatisticsDashboardTileType.topBook,
-  StatisticsDashboardTileType.readingStreak,
-  StatisticsDashboardTileType.randomHighlight,
-  StatisticsDashboardTileType.completionProgress,
-  StatisticsDashboardTileType.readingDurationLast7,
-  StatisticsDashboardTileType.readingDurationLast30,
-];
 
 final Map<StatisticsDashboardTileType, StatisticsDashboardTileBase>
     dashboardTileRegistry = {
@@ -60,3 +31,7 @@ final Map<StatisticsDashboardTileType, StatisticsDashboardTileBase>
   StatisticsDashboardTileType.topBook: const TopBookTile(),
   StatisticsDashboardTileType.continueReading: const ContinueReadingTile(),
 };
+
+// 兼容：原先从本文件取 `StatisticsDashboardTileType` /
+// `defaultStatisticsDashboardTiles` 的使用方（共 17 处）无需改动。
+export 'package:songjiang_reader/enums/statistics_dashboard_tile_type.dart';

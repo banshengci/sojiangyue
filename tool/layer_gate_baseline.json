@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "generated_at": "2026-10-10T19:33:43+00:00",
-  "commit": "f7e487b171c412509faba997a2edd94f4d7b56d4",
-  "lib_file_count": 525,
+  "generated_at": "2026-10-10T19:34:04+00:00",
+  "commit": "f0bad72397ebd6f83dd6f8d1f5af09080f5a82dc",
+  "lib_file_count": 528,
   "lib_files": [
     "lib/config/ai_prefs.dart",
     "lib/config/app_misc_prefs.dart",
@@ -77,11 +77,14 @@
     "lib/enums/convert_chinese_mode.dart",
     "lib/enums/excerpt_share_template.dart",
     "lib/enums/hint_key.dart",
+    "lib/enums/iap_purchase_flow_status.dart",
     "lib/enums/lang_list.dart",
+    "lib/enums/page_turn.dart",
     "lib/enums/page_turn_mode.dart",
     "lib/enums/reading_info.dart",
     "lib/enums/sort_field.dart",
     "lib/enums/sort_order.dart",
+    "lib/enums/statistics_dashboard_tile_type.dart",
     "lib/enums/sync_direction.dart",
     "lib/enums/sync_protocol.dart",
     "lib/enums/sync_trigger.dart",
@@ -598,7 +601,7 @@
       "rule": "R1",
       "from": "lib/widgets/reading_page/style_widget.dart",
       "to": "lib/dao/theme.dart",
-      "line": 17,
+      "line": 18,
       "evidence": "import 'package:songjiang_reader/dao/theme.dart';"
     },
     {
@@ -614,13 +617,6 @@
       "to": "lib/service/book_player/book_player_server.dart",
       "line": 3,
       "evidence": "import 'package:songjiang_reader/service/book_player/book_player_server.dart';"
-    },
-    {
-      "rule": "R2",
-      "from": "lib/models/iap_state.dart",
-      "to": "lib/providers/iap.dart",
-      "line": 1,
-      "evidence": "import 'package:songjiang_reader/providers/iap.dart';"
     },
     {
       "rule": "R2",
@@ -743,24 +739,10 @@
     },
     {
       "rule": "R6",
-      "from": "lib/config/reading_style_prefs.dart",
-      "to": "lib/widgets/reading_page/style_widget.dart",
-      "line": 7,
-      "evidence": "import 'package:songjiang_reader/widgets/reading_page/style_widget.dart' show PageTurn"
-    },
-    {
-      "rule": "R6",
       "from": "lib/config/shared_preference_provider.dart",
       "to": "lib/service/translate/index.dart",
       "line": 9,
       "evidence": "import 'package:songjiang_reader/service/translate/index.dart';"
-    },
-    {
-      "rule": "R6",
-      "from": "lib/config/shared_preference_provider.dart",
-      "to": "lib/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart",
-      "line": 8,
-      "evidence": "import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart';"
     },
     {
       "rule": "R6",
@@ -817,28 +799,14 @@
       "to": "lib/service/sync/sync_connection_tester.dart",
       "line": 8,
       "evidence": "import 'package:songjiang_reader/service/sync/sync_connection_tester.dart';"
-    },
-    {
-      "rule": "R7",
-      "from": "lib/config/reading_style_prefs.dart",
-      "to": "lib/widgets/reading_page/style_widget.dart",
-      "line": 7,
-      "evidence": "import 'package:songjiang_reader/widgets/reading_page/style_widget.dart' show PageTurn"
-    },
-    {
-      "rule": "R7",
-      "from": "lib/config/shared_preference_provider.dart",
-      "to": "lib/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart",
-      "line": 8,
-      "evidence": "import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart';"
     }
   ],
   "scc": {
     "cycle_count": 2,
-    "files_in_cycles": 317,
-    "max_scc": 313,
+    "files_in_cycles": 314,
+    "max_scc": 310,
     "sizes": [
-      313,
+      310,
       4
     ],
     "members": [
@@ -848,7 +816,6 @@
       "lib/config/excerpt_share_prefs.dart",
       "lib/config/local_dict_prefs.dart",
       "lib/config/notes_prefs.dart",
-      "lib/config/reading_style_prefs.dart",
       "lib/config/runtime_config.dart",
       "lib/config/shared_preference_provider.dart",
       "lib/config/translate_prefs.dart",
@@ -874,7 +841,6 @@
       "lib/models/current_notes_detail.dart",
       "lib/models/current_reading_state.dart",
       "lib/models/font_model.dart",
-      "lib/models/iap_state.dart",
       "lib/models/import_file_check.dart",
       "lib/models/search_note_group.dart",
       "lib/models/search_result_data.dart",
@@ -1139,7 +1105,6 @@
       "lib/widgets/statistic/book_reading_chart.dart",
       "lib/widgets/statistic/dashboard_tiles/dashboard_tile_base.dart",
       "lib/widgets/statistic/dashboard_tiles/dashboard_tile_detail_view.dart",
-      "lib/widgets/statistic/dashboard_tiles/dashboard_tile_metadata.dart",
       "lib/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart",
       "lib/widgets/statistic/dashboard_tiles/tiles/books_total_tile.dart",
       "lib/widgets/statistic/dashboard_tiles/tiles/completion_progress_tile.dart",

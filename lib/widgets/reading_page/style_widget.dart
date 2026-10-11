@@ -2,6 +2,7 @@
 
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/enums/page_turn.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/book_style.dart';
 import 'package:songjiang_reader/models/font_model.dart';
@@ -22,22 +23,8 @@ import 'package:songjiang_reader/widgets/reading_page/widgets/bgimg_selector.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
-enum PageTurn {
-  noAnimation,
-  slide,
-  scroll;
-
-  String getLabel(BuildContext context) {
-    switch (this) {
-      case PageTurn.noAnimation:
-        return L10n.of(context).noAnimation;
-      case PageTurn.slide:
-        return L10n.of(context).slide;
-      case PageTurn.scroll:
-        return L10n.of(context).scroll;
-    }
-  }
-}
+// 兼容：原先从本文件取 `PageTurn` 的使用方无需改动。
+export 'package:songjiang_reader/enums/page_turn.dart';
 
 class StyleWidget extends StatefulWidget {
   const StyleWidget({

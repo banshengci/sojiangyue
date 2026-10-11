@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart';
+import 'package:songjiang_reader/enums/statistics_dashboard_tile_type.dart';
 import 'package:flutter/material.dart';
 
 class StatisticsDashboardTileMetadata {

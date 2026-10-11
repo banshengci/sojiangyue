@@ -1,4 +1,4 @@
-import 'package:songjiang_reader/providers/iap.dart';
+import 'package:songjiang_reader/enums/iap_purchase_flow_status.dart';
 import 'package:songjiang_reader/service/iap/base_iap_service.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';

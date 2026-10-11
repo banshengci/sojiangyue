@@ -1,11 +1,10 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/enums/convert_chinese_mode.dart';
+import 'package:songjiang_reader/enums/page_turn.dart';
 import 'package:songjiang_reader/enums/text_alignment.dart';
 import 'package:songjiang_reader/enums/writing_mode.dart';
 import 'package:songjiang_reader/models/book_style.dart';
 import 'package:songjiang_reader/models/reading_rules.dart';
-import 'package:songjiang_reader/widgets/reading_page/style_widget.dart'
-    show PageTurn;
 
 /// 阅读样式相关配置的领域访问层。
 ///

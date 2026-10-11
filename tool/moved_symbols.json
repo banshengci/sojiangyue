@@ -1,4 +1,33 @@
 {
   "_comment": "verify_symbol_move.py 的输入清单：本仓库做过的「类型搬家」记录。每新增一次搬家（含类型改名 / import 重定向）就往这里追加一条，CI 会自动校验：① 全部引用方仍能解析到新位置；② 新家文件自身的引用也都能解析。",
-  "symbols": []
+  "symbols": [
+    {
+      "name": "IapPurchaseFlowStatus",
+      "from": "lib/providers/iap.dart",
+      "to": "lib/enums/iap_purchase_flow_status.dart",
+      "date": "2026-10-11",
+      "reason": "断开 models/iap_state.dart <-> providers/iap.dart 的 2 文件循环依赖"
+    },
+    {
+      "name": "PageTurn",
+      "from": "lib/widgets/reading_page/style_widget.dart",
+      "to": "lib/enums/page_turn.dart",
+      "date": "2026-10-11",
+      "reason": "断开 config/reading_style_prefs.dart <-> widgets/reading_page/style_widget.dart 环"
+    },
+    {
+      "name": "StatisticsDashboardTileType",
+      "from": "lib/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart",
+      "to": "lib/enums/statistics_dashboard_tile_type.dart",
+      "date": "2026-10-11",
+      "reason": "断开 config / dashboard_tile_base / dashboard_tile_metadata 对 dashboard_tile_registry 的反向依赖"
+    },
+    {
+      "name": "defaultStatisticsDashboardTiles",
+      "from": "lib/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart",
+      "to": "lib/enums/statistics_dashboard_tile_type.dart",
+      "date": "2026-10-11",
+      "reason": "与 StatisticsDashboardTileType 同批下沉（config 同时依赖两者）"
+    }
+  ]
 }

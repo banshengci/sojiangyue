@@ -1,15 +1,17 @@
 ﻿import 'dart:async';
 
 import 'package:songjiang_reader/config/iap_prefs.dart';
+import 'package:songjiang_reader/enums/iap_purchase_flow_status.dart';
 import 'package:songjiang_reader/models/iap_state.dart';
 import 'package:songjiang_reader/service/iap/iap_service.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'iap.g.dart';
+// 兼容：原先从本文件取 `IapPurchaseFlowStatus` 的使用方无需改动。
+export 'package:songjiang_reader/enums/iap_purchase_flow_status.dart';
 
-enum IapPurchaseFlowStatus { idle, pending, purchased, restored, error }
+part 'iap.g.dart';
 
 enum _RefreshPolicy { positiveOnly, full }
 
