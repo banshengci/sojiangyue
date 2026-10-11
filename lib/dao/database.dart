@@ -330,6 +330,15 @@ class DBHelper {
     _database = db;
   }
 
+  /// 仅供 `test/` 使用：撤销 [debugOverrideDatabase] 的注入，把单例复位为「未打开」。
+  ///
+  /// 等价于 `debugOverrideDatabase(null, allow: true)`，单独给一个名字是为了让
+  /// `tearDown` 的意图自解释。只清内存字段，**不会**关闭调用方持有的那个数据库
+  /// （测试自己负责 `await db.close()`），也不碰 `_database` 之外的任何状态。
+  static void debugResetOverride() {
+    _database = null;
+  }
+
   /// Checkpoint WAL to merge data into main database file
   /// Returns true if checkpoint was successful or not needed
   static Future<bool> checkpointWal() async {

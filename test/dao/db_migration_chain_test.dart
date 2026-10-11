@@ -22,6 +22,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
@@ -157,7 +158,7 @@ void main() {
         inMemoryDatabasePath,
         options: OpenDatabaseOptions(singleInstance: false, readOnly: false),
       );
-      await DBHelper().ensureSchemaIntegrity(d);
+      await ensureSchemaIntegrity(d);
       final healed = (await _tables(d)).toSet();
       expect(healed, contains('tb_character_cards'));
       expect(healed, contains('tb_gameplay_sessions'));
@@ -180,10 +181,10 @@ void main() {
         inMemoryDatabasePath,
         options: OpenDatabaseOptions(singleInstance: false, readOnly: false),
       );
-      await DBHelper().ensureSchemaIntegrity(d);
+      await ensureSchemaIntegrity(d);
       final a = await d.rawQuery("SELECT name,sql FROM sqlite_master ORDER BY name");
       for (var i = 0; i < 3; i++) {
-        await DBHelper().ensureSchemaIntegrity(d);
+        await ensureSchemaIntegrity(d);
       }
       final b = await d.rawQuery("SELECT name,sql FROM sqlite_master ORDER BY name");
       expect(b.map((r) => '${r['name']}|${r['sql']}').toList(),

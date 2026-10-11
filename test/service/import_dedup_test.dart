@@ -32,13 +32,47 @@
 // 等价的可运行证明（Python，已实际跑出结果）：
 //   generated/sojiangyue-阶段三测试/tool/import_dedup_harness.py
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/database.dart';
 import 'package:songjiang_reader/service/md5_service.dart';
 import 'package:songjiang_reader/models/book.dart';
+
+/// 造一本满足 [Book] 全部必填字段的书，只覆盖本文件真正关心的那几个字段。
+///
+/// 为什么需要它：`Book` 的构造函数有 8 个 `required` 具名参数
+/// （coverPath/lastReadPosition/readingPercentage/author/isDeleted/rating/
+/// createTime/updateTime），逐个在测试里重复写只会淹没断言意图。
+Book _book({
+  required String title,
+  required String filePath,
+  int id = -1,
+  String? md5,
+  String lastReadPosition = '',
+  double readingPercentage = 0,
+}) {
+  final now = DateTime.now();
+  return Book(
+    id: id,
+    title: title,
+    coverPath: '',
+    filePath: filePath,
+    lastReadPosition: lastReadPosition,
+    readingPercentage: readingPercentage,
+    author: '测试',
+    isDeleted: false,
+    rating: 0,
+    md5: md5,
+    createTime: now,
+    updateTime: now,
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -56,11 +90,12 @@ void main() {
         onCreate: (d, v) => DBHelper().onUpgradeDatabase(d, 0, v),
       ),
     );
-    await DBHelper().ensureSchemaIntegrity(db);
+    // `ensureSchemaIntegrity` 是 database.dart 的**库级函数**（不在 DBHelper 类里），
+    // 因此直接按顶层函数调用。
+    await ensureSchemaIntegrity(db);
     // BookDao 走 BaseDao → DBHelper().database（单例）。测试里直接把单例指到本内存库，
-    // 避免 DBHelper.initDB() 去碰 path_provider。落地时可用一个 @visibleForTesting 的注入口，
-    // 或改用 `databaseFactory` 全局注入（见文件末尾说明）。
-    DBHelper.debugOverrideDatabase(db);
+    // 避免 DBHelper.initDB() 去碰 path_provider。
+    DBHelper.debugOverrideDatabase(db, allow: true);
   });
 
   tearDown(() async {
@@ -109,7 +144,7 @@ void main() {
 
   group('③ save() 的 insert/update 分叉', () {
     test('id == -1 → INSERT；id != -1 → UPDATE（不检查受影响行数）', () async {
-      final b = Book(id: -1, title: '新书', filePath: 'file/a', md5: 'M1');
+      final b = _book(title: '新书', filePath: 'file/a', md5: 'M1');
       await bookDao.insertBook(b);
       expect(b.id, greaterThan(0));
 
@@ -117,7 +152,7 @@ void main() {
       await db.update('tb_books', {'last_read_position': 'cfi-99', 'reading_percentage': 42.5},
           where: 'id = ?', whereArgs: [b.id]);
       final existing = (await bookDao.selectBookById(b.id));
-      final again = Book(
+      final again = _book(
         id: existing.id,
         title: existing.title,
         filePath: 'file/a-2',
@@ -133,13 +168,13 @@ void main() {
     });
 
     test('目标行已被删除时 save() 必须抛错（patch 0006，修复前是静默假成功）', () async {
-      final b = Book(id: -1, title: '会被删掉', filePath: 'file/x', md5: 'M2');
+      final b = _book(title: '会被删掉', filePath: 'file/x', md5: 'M2');
       await bookDao.insertBook(b);
       await db.delete('tb_books', where: 'id = ?', whereArgs: [b.id]);
 
       // 用同一个 id 再 save 一次：sqlite 的 UPDATE 影响 0 行且不报错，
       // 所以必须由 BookDao.save() 自己检查受影响行数并抛错（patch 0006）。
-      final ghost = Book(id: b.id, title: '幽灵', filePath: 'file/x2', md5: 'M2');
+      final ghost = _book(id: b.id, title: '幽灵', filePath: 'file/x2', md5: 'M2');
       await expectLater(
         bookDao.insertBook(ghost),
         throwsA(isA<StateError>().having((e) => e.message, 'message', contains('影响 0 行'))),
@@ -167,11 +202,11 @@ void main() {
         expect(k2, k1, reason: '同一内容的两个副本必须得到同一个键');
 
         // 用真实 DAO 走一遍落库：第二次应命中已有行
-        final a = Book(id: -1, title: '同书', filePath: f1.path, md5: k1);
+        final a = _book(title: '同书', filePath: f1.path, md5: k1);
         await bookDao.insertBook(a);
         final hit = await bookDao.getBookByMd5(k1!);
         expect(hit, isNotNull);
-        final b = Book(id: hit!.id, title: hit.title, filePath: f2.path, md5: k1);
+        final b = _book(id: hit!.id, title: hit.title, filePath: f2.path, md5: k1);
         await bookDao.insertBook(b);
         final n = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM tb_books'));
         expect(n, 1, reason: 'md5 缺失路径下也必须只落 1 行（修复前实测 2 行）');
@@ -197,7 +232,5 @@ void main() {
         1,
       );
     });
-  });
-}
   });
 }

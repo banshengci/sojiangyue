@@ -18,6 +18,7 @@
 //   4) `''` 语义不统一时，`getBookByMd5('')` 会命中"另一本"空 md5 的书（假重复）。
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:songjiang_reader/dao/book.dart';
@@ -72,14 +73,14 @@ void main() {
   group('#0010 零删行（红线）', () {
     test('自愈前后：行数与"除 file_md5 外所有列"逐字节一致', () async {
       final before = await db.rawQuery('SELECT $cols FROM tb_books ORDER BY id');
-      await DBHelper().ensureSchemaIntegrity(db);
+      await ensureSchemaIntegrity(db);
       final after = await db.rawQuery('SELECT $cols FROM tb_books ORDER BY id');
       expect(after.length, before.length, reason: '不允许删除任何书籍行');
       expect(after.toString(), before.toString(), reason: '不允许改动除 file_md5 之外的任何列');
     });
 
     test('被清空的是"同组里 update_time 较旧"的行，md5 留给最新的那本', () async {
-      await DBHelper().ensureSchemaIntegrity(db);
+      await ensureSchemaIntegrity(db);
       final keeper = await db.rawQuery("SELECT id FROM tb_books WHERE file_md5 = 'MD5-DUP'");
       expect(keeper.length, 1);
       expect(keeper.first['id'], 3, reason: 'id=3 是「重复-新」，update_time 最新');
@@ -89,7 +90,7 @@ void main() {
     });
 
     test('审计表记录了 book_id / old_md5 / kept_book_id / reason（可人工还原）', () async {
-      await DBHelper().ensureSchemaIntegrity(db);
+      await ensureSchemaIntegrity(db);
       final audit = await db.rawQuery(
           'SELECT book_id, old_md5, kept_book_id, reason FROM tb_book_md5_dedup_audit ORDER BY id');
       expect(audit.length, 4, reason: '2 行重复被释放 + 2 行空串被规范化');
@@ -106,7 +107,7 @@ void main() {
 
   group('#0010 唯一索引', () {
     test('自愈后部分唯一索引存在，且 WHERE 子句写明语义', () async {
-      await DBHelper().ensureSchemaIntegrity(db);
+      await ensureSchemaIntegrity(db);
       final row = await db.rawQuery(
           "SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_books_file_md5_unique'");
       expect(row.length, 1);
@@ -116,7 +117,7 @@ void main() {
     });
 
     test('重复 md5 被拒；多行 NULL 可共存（无损方案的前提）', () async {
-      await DBHelper().ensureSchemaIntegrity(db);
+      await ensureSchemaIntegrity(db);
       // 多行 NULL 可以共存 —— 这是"无损"能成立的根本原因
       await db.insert('tb_books', {'title': '再插一本无 md5', 'file_md5': null});
       await db.insert('tb_books', {'title': '又插一本无 md5', 'file_md5': null});
@@ -128,11 +129,11 @@ void main() {
     });
 
     test('自愈可重复执行：幂等（数据/审计都不再变）', () async {
-      await DBHelper().ensureSchemaIntegrity(db);
+      await ensureSchemaIntegrity(db);
       final rows1 = await db.rawQuery('SELECT id,file_md5 FROM tb_books ORDER BY id');
       final audit1 = await db.rawQuery('SELECT COUNT(*) c FROM tb_book_md5_dedup_audit');
-      await DBHelper().ensureSchemaIntegrity(db);
-      await DBHelper().ensureSchemaIntegrity(db);
+      await ensureSchemaIntegrity(db);
+      await ensureSchemaIntegrity(db);
       final rows2 = await db.rawQuery('SELECT id,file_md5 FROM tb_books ORDER BY id');
       final audit2 = await db.rawQuery('SELECT COUNT(*) c FROM tb_book_md5_dedup_audit');
       expect(rows2.toString(), rows1.toString());
@@ -140,7 +141,7 @@ void main() {
     });
 
     test('回填撞唯一约束时只跳过该行（updateBookMd5 返回 0，不抛）', () async {
-      await DBHelper().ensureSchemaIntegrity(db);
+      await ensureSchemaIntegrity(db);
       final affected = await bookDao.updateBookMd5(1, 'MD5-ONLY'); // 该 md5 已属于 id=4
       expect(affected, 0, reason: 'ignore 语义：冲突行不写入');
       final row = await db.rawQuery('SELECT file_md5 FROM tb_books WHERE id = 1');

@@ -1,3 +1,4 @@
+import 'package:sqflite/sqflite.dart';
 import 'package:songjiang_reader/dao/base_dao.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
