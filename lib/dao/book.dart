@@ -6,9 +6,27 @@ class BookDao extends BaseDao {
 
   static const String table = 'tb_books';
 
+  /// 有 id → UPDATE，无 id → INSERT。
+  ///
+  /// **命中 0 行时抛 [StateError]，不再返回假成功。**
+  /// 依据：sqlite 的 UPDATE 命中 0 行不报错，原实现 `await updateBook(book); return book.id;`
+  /// 会让调用方以为写成功了（阶段三 harness I6 复现：书明明已从库里消失，
+  /// 表里 0 行，调用方拿到的仍是 book.id 且无异常）。
+  ///
+  /// 影响面（已逐个核对，全部是"行存在"的场景，行为不变）：
+  ///   · `lib/service/book.dart:696` `book.id = await bookDao.insertBook(book)`
+  ///     —— 唯一走 save() 的调用点；命中 0 行时现在会**提前抛错**，
+  ///     而 saveBook 原本靠 `:701-717` 的"落库后回查"才拦下来，属于同一语义的更早失败。
+  ///   · `updateBook` 的 13 处直接调用点（见 patch 说明）**不受影响**：
+  ///     它们不经过 save()，且 updateBook 现在只把受影响行数**返回**出去，不抛。
   Future<int> save(Book book) async {
     if (book.id != -1) {
-      await updateBook(book);
+      final affected = await updateBook(book);
+      if (affected == 0) {
+        throw StateError(
+            'BookDao.save: 更新 book.id=${book.id} 影响 0 行（该行已不存在）。'
+            '拒绝返回假成功——请重新插入或刷新书架后重试。');
+      }
       return book.id;
     }
     return insert(table, book.toMap());
@@ -16,9 +34,11 @@ class BookDao extends BaseDao {
 
   Future<int> insertBook(Book book) => save(book);
 
-  Future<void> updateBook(Book book) async {
+  /// 返回受影响行数（原先丢弃）。**保持不抛**，以免改变 13 处既有调用点的语义；
+  /// 需要 fail-fast 的地方请用 [save]，或自行判断返回值。
+  Future<int> updateBook(Book book) async {
     book.updateTime = DateTime.now();
-    await update(
+    return update(
       table,
       book.toMap(),
       where: 'id = ?',
