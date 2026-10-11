@@ -183,7 +183,12 @@ void main() {
     });
 
     test('getBooksWithoutMd5 与 getBookByMd5 口径一致', () async {
-      await db.insert('tb_books', {'title': '空串书', 'file_md5': ''});
+      // 注意：`getBooksWithoutMd5()` 的 WHERE 是 `is_deleted = 0 AND (...)`，
+      // 而 tb_books 的 is_deleted 列没有 DEFAULT（直接 insert 会得到 NULL，
+      // `NULL = 0` 不成立 → 行被漏掉）。真实写入走 `Book.toMap()` 会带上
+      // is_deleted，所以这里必须显式给 0。
+      await db.insert(
+          'tb_books', {'title': '空串书', 'file_md5': '', 'is_deleted': 0});
       final without = await bookDao.getBooksWithoutMd5();
       expect(without.any((b) => b.title == '空串书'), isTrue, reason: '空串算"没有 md5"');
       expect(await bookDao.getBookByMd5(''), isNull, reason: '同一行不能又被当成"就是这本书"');

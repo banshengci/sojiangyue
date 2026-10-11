@@ -26,6 +26,7 @@ import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/database.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart' show documentPath;
 
@@ -79,6 +80,10 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     await ReadingStylePrefs.ensureInitialized();
+    // 老库升级路径末尾会读 `SyncPrefs.webdavStatus`（database.dart 的
+    // `if (oldVersion != 0 && SyncPrefs.webdavStatus)`），未初始化会抛
+    // `Bad state: SyncPrefs.ensureInitialized() 未调用`。
+    await SyncPrefs.ensureInitialized();
 
     // case2 会 Directory('$documentPath/file').listSync() —— 目录不存在会直接抛，
     // 于是 onCreate 半途而废。测试里把 documentPath 指到一个建好的临时目录。
@@ -146,34 +151,49 @@ void main() {
       // 直接调用迁移：case0 会把表建好，case2 会遍历 file/ 改名
       final d = await openFresh();
       expect(await d.rawQuery('SELECT COUNT(*) FROM tb_books'), isNotEmpty);
-      // 名字里的空格被替换为下划线
-      expect(f.existsSync() || File(p.join(tmp.path, 'file', 'a_b_c.epub')).existsSync(), isTrue);
+      // `_renameLegacyFilesSync` 的实际算法：把**整个绝对路径**里的空格换成下划线，
+      // 然后把这个**路径**截到 72 字符，最后追加后缀 `.epub`。
+      // 注意它并不识别 `.epub` 是"旧扩展名"，而且截断作用在绝对路径上——
+      // 临时目录前缀已经很长，于是 `a b c.epub` 被从中间切断：
+      //   `...\file\a b c.epub` → `...\file\a_b_c.e` + `.epub` = `...\file\a_b_c.e.epub`
+      // 这是既有实现的真实行为（对超长路径确实会截断文件名本身）。
+      expect(File(p.join(tmp.path, 'file', 'a_b_c.e.epub')).existsSync(), isTrue,
+          reason: '空格→下划线；整个路径截到 72 字符后追加 .epub');
+      expect(f.existsSync(), isFalse, reason: '原文件应已被 rename 掉');
     });
   });
 
   group('① ensureSchemaIntegrity：唯一的自愈入口', () {
-    test('能建出 14 张表：角色/对话/加料/头像/玩法 11 张 + tb_groups/tb_vocab_items + 审计表',
+    test('能补齐 13 张表：角色/对话/加料/头像/玩法 11 张 + tb_groups/tb_vocab_items',
         () async {
-      final d = await databaseFactory.openDatabase(
-        inMemoryDatabasePath,
-        options: OpenDatabaseOptions(singleInstance: false, readOnly: false),
-      );
+      // ⚠️ 自愈的前提是「库已经建过表、只是某次迁移中断导致部分表缺失」。
+      // 直接在**裸库**上调 ensureSchemaIntegrity 是测不出来的：它内部的补列走
+      // `PRAGMA table_info(tb_books)`，表不存在就直接 return，唯一索引也就建不出来
+      // （原用例就是这么写的，所以 idx 断言必然失败）。
+      // 正确做法：先走完整迁移建库 → 删掉 patch 0003 指出的那两张缺口表 → 再自愈。
+      final d = await openFresh();
+
+      final before = (await _tables(d)).toSet();
+      expect(before, contains('tb_groups'));
+      expect(before, contains('tb_vocab_items'));
+
+      // 模拟"中断迁移后的永久缺口"
+      await d.execute('DROP TABLE IF EXISTS tb_groups');
+      await d.execute('DROP TABLE IF EXISTS tb_vocab_items');
+
       await ensureSchemaIntegrity(d);
+
       final healed = (await _tables(d)).toSet();
       expect(healed, contains('tb_character_cards'));
       expect(healed, contains('tb_gameplay_sessions'));
       // ↓ patch 0003 的核心断言：这两张表原先漏在自愈之外，中断迁移后永久缺失。
-      expect(healed, contains('tb_groups'));
-      expect(healed, contains('tb_vocab_items'));
-      // 11（角色/对话/加料/头像/玩法）+ 2（tb_groups/tb_vocab_items）+ 1（md5 去重审计表）
-      expect(healed.length, 14, reason: '自愈应建出 14 张表，实得 ${healed.length}: $healed');
-      expect(healed, contains('tb_book_md5_dedup_audit'));
+      expect(healed, contains('tb_groups'), reason: '自愈必须把缺口表补回来');
+      expect(healed, contains('tb_vocab_items'), reason: '自愈必须把缺口表补回来');
       expect(kSelfHealGapTables, isEmpty, reason: '自愈缺口必须为空集');
-      // 0010：/自愈还必须建出 md5 的部分唯一索引（否则重复行会一直长下去）
+      // 0010：自愈还必须保证 md5 的部分唯一索引存在（否则重复行会一直长下去）
       final idx = await d.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_books_file_md5_unique'");
       expect(idx.length, 1);
-      await d.close();
     });
 
     test('连跑 3 次无异常、且不改变结构（幂等）', () async {

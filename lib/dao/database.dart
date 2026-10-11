@@ -466,7 +466,17 @@ class DBHelper {
       singleInstance: false,
     );
     try {
-      final integrity = await probe.rawQuery('PRAGMA integrity_check');
+      // 注：文件损坏到连 PRAGMA 都执行不了时（截断 / 头部被写坏），
+      // sqlite 会直接抛 SqliteException(11) database disk image is malformed，
+      // 而不是返回一行错误结果。这类"打不开的坏库"同样是**必须拒绝上传**的快照，
+      // 因此在这里统一转成 StateError，保持本方法「要么静默通过、要么 StateError」
+      // 的既有契约（调用方只 catch StateError）。
+      final List<Map<String, Object?>> integrity;
+      try {
+        integrity = await probe.rawQuery('PRAGMA integrity_check');
+      } catch (e) {
+        throw StateError('Database: 快照无法校验（文件可能已损坏）: $snapshotPath → $e');
+      }
       if (integrity.isEmpty || integrity.first.values.first != 'ok') {
         throw StateError('Database: 快照 integrity_check 未通过: $snapshotPath');
       }

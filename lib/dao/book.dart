@@ -31,7 +31,13 @@ class BookDao extends BaseDao {
       }
       return book.id;
     }
-    return insert(table, book.toMap());
+    // INSERT 分支必须把新 id 回填到 `book` 上：这是既定契约 ——
+    // `lib/service/book.dart:699` 写的是 `book.id = await bookDao.insertBook(book)`，
+    // 紧接着就用 book.id 去回查/回填（例如 updateBookMd5）。原先只 `return insert(...)`，
+    // 不回填 ⇒ book.id 永远是 -1，调用方的"落库后回查"实际查的是 id=-1。
+    final newId = await insert(table, book.toMap());
+    book.id = newId;
+    return newId;
   }
 
   Future<int> insertBook(Book book) => save(book);

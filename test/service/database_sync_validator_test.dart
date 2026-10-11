@@ -26,8 +26,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/database.dart';
+import 'package:songjiang_reader/utils/get_path/get_base_path.dart'
+    show documentPath;
 
 /// 与 DatabaseSyncManager 的校验路径等价的最小装载：
 /// 直接调 `DBHelper.verifyUploadSnapshot`（#7 的上传前自检）与
@@ -43,6 +48,16 @@ void main() {
 
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('sj_sync_validator_');
+    // 走完整迁移的用例需要这三个全局前置（与 db_migration_chain_test 一致）：
+    //   · documentPath —— 迁移 case2 会 `Directory('$documentPath/file').listSync()`，
+    //     测试宿主上默认是空串，拼出 `'/file'`（Windows 非法路径）会直接抛；
+    //   · ReadingStylePrefs / SyncPrefs —— 迁移过程中会读它们，未初始化会抛 Bad state。
+    Directory(p.join(tmp.path, 'file')).createSync(recursive: true);
+    Directory(p.join(tmp.path, 'cover')).createSync(recursive: true);
+    documentPath = tmp.path;
+    SharedPreferences.setMockInitialValues({});
+    await ReadingStylePrefs.ensureInitialized();
+    await SyncPrefs.ensureInitialized();
   });
   tearDown(() {
     try {
@@ -138,9 +153,15 @@ void main() {
       // 这条锁的是 prepareUploadSnapshot 的修复点：checkpoint + 复查 + 自检。
       final live = p.join(tmp.path, 'live.db');
       final db = await databaseFactory.openDatabase(live,
-          options: OpenDatabaseOptions(singleInstance: false));
+          options: OpenDatabaseOptions(
+            singleInstance: false,
+            // 必须走完整迁移建库：`verifyUploadSnapshot` 要求 tb_books / tb_themes /
+            // tb_styles / tb_groups / tb_vocab_items 五张表齐全，只建 tb_books 会被它拒绝
+            // （原用例用 createBookSQL 只建了一张表，所以"修复点 2"必然抛"快照缺表"）。
+            version: currentDbVersion,
+            onCreate: (d, v) => DBHelper().onUpgradeDatabase(d, 0, v),
+          ));
       await db.execute('PRAGMA journal_mode=WAL');
-      await db.execute(createBookSQL);
       await db.insert('tb_books', {'title': 'a'});
       await db.execute('PRAGMA wal_autocheckpoint=0');
       await db.insert('tb_books', {'title': 'b'}); // 只落在 -wal

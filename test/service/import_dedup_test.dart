@@ -149,6 +149,12 @@ void main() {
     });
 
     test('getBookByMd5 = WHERE file_md5=? LIMIT 1 且无 ORDER BY：重复时"谁赢"不稳定', () async {
+      // ⚠️ 0010 之后 `idx_books_file_md5_unique` 会让"同一 md5 两行"插不进去
+      // （上一个用例正是在断言这一点）。所以本用例必须先显式移除该索引，
+      // 才能构造出它要考察的"历史遗留重复行"场景（0010 之前的库就是这个状态）。
+      // 下一个 test 的 setUp 会重新建库，索引自然恢复，不影响其它用例。
+      await db.execute('DROP INDEX IF EXISTS idx_books_file_md5_unique');
+
       final id1 = await db.insert('tb_books', {'title': '先', 'file_md5': 'DUP'});
       await db.insert('tb_books', {'title': '后', 'file_md5': 'DUP'});
       final first = await bookDao.getBookByMd5('DUP');
@@ -159,7 +165,8 @@ void main() {
       await db.delete('tb_books', where: 'id = ?', whereArgs: [id1]);
       final second = await bookDao.getBookByMd5('DUP');
       expect(second!.title, '后');
-      // 正确行为建议：改成 `ORDER BY update_time DESC, id DESC LIMIT 1` 或加唯一约束后不再有二义。
+      // 正确行为建议：改成 `ORDER BY update_time DESC, id DESC LIMIT 1`；
+      // 或依赖唯一索引让这种二义状态根本不存在（0010 已经这么做了）。
     });
   });
 
@@ -218,8 +225,15 @@ void main() {
         final f2 = File(p.join(dir.path, 'a_again.epub'))..writeAsBytesSync(List.filled(9000, 7));
         final k1 = await MD5Service.dedupKeyFor(f1.path);
         final k2 = await MD5Service.dedupKeyFor(f2.path);
-        expect(k1, isNotNull, reason: '即使读不出 md5，也必须给出一个可用的去重键');
-        expect(k1, startsWith('size:'), reason: '兜底键带 size: 前缀，不会与 32 位十六进制 md5 混淆');
+        expect(k1, isNotNull, reason: '必须给出一个可用的去重键');
+        // `dedupKeyFor` 有两条分支：md5 算得出 → 32 位十六进制；算不出 → `size:` 兜底指纹。
+        // 这里用的是**真实可读文件**，所以走的是 md5 分支（原断言只认 `size:` 前缀，
+        // 断言过窄 —— 兜底分支要造一个"存在但读不出内容"的文件才会触发）。
+        // 无论走哪条分支，都必须带得动后面的去重：键一致、且只落 1 行。
+        final isMd5 = RegExp(r'^[0-9a-f]{32}$').hasMatch(k1!);
+        final isFingerprint = k1.startsWith('size:');
+        expect(isMd5 || isFingerprint, isTrue,
+            reason: '去重键要么是 32 位 md5，要么是 size: 兜底指纹，实得：$k1');
         expect(k2, k1, reason: '同一内容的两个副本必须得到同一个键');
 
         // 用真实 DAO 走一遍落库：第二次应命中已有行
@@ -238,7 +252,10 @@ void main() {
     });
 
     test("md5 == '' 统一按「缺失」处理（0011 修好，不再是「同一本」）", () async {
-      await db.insert('tb_books', {'title': 'z', 'file_md5': ''});
+      // `getBooksWithoutMd5()` 的 WHERE 是 `is_deleted = 0 AND (...)`，
+      // 而 tb_books.is_deleted 没有 DEFAULT，直接 insert 会得到 NULL
+      // （`NULL = 0` 不成立 → 行被漏掉）。真实写入走 `Book.toMap()` 会带 is_deleted。
+      await db.insert('tb_books', {'title': 'z', 'file_md5': '', 'is_deleted': 0});
       // 修复前：`= ''` 会命中这一行 → 被当成"就是这本书"
       expect(await bookDao.getBookByMd5(''), isNull, reason: '空串不再参与查重');
       // 修复前：同一行在 getBooksWithoutMd5 里也"算缺失"，两处口径相反
