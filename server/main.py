@@ -7,12 +7,15 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import os
+import re
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import Depends, FastAPI, UploadFile, File, HTTPException, Form, Header
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -24,11 +27,91 @@ PLUGINS_DIR.mkdir(exist_ok=True)
 PACKS_DIR.mkdir(exist_ok=True)
 DB_PATH = BASE_DIR / "songjiang.db"
 
+# ---------------------------------------------------------------------------
+# 安全开关（环境变量；未配置时一律按 fail-closed / 最保守默认处理）
+#   SONGJIANG_TOKEN              写接口凭据（Header `X-Songjiang-Token`）；未设置 => 写接口 503
+#   SONGJIANG_MAX_UPLOAD         单次上传字节上限（默认 64 MiB）
+#   SONGJIANG_HOST/PORT          监听地址（默认 127.0.0.1:8000；容器内由 compose 显式设 0.0.0.0）
+#   SONGJIANG_READ_NEEDS_TOKEN=1 读接口也要求 token（默认关，兼容既有客户端）
+#   SONGJIANG_TRUSTED_KEYS       [补丁 2] 允许的插件发布者 Ed25519 公钥（逗号分隔 hex）
+# ---------------------------------------------------------------------------
+DEFAULT_MAX_UPLOAD = 64 * 1024 * 1024
+
+
+def admin_token() -> str:
+    """写接口凭据。每次调用读取，便于运行期调整与测试。"""
+    return os.environ.get("SONGJIANG_TOKEN", "").strip()
+
+
+def max_upload_bytes() -> int:
+    raw = os.environ.get("SONGJIANG_MAX_UPLOAD", "")
+    try:
+        return max(1, int(raw)) if raw else DEFAULT_MAX_UPLOAD
+    except ValueError:
+        return DEFAULT_MAX_UPLOAD
+
+
+def require_admin(x_songjiang_token: str = Header(default="")) -> None:
+    """写接口鉴权：未配置 token 时直接拒绝（fail-closed），配置后按常量时间比较。"""
+    expected = admin_token()
+    if not expected:
+        raise HTTPException(503, "服务端未配置 SONGJIANG_TOKEN，写接口已关闭")
+    if not hmac.compare_digest(x_songjiang_token, expected):
+        raise HTTPException(401, "unauthorized")
+
+
+def require_admin_for_reads(x_songjiang_token: str = Header(default="")) -> None:
+    """可选：读接口也要求 token（仅当 SONGJIANG_READ_NEEDS_TOKEN=1，默认放行以兼容老客户端）。"""
+    if os.environ.get("SONGJIANG_READ_NEEDS_TOKEN", "") not in ("1", "true", "True"):
+        return
+    require_admin(x_songjiang_token)
+
+
+_SAFE_SEGMENT_RE = re.compile(r"[^A-Za-z0-9._\-\u4e00-\u9fff\u3040-\u30ff]")
+
+
+def safe_segment(raw: str, limit: int = 64, fallback: str = "") -> str:
+    """把用户可控字符串规范化为**单个**安全路径段。
+
+    挡掉：`../`、`/`、`\\\\`、绝对路径、空段、NUL、纯点/纯点划线、超长。
+    返回空串表示无法规范化，由调用方决定 400 还是退回 fallback。
+    """
+    cleaned = _SAFE_SEGMENT_RE.sub("_", (raw or "").replace("\x00", ""))
+    return cleaned.strip("._-")[:limit] or fallback
+
+
+def safe_join(base: Path, filename: str) -> Path:
+    """在 base 内拼接文件名并做包含校验——本项目唯一允许落盘的位置计算方式。"""
+    base = base.resolve()
+    target = (base / filename).resolve()
+    if target == base or base not in target.parents:
+        raise HTTPException(400, "非法路径")
+    return target
+
+
+def read_limited(f: UploadFile) -> bytes:
+    """带上限读取上传体（原实现 file.file.read() 无上限，可被单请求打爆内存/磁盘）。"""
+    limit = max_upload_bytes()
+    data = f.file.read(limit + 1)
+    if len(data) > limit:
+        raise HTTPException(413, f"文件超过大小上限（{limit} 字节）")
+    return data
+
 
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+@contextmanager
+def db() -> Iterator[sqlite3.Connection]:
+    """连接必然关闭（原实现多个端点无 try/finally，异常路径会泄漏连接）。"""
+    conn = get_db()
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def init_db() -> None:
@@ -85,14 +168,13 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/plugins/catalog")
+@app.get("/plugins/catalog", dependencies=[Depends(require_admin_for_reads)])
 def catalog() -> dict:
     """返回 plugins-catalog.json 兼容结构（downloadUrl 指向本服务端）。"""
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM plugin_entries ORDER BY created_at DESC"
-    ).fetchall()
-    conn.close()
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM plugin_entries ORDER BY created_at DESC"
+        ).fetchall()
     out = []
     for e in rows:
         out.append(
@@ -112,64 +194,68 @@ def catalog() -> dict:
     return {"schemaVersion": "1.0", "updatedAt": "", "entries": out}
 
 
-@app.post("/plugins")
+@app.post("/plugins", dependencies=[Depends(require_admin)])
 def upload_plugin(meta: PluginEntryIn, file: UploadFile = File(...)) -> dict:
-    data = file.file.read()
+    data = read_limited(file)
     actual = hashlib.sha256(data).hexdigest()
     if actual != meta.sha256:
         raise HTTPException(400, "SHA256 校验失败：文件可能被篡改")
     # TODO(签名): 与客户端一致，用 cryptography 做 Ed25519 验签；此处仅记录签名信息。
-    path = PLUGINS_DIR / f"{meta.id}.plugin.json"
+    safe_id = safe_segment(meta.id)
+    if not safe_id:
+        raise HTTPException(400, "插件 id 非法")
+    path = safe_join(PLUGINS_DIR, f"{safe_id}.plugin.json")
     path.write_bytes(data)
-    conn = get_db()
-    conn.execute(
-        "INSERT OR REPLACE INTO plugin_entries "
-        "(id,name,version,description,author,download_url,sha256,"
-        "signer_public_key,signature_hex,min_app_version) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (
-            meta.id,
-            meta.name,
-            meta.version,
-            meta.description,
-            meta.author,
-            f"/plugins/{meta.id}/download",
-            meta.sha256,
-            meta.signerPublicKey,
-            meta.signatureHex,
-            meta.minAppVersion,
-        ),
-    )
-    conn.commit()
-    conn.close()
-    return {"ok": True, "sha256": actual}
+    with db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO plugin_entries "
+            "(id,name,version,description,author,download_url,sha256,"
+            "signer_public_key,signature_hex,min_app_version) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (
+                safe_id,
+                meta.name[:200],
+                meta.version[:60],
+                meta.description[:2000],
+                meta.author[:200],
+                f"/plugins/{safe_id}/download",
+                meta.sha256,
+                meta.signerPublicKey,
+                meta.signatureHex,
+                meta.minAppVersion,
+            ),
+        )
+        conn.commit()
+    return {"ok": True, "sha256": actual, "id": safe_id}
 
 
-@app.get("/plugins/{pid}/download")
+@app.get("/plugins/{pid}/download", dependencies=[Depends(require_admin_for_reads)])
 def download_plugin(pid: str) -> FileResponse:
-    path = PLUGINS_DIR / f"{pid}.plugin.json"
+    safe_pid = safe_segment(pid)
+    if not safe_pid:
+        raise HTTPException(404, "not found")
+    path = safe_join(PLUGINS_DIR, f"{safe_pid}.plugin.json")
     if not path.exists():
         raise HTTPException(404, "not found")
-    return FileResponse(path, filename=f"{pid}.plugin.json")
+    return FileResponse(path, filename=f"{safe_pid}.plugin.json")
 
 
-@app.get("/packs")
+@app.get("/packs", dependencies=[Depends(require_admin_for_reads)])
 def list_packs(pack_type: str = "") -> list:
-    conn = get_db()
-    if pack_type:
-        rows = conn.execute(
-            "SELECT * FROM packs WHERE pack_type=? ORDER BY created_at DESC",
-            (pack_type,),
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT * FROM packs ORDER BY created_at DESC"
-        ).fetchall()
-    conn.close()
+    with db() as conn:
+        if pack_type:
+            rows = conn.execute(
+                "SELECT * FROM packs WHERE pack_type=? ORDER BY created_at DESC",
+                (pack_type,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM packs ORDER BY created_at DESC"
+            ).fetchall()
     return [dict(r) for r in rows]
 
 
-@app.post("/packs")
+@app.post("/packs", dependencies=[Depends(require_admin)])
 def upload_pack(
     name: str = Form(...),
     author: str = Form(""),
@@ -177,24 +263,28 @@ def upload_pack(
     pack_type: str = Form("enhancement"),
     file: UploadFile = File(...),
 ) -> dict:
-    data = file.file.read()
-    pid = f"{name}_{hashlib.sha256(data).hexdigest()[:12]}"
+    if pack_type not in ("enhancement", "gameplay"):
+        raise HTTPException(400, "pack_type 非法")
+    data = read_limited(file)
+    # 关键修复：name 是攻击者可控的表单字段，必须先规范化为单个路径段，
+    # 再经 safe_join 做包含校验（原实现直接拼 PACKS_DIR / f"{name}_{sha}.zip"，
+    # `../x` 与绝对路径都会写穿到 PACKS_DIR 之外）。
+    pid = f"{safe_segment(name, fallback='pack')}_{hashlib.sha256(data).hexdigest()[:12]}"
     ext = "sjgame.zip" if pack_type == "gameplay" else "sjpack.zip"
-    path = PACKS_DIR / f"{pid}.{ext}"
+    path = safe_join(PACKS_DIR, f"{pid}.{ext}")
     path.write_bytes(data)
-    conn = get_db()
-    conn.execute(
-        "INSERT OR REPLACE INTO packs "
-        "(id,name,author,description,filename,pack_type) "
-        "VALUES (?,?,?,?,?,?)",
-        (pid, name, author, description, path.name, pack_type),
-    )
-    conn.commit()
-    conn.close()
+    with db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO packs "
+            "(id,name,author,description,filename,pack_type) "
+            "VALUES (?,?,?,?,?,?)",
+            (pid, name[:200], author[:200], description[:2000], path.name, pack_type),
+        )
+        conn.commit()
     return {"ok": True, "id": pid, "pack_type": pack_type}
 
 
-@app.get("/packs/gameplay")
+@app.get("/packs/gameplay", dependencies=[Depends(require_admin_for_reads)])
 def list_gameplay_packs() -> list:
     """玩法包目录（3.3）：与 2.3 插件 / 2.4 增强包共用 packs 存储，按类型筛选。"""
     return list_packs(pack_type="gameplay")
@@ -214,30 +304,36 @@ def upload_gameplay_pack(
     )
 
 
-@app.get("/packs/{pid}/download")
+@app.get("/packs/{pid}/download", dependencies=[Depends(require_admin_for_reads)])
 def download_pack(pid: str) -> FileResponse:
     # 兼容增强包(.sjpack.zip) 与玩法包(.sjgame.zip) 两种后缀。
+    # 同样先规范化：修复前写入的**历史行** id 可能就是 `../` 形式，读路径也必须挡。
+    safe_pid = safe_segment(pid)
+    if not safe_pid:
+        raise HTTPException(404, "not found")
     for ext in ("sjgame.zip", "sjpack.zip"):
-        path = PACKS_DIR / f"{pid}.{ext}"
+        path = safe_join(PACKS_DIR, f"{safe_pid}.{ext}")
         if path.exists():
-            return FileResponse(path, filename=f"{pid}.{ext}")
+            return FileResponse(path, filename=f"{safe_pid}.{ext}")
     raise HTTPException(404, "not found")
 
 
-@app.get("/gameplay/catalog")
+@app.get("/gameplay/catalog", dependencies=[Depends(require_admin_for_reads)])
 def gameplay_catalog() -> dict:
     """玩法包目录（私有部署）：基于已上传的 gameplay 包动态生成，含实时 SHA256。"""
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM packs WHERE pack_type='gameplay' ORDER BY created_at DESC"
-    ).fetchall()
-    conn.close()
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM packs WHERE pack_type='gameplay' ORDER BY created_at DESC"
+        ).fetchall()
     entries = []
     for r in rows:
-        pid = r["id"]
+        pid = safe_segment(r["id"])
+        if not pid:
+            # 修复前可能写入 `../` 之类的 id；不再对外披露，也不去读它。
+            continue
         sha = ""
         for ext in ("sjgame.zip", "sjpack.zip"):
-            path = PACKS_DIR / f"{pid}.{ext}"
+            path = safe_join(PACKS_DIR, f"{pid}.{ext}")
             if path.exists():
                 sha = hashlib.sha256(path.read_bytes()).hexdigest()
                 break
@@ -254,7 +350,7 @@ def gameplay_catalog() -> dict:
     return {"schemaVersion": "1.0", "entries": entries}
 
 
-@app.get("/config/runtime")
+@app.get("/config/runtime", dependencies=[Depends(require_admin_for_reads)])
 def runtime_config() -> dict:
     """与客户端 RuntimeConfig 对齐：返回可热更的覆盖层（x_songjiang_* 前缀）。"""
     return {
@@ -267,4 +363,10 @@ def runtime_config() -> dict:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # 默认只听环回；容器内由 docker-compose 显式设 SONGJIANG_HOST=0.0.0.0
+    # （容器端口映射必须监听 0.0.0.0，裸机 `python main.py` 不应默认对外暴露）。
+    uvicorn.run(
+        app,
+        host=os.environ.get("SONGJIANG_HOST", "127.0.0.1"),
+        port=int(os.environ.get("SONGJIANG_PORT", "8000")),
+    )

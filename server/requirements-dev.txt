@@ -1,0 +1,5 @@
+# 开发/测试依赖（部署不需要）
+# 运行测试：python -m pytest server/test_main.py -v
+pytest>=7.4
+# fastapi.testclient 依赖
+httpx>=0.23
