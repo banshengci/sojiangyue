@@ -201,6 +201,28 @@ class DatabaseSyncManager {
               'Database version ($dbVersion) is newer than current version ($currentDbVersion)');
         }
 
+        // 保守策略：**也拒绝更旧的库**。
+        //
+        // 依据：本模块是"整库文件替换"，**没有任何行级合并/冲突解决**（全文件 403 行可核对）。
+        // 拿 v13 的文件覆盖本地 v15 的库，会让 v14/v15 引入的表（tb_gameplay_sessions 等）
+        // 连同其中的数据整体消失，而用户只会看到"同步成功"。
+        // 阶段三 harness S3 实测：本地 5 本 → 同步后 3 本，本地新增的 2 本不可恢复，
+        // 且 PRAGMA user_version 从 15 回退到 13。
+        //
+        // 为什么不做自动合并：合并需要逐表主键 + 每行时间戳/墓碑，而当前 18 张表里
+        // 大部分没有 updated_at 语义（tb_reading_time 只有 date 文本、tb_vocab_items
+        // 没有稳定业务主键），先把"错的替换"挡住，比引入一个不可验证的合并要安全。
+        if (dbVersion < currentDbVersion) {
+          SjLog.severe(
+              'DatabaseSync: 拒绝用更旧的远端库（v$dbVersion）覆盖本地 v$currentDbVersion '
+              '—— 整库替换会丢数据');
+          return DatabaseValidationResult.invalid(
+              'Database version ($dbVersion) is older than current version '
+              '($currentDbVersion). 整库替换会丢失 v${dbVersion + 1}..v$currentDbVersion 引入的'
+              '表和数据，已拒绝同步。请在已升级到最新版的设备上先同步一次，'
+              '或手动处理远端文件（Cache 目录里保留有同步前的本地备份）。');
+        }
+
         SjLog.info(
             'DatabaseSync: Validation passed - $count books found, version $dbVersion');
         return DatabaseValidationResult.valid();
