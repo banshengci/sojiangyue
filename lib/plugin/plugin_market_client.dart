@@ -234,6 +234,17 @@ class PluginMarketClient {
       if (entry.signatureHex == null || entry.signerPublicKey == null) {
         throw StateError('远程插件缺少发布者签名，拒绝安装（安全策略）');
       }
+      // 信任锚：先判「这个公钥是不是我固定过的发布者」，再判「签名对不对」。
+      // 修复前只做后者，而公钥与签名都取自同一份 catalog —— 等于拿攻击者给的公钥
+      // 验攻击者给的签名（服务端可写时整条链闭合）。固定公钥只能来自构建配置。
+      if (!PluginSecurity.isTrustedSigner(entry.id, entry.signerPublicKey!)) {
+        if (!PluginSecurity.allowUnpinned) {
+          throw StateError(
+              '发布者公钥不在信任列表内，拒绝安装（请用 --dart-define=PLUGIN_SIGNER_KEYS=… 固定公钥）');
+        }
+        SjLog.warning('PluginMarket: 发布者公钥未固定，PLUGIN_ALLOW_UNPINNED 已开启，'
+            '继续安装 ${entry.id}（仅供自建镜像过渡，勿用于正式分发）');
+      }
       final signed = await _verifyEd25519(
         bytes,
         entry.signatureHex!,

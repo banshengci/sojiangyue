@@ -19,6 +19,9 @@ from fastapi import Depends, FastAPI, UploadFile, File, HTTPException, Form, Hea
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
 BASE_DIR = Path(os.environ.get("SONGJIANG_DATA", "/data"))
 BASE_DIR.mkdir(parents=True, exist_ok=True)
 PLUGINS_DIR = BASE_DIR / "plugins"
@@ -41,6 +44,34 @@ DEFAULT_MAX_UPLOAD = 64 * 1024 * 1024
 def admin_token() -> str:
     """写接口凭据。每次调用读取，便于运行期调整与测试。"""
     return os.environ.get("SONGJIANG_TOKEN", "").strip()
+
+
+def trusted_signer_keys() -> set[str]:
+    """允许的插件发布者 Ed25519 公钥（小写 hex）。空集合 = 不收任何插件（fail-closed）。"""
+    raw = os.environ.get("SONGJIANG_TRUSTED_KEYS", "")
+    return {k.strip().lower() for k in raw.split(",") if k.strip()}
+
+
+def verify_entry(data: bytes, pub_hex: Optional[str], sig_hex: Optional[str]) -> None:
+    """Ed25519 detached 签名校验 + 发布者公钥白名单（原 main.py:121 的 TODO(签名)）。
+
+    这是"信任锚"的服务端一半：修复前服务端只把客户端交来的公钥与签名**原样记录并回吐**，
+    等于"拿攻击者给的公钥验攻击者给的签名"。现在未在白名单内的公钥直接 403。
+    """
+    keys = trusted_signer_keys()
+    if not keys:
+        raise HTTPException(503, "服务端未配置 SONGJIANG_TRUSTED_KEYS，拒绝接收插件")
+    if not pub_hex or not sig_hex:
+        raise HTTPException(400, "缺少 signerPublicKey / signatureHex")
+    pub = pub_hex.strip().lower()
+    if pub not in keys:
+        raise HTTPException(403, "发布者公钥不在服务端信任列表内")
+    try:
+        Ed25519PublicKey.from_public_bytes(bytes.fromhex(pub)).verify(
+            bytes.fromhex(sig_hex.strip()), data
+        )
+    except (InvalidSignature, ValueError):
+        raise HTTPException(400, "Ed25519 验签失败")
 
 
 def max_upload_bytes() -> int:
@@ -200,7 +231,8 @@ def upload_plugin(meta: PluginEntryIn, file: UploadFile = File(...)) -> dict:
     actual = hashlib.sha256(data).hexdigest()
     if actual != meta.sha256:
         raise HTTPException(400, "SHA256 校验失败：文件可能被篡改")
-    # TODO(签名): 与客户端一致，用 cryptography 做 Ed25519 验签；此处仅记录签名信息。
+    # 发布者签名：必须验签，且公钥必须在服务端白名单内（原为 TODO，只记录不校验）。
+    verify_entry(data, meta.signerPublicKey, meta.signatureHex)
     safe_id = safe_segment(meta.id)
     if not safe_id:
         raise HTTPException(400, "插件 id 非法")

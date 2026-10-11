@@ -149,11 +149,13 @@ def test_traversal_and_absolute_paths_never_escape_packs_dir():
 
 def test_traversal_names_do_not_create_db_rows_with_separators():
     """落库的 id 也不得含路径分隔符（否则目录端点会二次利用）。"""
-    _upload("../../../db-evil")
+    r = _upload("../../../db-evil")
+    assert r.status_code == 200, r.text
+    new_id = r.json()["id"]
+    assert "/" not in new_id and "\\" not in new_id, new_id
     with main.db() as conn:
-        rows = conn.execute("SELECT id FROM packs").fetchall()
-    for row in rows:
-        assert "/" not in row["id"] and "\\" not in row["id"], row["id"]
+        row = conn.execute("SELECT id FROM packs WHERE id=?", (new_id,)).fetchone()
+    assert row is not None and "/" not in row["id"] and "\\" not in row["id"], new_id
 
 
 def test_legacy_dirty_rows_are_not_usable():
@@ -166,10 +168,16 @@ def test_legacy_dirty_rows_are_not_usable():
             (evil_id, "legacy", "x", "x", "legacy.sjpack.zip", "gameplay"),
         )
         conn.commit()
-    cat = client.get("/gameplay/catalog")
-    assert cat.status_code == 200
-    assert all("/" not in e["id"] for e in cat.json()["entries"])
-    assert client.get("/packs/..%2F..%2Fetc%2Fpasswd/download").status_code == 404
+    try:
+        cat = client.get("/gameplay/catalog")
+        assert cat.status_code == 200
+        assert all("/" not in e["id"] for e in cat.json()["entries"])
+        assert client.get("/packs/..%2F..%2Fetc%2Fpasswd/download").status_code == 404
+    finally:
+        # 清掉注入的行，避免污染后续用例（自带 runner 按字母序执行时会互相影响）
+        with main.db() as conn:
+            conn.execute("DELETE FROM packs WHERE id=?", (evil_id,))
+            conn.commit()
 
 
 # --------------------------------------------------------------------------- #
@@ -201,6 +209,86 @@ def test_reads_open_by_default_and_gated_when_configured():
         assert client.get("/plugins/catalog", headers=HDR).status_code == 200
     finally:
         os.environ.pop("SONGJIANG_READ_NEEDS_TOKEN", None)
+
+
+# --------------------------------------------------------------------------- #
+# 5. 插件发布者签名 / 信任锚（补丁 2）
+# --------------------------------------------------------------------------- #
+def _expect_http(fn, status: int):
+    from fastapi import HTTPException  # noqa: PLC0415
+
+    try:
+        fn()
+    except HTTPException as exc:
+        assert exc.status_code == status, f"预期 {status}，实际 {exc.status_code}"
+        return
+    raise AssertionError(f"预期抛出 HTTPException({status})，但没有抛")
+
+
+def _ed25519_pair():
+    from cryptography.hazmat.primitives import serialization  # noqa: PLC0415
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import (  # noqa: PLC0415
+        Ed25519PrivateKey,
+    )
+
+    priv = Ed25519PrivateKey.generate()
+    pub_hex = priv.public_key().public_bytes(
+        serialization.Encoding.Raw, serialization.PublicFormat.Raw
+    ).hex()
+    return priv, pub_hex
+
+
+def test_verify_entry_fail_closed_when_no_trusted_keys():
+    """未配置 SONGJIANG_TRUSTED_KEYS => 拒绝接收插件（503），不是"跳过验签"。"""
+    saved = os.environ.pop("SONGJIANG_TRUSTED_KEYS", None)
+    try:
+        _expect_http(lambda: main.verify_entry(b"x", "aa" * 32, "bb" * 64), 503)
+    finally:
+        if saved is not None:
+            os.environ["SONGJIANG_TRUSTED_KEYS"] = saved
+
+
+def test_verify_entry_rejects_untrusted_and_bad_signature():
+    priv, pub_hex = _ed25519_pair()
+    other_priv, other_pub = _ed25519_pair()
+    good_sig = priv.sign(PACK_BYTES).hex()
+
+    os.environ["SONGJIANG_TRUSTED_KEYS"] = other_pub          # 只信任另一把
+    try:
+        # ① 公钥不在白名单（攻击者自签）=> 403：这是修复前完全缺失的判定
+        _expect_http(lambda: main.verify_entry(PACK_BYTES, pub_hex, good_sig), 403)
+        # 缺参数先判 400（参数完整性早于信任判定），两种都是拒绝
+        _expect_http(lambda: main.verify_entry(PACK_BYTES, pub_hex, None), 400)
+        os.environ["SONGJIANG_TRUSTED_KEYS"] = pub_hex        # 换成信任这把
+        # ② 公钥可信但没带签名 => 400
+        _expect_http(lambda: main.verify_entry(PACK_BYTES, pub_hex, None), 400)
+        _expect_http(lambda: main.verify_entry(PACK_BYTES, None, good_sig), 400)
+        # ③ 公钥可信但签名对不上（内容被改）=> 400
+        _expect_http(lambda: main.verify_entry(b"tampered", pub_hex, good_sig), 400)
+        _expect_http(lambda: main.verify_entry(PACK_BYTES, pub_hex, "00" * 64), 400)
+        _expect_http(lambda: main.verify_entry(PACK_BYTES, pub_hex, "not-hex"), 400)
+        # ④ 合法签名 => 通过
+        main.verify_entry(PACK_BYTES, pub_hex, good_sig)
+        main.verify_entry(PACK_BYTES, pub_hex.upper(), priv.sign(PACK_BYTES).hex().upper())
+    finally:
+        os.environ.pop("SONGJIANG_TRUSTED_KEYS", None)
+
+
+def test_plugin_upload_endpoint_shape_unchanged():
+    """记录现状：/plugins 的 `meta` 是 multipart 里的 pydantic model，FastAPI 无法解析，
+    实测任何编码都是 422（代码走不到 verify_entry）。这是既有事实，本补丁不改它的签名；
+    将来若有人修好这个端点，本用例会失败 —— 提醒必须同时确认信任锚已生效。"""
+    r = client.post(
+        "/plugins",
+        data={"id": "com.example.x", "name": "x", "version": "1", "sha256": "0" * 64},
+        files={"file": ("p.bin", PACK_BYTES, "application/octet-stream")},
+        headers=HDR,
+    )
+    assert r.status_code == 422, (
+        f"端点行为变了（{r.status_code}）：请确认 verify_entry 仍在插件上传路径上被调用")
+    import inspect  # noqa: PLC0415
+
+    assert "verify_entry(" in inspect.getsource(main.upload_plugin)
 
 
 # --------------------------------------------------------------------------- #
