@@ -170,18 +170,31 @@ class DatabaseSyncManager {
           return DatabaseValidationResult.invalid('Missing required tables');
         }
 
-        // Check if tb_books table is empty
+        // Check database version first —— 它同时也是"这份文件是否被本 App 初始化过"的判据。
+        final versionResult = await db.rawQuery('PRAGMA user_version');
+        final dbVersion = versionResult.first.values.first as int;
+
+        // user_version == 0 表示这份文件从来没跑过本 App 的迁移：
+        // 要么是别人的 / 空白 sqlite 文件，要么是迁移根本没开始就中断了。
+        // 这才是"未初始化"，与"库是好的但用户把书删光了"必须区分开。
+        if (dbVersion == 0) {
+          return DatabaseValidationResult.invalid(
+              'Database is not initialized by this app (user_version=0)');
+        }
+
+        // tb_books 为空**不再**判非法。
+        // 用户把书全部删光后，自己的库依然是一份完全合法的库；原来的
+        // `if (count == 0) return invalid('Books table is empty')` 会让他
+        // 永远无法上传，也无法在换机后从云端恢复（阶段三 harness S1b 实测）。
+        // 这里把"空"降级为可接受状态，只记一条日志，不再提供拒绝理由。
         final bookCount =
             await db.rawQuery('SELECT COUNT(*) as count FROM tb_books');
         final count = bookCount.first['count'] as int;
 
         if (count == 0) {
-          return DatabaseValidationResult.invalid('Books table is empty');
+          SjLog.info(
+              'DatabaseSync: 远端库结构合法、书架为空（user_version=$dbVersion），按合法库接受');
         }
-
-        // Check database version
-        final versionResult = await db.rawQuery('PRAGMA user_version');
-        final dbVersion = versionResult.first.values.first as int;
 
         if (dbVersion > currentDbVersion) {
           return DatabaseValidationResult.invalid(
