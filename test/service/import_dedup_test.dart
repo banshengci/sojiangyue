@@ -36,13 +36,17 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/database.dart';
 import 'package:songjiang_reader/service/md5_service.dart';
 import 'package:songjiang_reader/models/book.dart';
+import 'package:songjiang_reader/utils/get_path/get_base_path.dart'
+    show documentPath;
 
 /// 造一本满足 [Book] 全部必填字段的书，只覆盖本文件真正关心的那几个字段。
 ///
@@ -80,8 +84,22 @@ void main() {
   databaseFactory = databaseFactoryFfi;
 
   late Database db;
+  late Directory tmp;
 
   setUp(() async {
+    // 迁移链（onUpgradeDatabase）会读 ReadingStylePrefs（case 里调 removeBookStyle），
+    // 所以必须先备好 SharedPreferences 并初始化它——与 db_migration_chain_test 一致。
+    SharedPreferences.setMockInitialValues({});
+    await ReadingStylePrefs.ensureInitialized();
+
+    // 迁移里的 case2 会 `Directory('$documentPath/file').listSync()`：
+    // documentPath 在测试宿主上默认是空串，拼出来是 `'/file'`（Windows 上非法路径），
+    // onCreate 会直接抛。这里指到一个建好的临时目录并补齐子目录。
+    tmp = await Directory.systemTemp.createTemp('sj_import_dedup_');
+    Directory(p.join(tmp.path, 'file')).createSync(recursive: true);
+    Directory(p.join(tmp.path, 'cover')).createSync(recursive: true);
+    documentPath = tmp.path;
+
     db = await databaseFactory.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
@@ -101,6 +119,9 @@ void main() {
   tearDown(() async {
     DBHelper.debugResetOverride();
     await db.close();
+    try {
+      tmp.deleteSync(recursive: true);
+    } catch (_) {}
   });
 
   group('③ 去重键 file_md5 的结构性事实', () {

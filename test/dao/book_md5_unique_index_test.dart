@@ -17,13 +17,19 @@
 //      `ConflictAlgorithm.ignore` 降级成"不写入、不抛"，否则整批回填中途炸掉；
 //   4) `''` 语义不统一时，`getBookByMd5('')` 会命中"另一本"空 md5 的书（假重复）。
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/database.dart';
-import 'package:songjiang_reader/models/book.dart';
+import 'package:songjiang_reader/utils/get_path/get_base_path.dart'
+    show documentPath;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -31,9 +37,23 @@ void main() {
   databaseFactory = databaseFactoryFfi;
 
   late Database db;
+  late Directory tmp;
 
   /// 造一个"老库"：完整迁移 + 历史重复数据（`''` / NULL / 3 行同 md5）。
   Future<void> seedLegacy() async {
+    // 迁移链（onUpgradeDatabase）会读 ReadingStylePrefs，先备好 prefs 并初始化。
+    SharedPreferences.setMockInitialValues({});
+    await ReadingStylePrefs.ensureInitialized();
+
+    // 迁移里的 case2 会 `Directory('$documentPath/file').listSync()`：
+    // documentPath 是 get_base_path.dart 的可变顶层变量，测试宿主上默认是空串，
+    // 拼出来是 `'/file'`（Windows 上非法路径）→ onCreate 直接抛。
+    // 这里把它指到一个建好的临时目录，并补齐迁移会碰到的子目录。
+    tmp = await Directory.systemTemp.createTemp('sj_md5_unique_');
+    Directory(p.join(tmp.path, 'file')).createSync(recursive: true);
+    Directory(p.join(tmp.path, 'cover')).createSync(recursive: true);
+    documentPath = tmp.path;
+
     db = await databaseFactory.openDatabase(
       inMemoryDatabasePath,
       options: OpenDatabaseOptions(
@@ -65,6 +85,9 @@ void main() {
   tearDown(() async {
     DBHelper.debugResetOverride();
     await db.close();
+    try {
+      tmp.deleteSync(recursive: true);
+    } catch (_) {}
   });
 
   const cols = 'id,title,cover_path,file_path,last_read_position,reading_percentage,'
