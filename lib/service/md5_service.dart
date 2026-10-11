@@ -84,7 +84,10 @@ class MD5Service {
     return fingerprint;
   }
 
+  /// 查重入口。空串/空白一律视为"没有 md5" → 返回 null（不参与查重），
+  /// 与 [calculateFileMd5] 的返回约定、以及 `getBooksWithoutMd5()` 的口径一致。
   static Future<Book?> checkDuplicateByMd5(String md5) async {
+    if (md5.trim().isEmpty) return null;
     return await bookDao.getBookByMd5(md5);
   }
 

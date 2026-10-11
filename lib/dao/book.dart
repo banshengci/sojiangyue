@@ -1,5 +1,6 @@
 import 'package:songjiang_reader/dao/base_dao.dart';
 import 'package:songjiang_reader/models/book.dart';
+import 'package:songjiang_reader/utils/log/common.dart';
 
 class BookDao extends BaseDao {
   BookDao();
@@ -87,12 +88,24 @@ class BookDao extends BaseDao {
     return selectBooks();
   }
 
-  Future<Book?> getBookByMd5(String md5) {
+  /// 按 md5 查书。**空串与 NULL 一样，语义是"没有 md5"**（patch 0011）。
+  ///
+  /// 统一前的行为：`getBookByMd5('')` 会命中"file_md5 = ''"的行，于是同一行在两处
+  /// 口径相反 —— `getBooksWithoutMd5()` 的 `IS NULL OR = ''` 把它当"缺失"，
+  /// 这里却把它当"就是这本书"。统一后这里直接返回 null（不参与查重）。
+  ///
+  /// 调用点影响：`MD5Service.checkDuplicateByMd5`（公开方法）与
+  /// `service/book.dart` 的落库去重 —— 两处传进来的都是
+  /// `MD5Service.dedupKeyFor()` 的结果，**永不为空串**，因此实际行为不变；
+  /// 变的是"外部/历史数据直接传空串"时的结果（从"可能命中一行"改为"必然 null"）。
+  Future<Book?> getBookByMd5(String md5) async {
+    final key = md5.trim();
+    if (key.isEmpty) return null;
     return querySingle(
       table,
       mapper: Book.fromDb,
       where: 'file_md5 = ?',
-      whereArgs: [md5],
+      whereArgs: [key],
     );
   }
 
@@ -131,10 +144,16 @@ class BookDao extends BaseDao {
   /// 由调用方看返回值决定怎么记账 —— 否则 `batchCalculateMd5` 的整批回填会中途抛异常。
   /// （`ignore` 只跳过该行，`update_time` 也不会被改，符合"不丢数据"的要求。）
   Future<int> updateBookMd5(int bookId, String md5) {
+    final key = md5.trim();
+    if (key.isEmpty) {
+      // 与 getBookByMd5 / getBooksWithoutMd5 统一：空串 = 缺失，不写进库里。
+      SjLog.warning('BookDao.updateBookMd5: 拒绝写入空 md5（按「缺失」处理）bookId=$bookId');
+      return Future.value(0);
+    }
     return update(
       table,
       {
-        'file_md5': md5,
+        'file_md5': key,
         'update_time': DateTime.now().toIso8601String(),
       },
       where: 'id = ?',
@@ -143,6 +162,10 @@ class BookDao extends BaseDao {
     );
   }
 
+  /// 没有 md5 的书。**这是 `''` 语义的权威口径**（patch 0011）：
+  /// `IS NULL OR = ''` 都算"缺失"，`getBookByMd5('')` 也按缺失处理（返回 null）。
+  /// 注：patch 0010 之后库里已不再有 `file_md5 = ''` 的行（自愈时统一置 NULL），
+  /// 这里的 `= ''` 保留是为了兼容"迁移尚未跑过"的中间状态。
   Future<List<Book>> getBooksWithoutMd5() {
     return queryList(
       table,
