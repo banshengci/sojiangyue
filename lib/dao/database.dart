@@ -309,9 +309,23 @@ class DBHelper {
         // 1. Force Checkpoint to ensure all WAL data is written to main DB file
         await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
 
-        // 2. Copy file manually
+        // 1b. 复查 checkpoint 是否真的把 WAL 清空了。
+        // 依据：checkpoint 与随后的文件拷贝之间，同一进程里其它连接仍可能有
+        // 新写入落进 -wal；此时只拷主文件就会静默缺行
+        // （阶段三 harness S2b 实测：-wal 残留 8272B、拷贝结果少 1 行，
+        //  而 fixDatabaseHeader 只改 header、**不做 checkpoint**）。
+        // 这里补一次复查 + 再 checkpoint，仍不干净就留一条明确的警告日志。
         final databasePath = await getSjDatabasesPath();
         final dbPath = join(databasePath, 'app_database.db');
+        if (hasWalFiles(dbPath)) {
+          await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+        }
+        if (hasWalFiles(dbPath)) {
+          SjLog.warning(
+              'Database: checkpoint 后 -wal 仍有内容，快照可能缺少最新写入: $dbPath');
+        }
+
+        // 2. Copy file manually
         await File(dbPath).copy(snapshotPath);
       }
 
@@ -321,11 +335,60 @@ class DBHelper {
       // This guarantees the uploaded file is compatible with all platforms
       await fixDatabaseHeader(snapshotPath);
 
+      // 上传前自检：宁可不上传（调用方会看到异常），也不要把一份缺表/缺行的文件
+      // 推上云端 —— 云端一旦被替换，其它设备会把它当"正确版本"同步下去，
+      // 而本模块没有合并能力，坏数据只能靠用户手动找缓存备份恢复。
+      await verifyUploadSnapshot(snapshotPath);
+
       return snapshotPath;
     } catch (e) {
       SjLog.severe('Database: Failed to create snapshot: $e');
       rethrow;
     }
+  }
+
+  /// 上传前自检：快照必须能打开、integrity_check=ok、且必需表齐全。
+  ///
+  /// 「必需表」里刻意包含 tb_groups / tb_vocab_items —— 它们原先漏在
+  /// ensureSchemaIntegrity 之外（已由 patch 0003 补上），这里再兜一道，
+  /// 防止一份"迁移中断过的库"被推上云端。
+  static Future<void> verifyUploadSnapshot(String snapshotPath) async {
+    final file = File(snapshotPath);
+    if (!file.existsSync() || file.lengthSync() < 1024) {
+      throw StateError('Database: 快照文件缺失或过小，拒绝上传: $snapshotPath');
+    }
+    final probe = await openDatabase(
+      snapshotPath,
+      readOnly: true,
+      singleInstance: false,
+    );
+    try {
+      final integrity = await probe.rawQuery('PRAGMA integrity_check');
+      if (integrity.isEmpty || integrity.first.values.first != 'ok') {
+        throw StateError('Database: 快照 integrity_check 未通过: $snapshotPath');
+      }
+      const required = [
+        'tb_books',
+        'tb_themes',
+        'tb_styles',
+        'tb_groups',
+        'tb_vocab_items',
+      ];
+      final missing = <String>[];
+      for (final name in required) {
+        final rows = await probe.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+            [name]);
+        if (rows.isEmpty) missing.add(name);
+      }
+      if (missing.isNotEmpty) {
+        throw StateError(
+            'Database: 快照缺表 ${missing.join(', ')}（迁移可能中断过），拒绝上传: $snapshotPath');
+      }
+    } finally {
+      await probe.close();
+    }
+    SjLog.info('Database: 快照自检通过（integrity + 必需表齐全）: $snapshotPath');
   }
 
   /// Directly patch the database file header to switch from WAL mode to Legacy mode
