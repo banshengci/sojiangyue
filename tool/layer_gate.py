@@ -519,6 +519,28 @@ def baseline_lib_files(repo, commit):
     return files or None
 
 
+def scc_ratchet_delta(baseline, snap, repo):
+    """统一的 SCC 棘轮判定，供「失败判定」与「--update-baseline 守卫」共用。
+
+    返回 (scc_regression, scc_dragged, scc_new_files)。
+    判据：只看**既有文件**是否新进入环；新建文件进入环不算回退。
+    """
+    if not baseline or "scc" not in baseline:
+        return False, [], []
+    b = baseline["scc"]
+    b_members = set(b.get("members", []))
+    newly = set(snap["members"]) - b_members
+    bl_files = set(baseline.get("lib_files") or [])
+    if not bl_files:
+        bl_files = baseline_lib_files(repo, baseline.get("commit", "")) or set()
+    if bl_files:
+        dragged = sorted(newly & bl_files)
+        new_files = sorted(newly - bl_files)
+    else:
+        dragged, new_files = sorted(newly), []      # 无法区分 → 严格
+    return bool(dragged), dragged, new_files
+
+
 def make_baseline(violations, snap, commit, lib_files):
     """生成棘轮基线。
 
@@ -742,25 +764,11 @@ def main(argv=None):
     # 判据：「**既有**文件是否有新的进入环」。
     # 只看 files_in_cycles 的增减会误杀合法重构（本次把 AiToolContext 拆到新文件，
     # 环内 +1，但那是新建的接线文件，没有任何既有文件被拖进环）。
-    scc_regression = False
-    scc_improved = False
-    scc_dragged = []       # 新进入环的「既有文件」→ 回退
-    scc_new_files = []     # 新进入环的「新建文件」→ 允许，但会单独列出
-    if baseline and "scc" in baseline:
-        b = baseline["scc"]
-        b_members = set(b.get("members", []))
-        newly = set(snap["members"]) - b_members
-        bl_files = set(baseline.get("lib_files") or [])
-        if not bl_files:                      # 老基线没有文件清单：退回 git，再退回严格
-            bl_files = baseline_lib_files(args.repo, baseline.get("commit", "")) or set()
-        if bl_files:
-            scc_dragged = sorted(newly & bl_files)
-            scc_new_files = sorted(newly - bl_files)
-        else:                                 # 无法区分 → 严格：一律视为回退
-            scc_dragged = sorted(newly)
-        scc_regression = bool(scc_dragged)
-        if snap["files_in_cycles"] < b.get("files_in_cycles", 0):
-            scc_improved = True
+    scc_regression, scc_dragged, scc_new_files = scc_ratchet_delta(
+        baseline, snap, args.repo)
+    scc_improved = bool(
+        baseline and "scc" in baseline
+        and snap["files_in_cycles"] < baseline["scc"].get("files_in_cycles", 0))
 
     commit = ""
     head = os.path.join(args.repo, ".git", "HEAD")
@@ -778,12 +786,14 @@ def main(argv=None):
         pass
 
     if args.update_baseline:
-        prev_in_cycle = (baseline or {}).get("scc", {}).get("files_in_cycles")
-        if prev_in_cycle is not None and snap["files_in_cycles"] > prev_in_cycle:
-            print("error: 拒绝刷新基线——环内文件数从 %d 回退到 %d。"
-                  "请先拆掉新增的环。" % (prev_in_cycle, snap["files_in_cycles"]),
-                  file=sys.stderr)
+        if scc_regression:
+            print("error: 拒绝刷新基线——以下**既有**文件被新拖入环，属耦合回退，"
+                  "请先拆掉：\n  %s" % "\n  ".join(scc_dragged), file=sys.stderr)
             return 1
+        if scc_new_files:
+            print("note: 本次有 %d 个**新建**文件进入环（不算回退，已记录）：\n  %s"
+                  % (len(scc_new_files), "\n  ".join(scc_new_files)),
+                  file=sys.stderr)
         data = make_baseline(violations, snap, commit, files)
         os.makedirs(os.path.dirname(baseline_path) or ".", exist_ok=True)
         with open(baseline_path, "w", encoding="utf-8") as fh:

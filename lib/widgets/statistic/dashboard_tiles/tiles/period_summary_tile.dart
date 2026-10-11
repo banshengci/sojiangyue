@@ -1,7 +1,7 @@
+import 'package:songjiang_reader/enums/statistics_dashboard_tile_type.dart';
 import 'package:songjiang_reader/enums/chart_mode.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/statistic_data_model.dart';
-import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart';
 import 'package:songjiang_reader/providers/statistic_data.dart';
 import 'package:songjiang_reader/providers/total_reading_time.dart';
 import 'package:songjiang_reader/utils/date/convert_seconds.dart';

@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/enums/statistics_dashboard_tile_type.dart';
 import 'package:songjiang_reader/models/statistic_data_model.dart';
 import 'package:songjiang_reader/providers/book_daily_reading_provider.dart';
 import 'package:songjiang_reader/providers/statistic_data.dart';
@@ -7,7 +8,6 @@ import 'package:songjiang_reader/widgets/common/async_skeleton_wrapper.dart';
 import 'package:songjiang_reader/widgets/statistic/book_reading_chart.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_base.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_metadata.dart';
-import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart';
 import 'package:songjiang_reader/widgets/tips/statistic_tips.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

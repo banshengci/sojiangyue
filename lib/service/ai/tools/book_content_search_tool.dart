@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 
 import 'base_tool.dart';
 import 'input/book_content_search_input.dart';

@@ -28,6 +28,13 @@
       "to": "lib/enums/statistics_dashboard_tile_type.dart",
       "date": "2026-10-11",
       "reason": "与 StatisticsDashboardTileType 同批下沉（config 同时依赖两者）"
+    },
+    {
+      "name": "AiToolContext",
+      "from": "lib/service/ai/tools/ai_tool_registry.dart",
+      "to": "lib/service/ai/tools/ai_tool_context.dart",
+      "date": "2026-10-11",
+      "reason": "断开 15 组「AI 工具 <-> ai_tool_registry」互相依赖（工具需要该类型做 cast，registry 又 import 全部工具）"
     }
   ]
 }

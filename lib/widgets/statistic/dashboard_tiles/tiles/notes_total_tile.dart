@@ -1,8 +1,8 @@
+import 'package:songjiang_reader/enums/statistics_dashboard_tile_type.dart';
 import 'package:songjiang_reader/providers/statistics_summary_value.dart';
 import 'package:songjiang_reader/widgets/common/async_skeleton_wrapper.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_base.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_metadata.dart';
-import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/dashboard_tile_registry.dart';
 import 'package:songjiang_reader/widgets/statistic/dashboard_tiles/widgets/mini_metric.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

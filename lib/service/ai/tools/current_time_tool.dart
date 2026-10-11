@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
 import 'package:songjiang_reader/service/ai/tools/input/current_time_input.dart';
 
 import 'base_tool.dart';

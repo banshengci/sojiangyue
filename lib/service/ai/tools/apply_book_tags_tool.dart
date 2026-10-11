@@ -5,7 +5,7 @@ import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/input/apply_book_tags_input.dart';
 import 'package:songjiang_reader/service/ai/tools/repository/books_repository.dart';
 import 'package:songjiang_reader/service/ai/tools/repository/tag_repository.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 import 'package:songjiang_reader/utils/color/hash_color.dart';
 import 'package:songjiang_reader/utils/color/rgb.dart';
 

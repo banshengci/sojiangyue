@@ -2,7 +2,7 @@ import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/repository/tag_repository.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 import 'package:songjiang_reader/utils/color/hash_color.dart';
 import 'package:songjiang_reader/utils/color/rgb.dart';
 

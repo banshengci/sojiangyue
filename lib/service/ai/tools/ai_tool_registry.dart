@@ -1,5 +1,5 @@
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/providers/current_reading.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 import 'package:songjiang_reader/service/ai/tools/apply_book_tags_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/book_content_search_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/books_tags_list_tool.dart';
@@ -15,37 +15,16 @@ import 'package:songjiang_reader/service/ai/tools/mindmap_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/notes_search_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/reading_history_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/tags_list_tool.dart';
-import 'package:songjiang_reader/service/ai/tools/repository/book_content_search_repository.dart';
-import 'package:songjiang_reader/service/ai/tools/repository/books_repository.dart';
-import 'package:songjiang_reader/service/ai/tools/repository/groups_repository.dart';
-import 'package:songjiang_reader/service/ai/tools/repository/notes_repository.dart';
-import 'package:songjiang_reader/service/ai/tools/repository/reading_history_repository.dart';
-import 'package:songjiang_reader/service/ai/tools/repository/tag_repository.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:langchain_core/tools.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 export 'package:songjiang_reader/service/ai/tools/base_tool.dart';
+// 兼容：原先从本文件取 `AiToolContext` 的使用方无需改动。
+export 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
 
-/// Context object shared by AI tools so builders don't need long constructors.
-class AiToolContext {
-  AiToolContext({required this.ref});
-
-  final WidgetRef ref;
-
-  late final NotesRepository notesRepository = NotesRepository();
-  late final BooksRepository booksRepository = BooksRepository();
-  late final BookContentSearchRepository bookContentSearchRepository =
-      BookContentSearchRepository(booksRepository: booksRepository);
-  late final GroupsRepository groupsRepository = GroupsRepository();
-  late final ReadingHistoryRepository readingHistoryRepository =
-      ReadingHistoryRepository();
-  late final TagRepository tagRepository = TagRepository();
-
-  bool get isReading => ref.read(currentReadingProvider).isReading;
-}
-
-// AiToolDefinition 已下沉至 base_tool.dart（见该文件），避免与插件体系形成 import 环。
+// AiToolDefinition 已下沉至 base_tool.dart（叶子层）。
+// AiToolContext 已下沉至 ai_tool_context.dart —— 15 个工具都需要它做类型转换，
+// 若它留在本文件，就会形成 15 组「工具 <-> registry」互相依赖。
 
 class AiToolRegistry {
   static final List<AiToolDefinition> _definitions = [
