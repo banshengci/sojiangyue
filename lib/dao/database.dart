@@ -603,29 +603,22 @@ class DBHelper {
             "UPDATE tb_books SET cover_path = cover_path || '.png' "
             "WHERE cover_path IS NOT NULL AND cover_path NOT LIKE '%.png'");
 
+        // 守卫（patch 0012）：`Directory.listSync()` 对**不存在**的目录会抛
+        // `PathNotFoundException`，而这一段跑在 openDatabase 的 onCreate/onUpgrade 内部 ——
+        // 一旦抛，整段迁移中断；又因为 sqflite 已经把 user_version 顶到最新，之后
+        // 每次启动都会重跑并再次失败 ⇒ **启动即不可用、且用户无法自救**。
+        //
+        // 它会发生在什么时序/什么用户身上：
+        //   1) `documentPath` 由 `initBasePath()` 异步赋值，而任何早于它的 DAO 调用
+        //      （启动期初始化链）都会触发 initDB → 迁移，此时 `file/` 可能还没建；
+        //   2) Windows 用户在设置里改过 `customStoragePath`（AppMiscPrefs）：
+        //      DB 目录已存在，但新目录下的 `file/`、`cover/` 尚未创建；
+        //   3) 用户手工删掉了 file/ 或 cover/ 目录。
+        // 这三种都**不该**让迁移失败，所以：目录不存在 → 记一条日志后跳过。
+        // 另外每个 rename 单独兜住（目标已存在 / 权限 / 只读介质），同样只记日志不抛。
         final basePath = getBasePath('');
-        final fileDir = Directory('$basePath/file');
-        final coverDir = Directory('$basePath/cover');
-        fileDir.listSync().forEach((element) {
-          if (element is File) {
-            final path = element.path;
-            String pathAfterReplace = path.replaceAll(' ', '_');
-            int endIndex =
-                (pathAfterReplace.length < 72) ? pathAfterReplace.length : 72;
-            final newPath = '${pathAfterReplace.substring(0, endIndex)}.epub';
-            element.rename(newPath);
-          }
-        });
-        coverDir.listSync().forEach((element) {
-          if (element is File) {
-            final path = element.path;
-            String pathAfterReplace = path.replaceAll(' ', '_');
-            int endIndex =
-                (pathAfterReplace.length < 72) ? pathAfterReplace.length : 72;
-            final newPath = '${pathAfterReplace.substring(0, endIndex)}.png';
-            element.rename(newPath);
-          }
-        });
+        _renameLegacyFilesSync(Directory('$basePath/file'), '.epub');
+        _renameLegacyFilesSync(Directory('$basePath/cover'), '.png');
         continue case3;
       case3:
       case 3:
@@ -794,6 +787,30 @@ Future<void> ensureSchemaIntegrity(Database db) async {
   } catch (e, st) {
     // 自检失败不应阻断启动
     SjLog.severe('Database: 结构自检失败: $e\n$st');
+  }
+}
+
+/// v2→v3 的历史文件重命名：**同步、可失败、绝不抛**。
+///
+/// 抽出来的原因见 case2 里的注释：这段逻辑原先直接 `listSync()`，目录不存在就抛，
+/// 会把整段数据库迁移带崩。这里补三处守卫：目录不存在 / 不是普通文件 / rename 失败。
+void _renameLegacyFilesSync(Directory dir, String suffix) {
+  if (!dir.existsSync()) {
+    SjLog.info('Database: 迁移 v2→v3 跳过不存在的目录 ${dir.path}');
+    return;
+  }
+  for (final element in dir.listSync()) {
+    if (element is! File) continue;
+    try {
+      final pathAfterReplace = element.path.replaceAll(' ', '_');
+      final endIndex =
+          (pathAfterReplace.length < 72) ? pathAfterReplace.length : 72;
+      final newPath = '${pathAfterReplace.substring(0, endIndex)}$suffix';
+      if (newPath == element.path) continue; // 已经是目标名，无需 rename
+      element.rename(newPath);
+    } catch (e) {
+      SjLog.warning('Database: 迁移 v2→v3 重命名失败（已跳过）: ${element.path} → $e');
+    }
   }
 }
 
