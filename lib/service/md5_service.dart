@@ -24,6 +24,66 @@ class MD5Service {
     }
   }
 
+  /// 兜底去重键：`size:<字节数>:<sha1(首 32KB + 尾 32KB)>`。
+  ///
+  /// 只在 [calculateFileMd5] 拿不到 md5（文件读不出来 / 不存在）时使用。
+  ///
+  /// 为什么不用 null 跳过查重：那会让"同一个文件导入两次"落两行，而且两行的
+  /// file_md5 都是 NULL，事后无法自动收敛（阶段三 harness I4 实测）。
+  ///
+  /// 为什么不会误合并：
+  ///   1) 前缀 `size:` 保证不可能与 32 位十六进制 md5 撞车（md5 不含冒号）；
+  ///   2) 对 EPUB/ZIP 而言，尾部 32KB 落在中央目录上，里面含每个条目的
+  ///      文件名/CRC32/偏移量 —— 两份不同的 EPUB 几乎必然在这里不同；
+  ///   3) 文件 < 64KB 时首尾区间重叠，等价于整个文件的 sha1；
+  ///   4) 对比原行为（完全不查重、必然产生重复行），这是严格更优的兜底。
+  /// 残留风险：人为构造的"长度相同 + 首尾 32KB 相同"的文件会被判为同一本 ——
+  /// 对一个阅读器来说这个概率可接受，且只影响"自动去重"，不影响数据本身。
+  static Future<String?> calculateFileFingerprint(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return null;
+      final length = await file.length();
+      const window = 32 * 1024;
+      final head = await _readSlice(file, 0, window < length ? window : length);
+      final tailStart = length > window ? length - window : 0;
+      final tail = tailStart >= head.length
+          ? await _readSlice(file, tailStart, length)
+          : const <int>[];
+      final digest = sha1.convert([...head, ...tail]);
+      return 'size:$length:$digest';
+    } catch (e) {
+      SjLog.warning('Error calculating fingerprint for $filePath: $e');
+      return null;
+    }
+  }
+
+  static Future<List<int>> _readSlice(File file, int start, int end) async {
+    if (end <= start) return const <int>[];
+    final raf = await file.open();
+    try {
+      await raf.setPosition(start);
+      return await raf.read(end - start);
+    } finally {
+      await raf.close();
+    }
+  }
+
+  /// 去重键统一入口：md5 优先，失败退到 [calculateFileFingerprint]。
+  ///
+  /// **导入前预检（[checkImportFiles]）与落库（saveBook）必须用同一个键**，
+  /// 否则会出现"预检说不重复、落库却命中已有书"的错位 —— 这正是两处各自
+  /// 判断 `md5 != null` 时留下的隐患。
+  static Future<String?> dedupKeyFor(String filePath) async {
+    final md5 = await calculateFileMd5(filePath);
+    if (md5 != null && md5.isNotEmpty) return md5;
+    final fingerprint = await calculateFileFingerprint(filePath);
+    if (fingerprint != null) {
+      SjLog.warning('MD5: $filePath 无法计算 md5，改用兜底指纹 $fingerprint 作为去重键');
+    }
+    return fingerprint;
+  }
+
   static Future<Book?> checkDuplicateByMd5(String md5) async {
     return await bookDao.getBookByMd5(md5);
   }
@@ -95,7 +155,7 @@ class MD5Service {
     List<ImportFileCheck> results = [];
 
     for (final filePath in filePaths) {
-      final md5 = await calculateFileMd5(filePath);
+      final md5 = await dedupKeyFor(filePath);
       Book? duplicateBook;
 
       if (md5 != null) {

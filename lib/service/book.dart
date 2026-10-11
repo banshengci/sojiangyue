@@ -503,7 +503,10 @@ void _showImportDialog(
 }
 
 Future<void> importBook(File file, WidgetRef ref) async {
-  String? md5 = await MD5Service.calculateFileMd5(file.path);
+  // 统一去重键：md5 拿不到时退到 size+首尾指纹，不再"静默跳过查重"
+  // （原先这里是 calculateFileMd5，失败返回 null 时 saveBook 的
+  //  `if (md5 != null)` 会让同一个文件导入两次落两行）。
+  String? md5 = await MD5Service.dedupKeyFor(file.path);
 
   final ext = file.path.split('.').last.toLowerCase();
   if (ext == 'txt') {
