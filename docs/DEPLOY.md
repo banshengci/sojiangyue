@@ -18,6 +18,11 @@
 | `UPDATE_DOWNLOAD_URL`| 「前往下载」按钮目标 URL                       | 回退到 `$PROJECT_REPO/releases/latest` |
 | `FONT_BASE_URL`      | 字体市场根 URL（含尾斜杠）                     | 字体下载页禁用              |
 | `PRIVACY_URL`        | 自有隐私政策 URL                               | 关于页隐藏该项              |
+| `PLUGIN_MIRROR_URL`  | 插件市场镜像根 URL（含尾斜杠），配合自建后端    | 插件市场只用随包示例        |
+| `GAMEPACK_MIRROR_URL`| 玩法包镜像根 URL（含尾斜杠）                    | 玩法市场只用随包示例        |
+| `RUNTIME_CONFIG_URL` | 运行时配置中心端点（`/config/runtime`）         | 不拉取远端覆盖层            |
+| `PLUGIN_SIGNER_KEYS` | 受信任插件发布者 Ed25519 公钥（hex，逗号分隔；支持 `插件id:公钥`） | **远程插件一律拒装**（随包 `assets/` 示例不受影响） |
+| `PLUGIN_ALLOW_UNPINNED` | 过渡开关：允许安装"公钥未固定"的远程条目（默认 false） | 拒绝未固定发布者的远程条目 |
 | `TERMS_URL`          | 自有服务条款 URL                               | 关于页隐藏该项              |
 | `DOCS_URL`           | 自有文档站根 URL（含尾斜杠）                   | WebDAV 帮助链接隐藏         |
 | `TELEGRAM_URL`       | 自有 Telegram 社群链接                         | 关于页隐藏 Telegram 图标    |

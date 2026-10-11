@@ -116,8 +116,10 @@ class GameplayPackMarketClient {
     if (url.startsWith('assets/')) return (path: url, isAsset: true);
     final uri = Uri.tryParse(url);
     if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
-      if (!PluginSecurity.isSafeUrl(uri)) {
-        throw StateError('条目 ${entry.id} 的下载地址被安全策略禁止（仅允许公网 https）');
+      if (!PluginSecurity.isSafeUrl(uri,
+          trustedHosts: RemoteConfig.trustedMirrorHosts)) {
+        throw StateError('条目 ${entry.id} 的下载地址被安全策略禁止'
+            '（仅允许公网 https，或你在 GAMEPACK_MIRROR_URL 里配置过的那台主机）');
       }
       return (path: url, isAsset: false);
     }
@@ -125,8 +127,11 @@ class GameplayPackMarketClient {
     if (mirror.isNotEmpty) {
       final base = mirror.endsWith('/') ? mirror : '$mirror/';
       final resolved = Uri.tryParse('$base$url');
-      if (resolved != null && !PluginSecurity.isSafeUrl(resolved)) {
-        throw StateError('条目 ${entry.id} 的镜像地址被安全策略禁止（仅允许公网 https）');
+      if (resolved != null &&
+          !PluginSecurity.isSafeUrl(resolved,
+              trustedHosts: RemoteConfig.trustedMirrorHosts)) {
+        throw StateError('条目 ${entry.id} 的镜像地址被安全策略禁止'
+            '（仅允许公网 https，或你在 GAMEPACK_MIRROR_URL 里配置过的那台主机）');
       }
       return (path: '$base$url', isAsset: false);
     }

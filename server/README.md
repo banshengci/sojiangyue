@@ -4,9 +4,14 @@
 
 | 资源 | 客户端对接点 | 端点 |
 |---|---|---|
-| 插件目录 | `PluginMarketClient.fetchCatalog`（配 `PLUGIN_MIRROR_URL` 指向 `/`） | `GET /plugins/catalog` · `POST /plugins` · `GET /plugins/{id}/download` |
+| 插件目录 | `PluginMarketClient.fetchCatalog`（配 `PLUGIN_MIRROR_URL` 指向 `/`） | `GET /plugins/catalog` · **`GET /plugins-catalog.json`（别名，客户端实际请求的就是它）** · `POST /plugins` · `GET /plugins/{id}/download` |
 | 增强包 | `EnhancementPackService`（导出/导入 `.sjpack.zip`） | `GET /packs` · `POST /packs` · `GET /packs/{id}/download` |
+| 玩法包目录 | `GameplayPackMarketClient.fetchCatalog`（配 `GAMEPACK_MIRROR_URL`） | `GET /gameplay/catalog` · **`GET /gameplay-catalog.json`（别名）** · `POST /packs/gameplay` |
 | 运行时配置 | `RuntimeConfig`（配 `RUNTIME_CONFIG_URL`） | `GET /config/runtime` |
+
+> 别名路由是必须的：客户端拼的是 `${镜像根}plugins-catalog.json` / `${镜像根}gameplay-catalog.json`，
+> 原先只有 `/plugins/catalog` 与 `/gameplay/catalog`，自托管用户按本 README 配置后会 404，
+> 而客户端会**静默回退到随包示例**（看起来正常，实际永远只有两个示例插件）。
 
 ## 安全模型
 - **写接口需凭据**：`POST /plugins`、`POST /packs`、`POST /packs/gameplay` 需带
@@ -52,6 +57,23 @@ curl -X POST http://127.0.0.1:8000/packs \
 
 ## 客户端配置（dart-define 注入）
 ```bash
-flutter build apk --dart-define=PLUGIN_MIRROR_URL=https://your-nas:8000/
-flutter build apk --dart-define=RUNTIME_CONFIG_URL=https://your-nas:8000/config/runtime
+# 自建 NAS（内网 https 或 http 都行，见下面"随包/内网"说明）
+flutter build apk \
+  --dart-define=PLUGIN_MIRROR_URL=https://your-nas:8000/ \
+  --dart-define=GAMEPACK_MIRROR_URL=https://your-nas:8000/ \
+  --dart-define=RUNTIME_CONFIG_URL=https://your-nas:8000/config/runtime \
+  --dart-define=PLUGIN_SIGNER_KEYS=<你自己的 Ed25519 公钥 hex>
 ```
+
+### 内网镜像与安全策略的关系（重要）
+客户端 `PluginSecurity.isSafeUrl` 默认拒绝一切内网/回环地址（防 SSRF），所以"把镜像指向自家 NAS"
+必须走**受控例外**，规则如下：
+
+1. **例外名单只来自你填的 dart-define**：库会解析 `PLUGIN_MIRROR_URL` / `GAMEPACK_MIRROR_URL` /
+   `RUNTIME_CONFIG_URL` 的主机名作为 `trustedHosts`。攻击者控制的目录响应**无法**把自己加进白名单
+   —— 这是"自托管可用"与"不放开内网 SSRF"能同时成立的关键。
+2. **明文 `http` 的例外，只在"已固定发布者公钥"时生效**（即必须同时配 `PLUGIN_SIGNER_KEYS`）。
+   铁律：**先固定公钥，再允许 LAN http**。理由：TLS 保证机密性、签名保证完整性；内网 NAS 用自签
+   证书时客户端 TLS 校验会失败，此时若没有签名固定就放行明文，等于把完整性校验一并拆掉。
+3. 公钥固定后，未在名单内的发布者一律拒装；过渡期可用 `--dart-define=PLUGIN_ALLOW_UNPINNED=true`
+   临时放行（默认 `false`，**不要**用在正式分发构建里）。

@@ -225,6 +225,16 @@ def catalog() -> dict:
     return {"schemaVersion": "1.0", "updatedAt": "", "entries": out}
 
 
+@app.get("/plugins-catalog.json", dependencies=[Depends(require_admin_for_reads)])
+def plugins_catalog_alias() -> dict:
+    """客户端实际请求的是 `${PLUGIN_MIRROR_URL}plugins-catalog.json`（见
+    lib/config/remote_config.dart 的 pluginCatalogUrl），而本服务原先只提供
+    `/plugins/catalog` —— 自托管用户按 README 把 PLUGIN_MIRROR_URL 指向 `/` 后
+    目录必然 404，且客户端会**静默回退**到随包示例，看起来"市场正常"其实永远只有两个示例。
+    这里补齐别名，让 README 的说法成立。"""
+    return catalog()
+
+
 @app.post("/plugins", dependencies=[Depends(require_admin)])
 def upload_plugin(meta: PluginEntryIn, file: UploadFile = File(...)) -> dict:
     data = read_limited(file)
@@ -380,6 +390,13 @@ def gameplay_catalog() -> dict:
             "sha256": sha,
         })
     return {"schemaVersion": "1.0", "entries": entries}
+
+
+@app.get("/gameplay-catalog.json", dependencies=[Depends(require_admin_for_reads)])
+def gameplay_catalog_alias() -> dict:
+    """同 `plugins-catalog.json`：客户端请求的是 `${GAMEPACK_MIRROR_URL}gameplay-catalog.json`
+    （remote_config.dart 的 gamepackCatalogUrl），服务端原先只有 `/gameplay/catalog`。"""
+    return gameplay_catalog()
 
 
 @app.get("/config/runtime", dependencies=[Depends(require_admin_for_reads)])

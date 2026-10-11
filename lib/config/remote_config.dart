@@ -150,6 +150,26 @@ class RemoteConfig {
   static const String runtimeConfigUrl =
       String.fromEnvironment('RUNTIME_CONFIG_URL', defaultValue: '');
 
+  // === 自托管镜像的信任例外 ===
+
+  /// 用户在**构建期**自己填写的那几个镜像主机名（小写）。
+  ///
+  /// 用途：`PluginSecurity.isSafeUrl` 默认拒绝一切内网/回环地址（防 SSRF），但这会让
+  /// 「把 PLUGIN_MIRROR_URL 指向自建 NAS」这一步必然失败（见 server/README.md）。
+  /// 自洽解法是把例外收窄到"用户自己配置的那一台"：名单只从 dart-define 解析，
+  /// **不来自任何网络响应**，所以被投毒的 catalog 无法把自己加进白名单。
+  static Set<String> get trustedMirrorHosts => <String>{
+        ..._hostsOf(pluginMirrorUrl),
+        ..._hostsOf(gamepackMirrorUrl),
+        ..._hostsOf(runtimeConfigUrl),
+      };
+
+  static Iterable<String> _hostsOf(String url) {
+    if (url.isEmpty) return const <String>[];
+    final host = Uri.tryParse(url)?.host.toLowerCase();
+    return (host == null || host.isEmpty) ? const <String>[] : <String>[host];
+  }
+
   // === 文档 / 链接 ===
 
   static String get privacyUrl => _privacyUrl;

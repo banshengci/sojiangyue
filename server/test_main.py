@@ -292,6 +292,31 @@ def test_plugin_upload_endpoint_shape_unchanged():
 
 
 # --------------------------------------------------------------------------- #
+# 6. 目录路由别名（补丁 3：客户端要 plugins-catalog.json / gameplay-catalog.json）
+# --------------------------------------------------------------------------- #
+def test_catalog_aliases_match_canonical_routes():
+    """别名路由必须存在，且与规范路由返回同一份内容（否则自托管客户端静默回退示例）。"""
+    for alias, canonical in (
+        ("/plugins-catalog.json", "/plugins/catalog"),
+        ("/gameplay-catalog.json", "/gameplay/catalog"),
+    ):
+        a = client.get(alias)
+        c = client.get(canonical)
+        assert a.status_code == 200, f"{alias} -> {a.status_code}"
+        assert c.status_code == 200, f"{canonical} -> {c.status_code}"
+        assert a.json() == c.json(), f"{alias} 与 {canonical} 内容不一致"
+
+
+def test_aliases_follow_read_gate():
+    os.environ["SONGJIANG_READ_NEEDS_TOKEN"] = "1"
+    try:
+        assert client.get("/plugins-catalog.json").status_code == 401
+        assert client.get("/plugins-catalog.json", headers=HDR).status_code == 200
+    finally:
+        os.environ.pop("SONGJIANG_READ_NEEDS_TOKEN", None)
+
+
+# --------------------------------------------------------------------------- #
 # 自带 runner（无 pytest 时也能跑）
 # --------------------------------------------------------------------------- #
 def _run_all() -> int:
