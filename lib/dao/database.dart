@@ -127,6 +127,50 @@ CREATE TABLE tb_groups (
 )
 ''';
 
+/// 自愈专用：与 [createGroupSQL] 同结构，但带 IF NOT EXISTS。
+///
+/// 为什么要在自愈里再写一遍：case6 建的 tb_groups 原先**不在** ensureSchemaIntegrity
+/// 的覆盖范围内。迁移若在 case0..case5 之间中断（而 sqflite 已把 user_version 顶到最新，
+/// 之后永不重跑迁移），tb_groups 就**永久缺失**，用户只能清数据重装
+/// （阶段三 harness T3/T4 实测：14 个中断点里有 8 个自愈后仍缺表）。
+const ensureGroupTableSQL = '''
+CREATE TABLE IF NOT EXISTS tb_groups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT,
+  parent_id INTEGER,
+  is_deleted INTEGER DEFAULT 0,
+  create_time TEXT,
+  update_time TEXT,
+  FOREIGN KEY (parent_id) REFERENCES tb_groups(id)
+)
+''';
+
+/// 自愈专用：case6 会插入 id=0 的根分组，代码别处依赖它存在。
+const ensureGroupRootSQL = '''
+INSERT OR IGNORE INTO tb_groups (id, name, parent_id, create_time, update_time)
+VALUES (0, 'Root', NULL, datetime('now'), datetime('now'))
+''';
+
+/// 自愈专用：与 case8 同结构（case8 原本就是 IF NOT EXISTS，只是没被自愈调用）。
+const ensureVocabItemsSQL = '''
+CREATE TABLE IF NOT EXISTS tb_vocab_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  term TEXT NOT NULL,
+  gloss TEXT,
+  book_id INTEGER,
+  book_title TEXT,
+  chapter TEXT,
+  create_time TEXT,
+  review_count INTEGER NOT NULL DEFAULT 0,
+  last_review_time TEXT
+)
+''';
+
+/// 自愈专用：与 case8 同索引。
+const ensureVocabIndexSQL = '''
+CREATE INDEX IF NOT EXISTS idx_vocab_term ON tb_vocab_items(term)
+''';
+
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
   static Database? _database;
@@ -564,6 +608,8 @@ Future<void> ensureSchemaIntegrity(Database db) async {
     await applyCharacterExtrasSchema(db);
     await addCharacterAvatarColumn(db);
     await applyGameplaySchema(db);
+    // 基础表兜底：case6 / case8 建的两张表原先不在自愈范围内（见常量处的说明）
+    await _ensureBaseTables(db);
 
     // tb_books 历史上分几次加的列
     await _ensureColumn(db, 'tb_books', 'rating', 'REAL');
@@ -578,6 +624,16 @@ Future<void> ensureSchemaIntegrity(Database db) async {
     // 自检失败不应阻断启动
     SjLog.severe('Database: 结构自检失败: $e\n$st');
   }
+}
+
+/// 幂等补齐由早期 case 建立、但原先漏在自愈范围外的表。
+///
+/// 每张表独立 try/catch：一张失败不影响其余（_ensureColumn 也是这个策略）。
+Future<void> _ensureBaseTables(Database db) async {
+  await db.execute(ensureGroupTableSQL);
+  await db.execute(ensureGroupRootSQL);
+  await db.execute(ensureVocabItemsSQL);
+  await db.execute(ensureVocabIndexSQL);
 }
 
 Future<void> _ensureColumn(
