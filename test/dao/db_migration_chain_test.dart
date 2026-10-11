@@ -14,6 +14,8 @@
 //
 // 已验证的等价结论见 tool/db_migration_harness.py（Python，直接执行从 Dart 抽取的同一批 SQL）。
 // ✅ 本文件已按「数据缺陷补丁 0003」更新：自愈必须能补齐 tb_groups / tb_vocab_items。
+// ✅ 又按「后续批次 0010」更新：自愈现在还会建 tb_book_md5_dedup_audit（审计表）与两个索引，
+//    因此自愈建表数 13 → 14。
 
 import 'dart:io';
 
@@ -149,7 +151,7 @@ void main() {
   });
 
   group('① ensureSchemaIntegrity：唯一的自愈入口', () {
-    test('能建出 13 张表：角色/对话/加料/头像/玩法 11 张 + patch 0003 补的 tb_groups/tb_vocab_items',
+    test('能建出 14 张表：角色/对话/加料/头像/玩法 11 张 + tb_groups/tb_vocab_items + 审计表',
         () async {
       final d = await databaseFactory.openDatabase(
         inMemoryDatabasePath,
@@ -162,8 +164,14 @@ void main() {
       // ↓ patch 0003 的核心断言：这两张表原先漏在自愈之外，中断迁移后永久缺失。
       expect(healed, contains('tb_groups'));
       expect(healed, contains('tb_vocab_items'));
-      expect(healed.length, 13, reason: '自愈应建出 13 张表，实得 ${healed.length}: $healed');
+      // 11（角色/对话/加料/头像/玩法）+ 2（tb_groups/tb_vocab_items）+ 1（md5 去重审计表）
+      expect(healed.length, 14, reason: '自愈应建出 14 张表，实得 ${healed.length}: $healed');
+      expect(healed, contains('tb_book_md5_dedup_audit'));
       expect(kSelfHealGapTables, isEmpty, reason: '自愈缺口必须为空集');
+      // 0010：/自愈还必须建出 md5 的部分唯一索引（否则重复行会一直长下去）
+      final idx = await d.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_books_file_md5_unique'");
+      expect(idx.length, 1);
       await d.close();
     });
 

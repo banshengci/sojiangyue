@@ -25,8 +25,10 @@
 //    且 SjPlatform.type 在测试宿主上不可控，故仍推荐加注入口。
 //
 // ✅ 本文件已按「数据缺陷补丁 0005 / 0006」更新：断言写的是**修复后应有的行为**。
-// 仍保留为 characterization 的两条（file_md5 无唯一约束、md5=='' 串味）是**本批未修**的残留，
-// 见 交付说明.md「未做与残留」。
+// ✅ 又按「后续批次 0010 / 0011」更新：原先作为"残留"登记的两条现已修好 ——
+//    · `file_md5` **已加**部分唯一索引（0010）→ 下面那条断言从"允许重复"翻成"必须被拒"；
+//    · `md5 == ''` **已统一**为「缺失」（0011）→ `getBookByMd5('')` 现在返回 null。
+//    另有第三条残留（`file_md5` 的历史重复行）由 0010 的**无损去重**处理（置 NULL，不删行）。
 // 等价的可运行证明（Python，已实际跑出结果）：
 //   generated/sojiangyue-阶段三测试/tool/import_dedup_harness.py
 
@@ -67,24 +69,27 @@ void main() {
   });
 
   group('③ 去重键 file_md5 的结构性事实', () {
-    test('file_md5 上没有唯一索引（⇒ 重复行是允许的）', () async {
+    test('file_md5 上有部分唯一索引（⇒ 新重复行会被拒）', () async {
       final idx = await db.rawQuery(
-        "SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='tb_books'",
-      );
-      final hasUnique = idx.any((r) => (r['sql'] as String? ?? '').toUpperCase().contains('UNIQUE'));
-      final ddl = (await db.rawQuery(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='tb_books'",
-      )).first['sql'] as String;
-      expect(hasUnique, isFalse);
-      expect(ddl.toUpperCase(), isNot(contains('UNIQUE')));
+          "SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='tb_books'");
+      final unique = idx.firstWhere(
+          (r) => (r['name'] as String) == 'idx_books_file_md5_unique',
+          orElse: () => <String, Object?>{});
+      expect(unique, isNotEmpty, reason: '0010 之后这个索引必须存在（由 ensureSchemaIntegrity 建出）');
+      expect((unique['sql'] as String).toUpperCase(), contains('UNIQUE'));
 
-      // 后果：同一个 md5 可以落两行
+      // 后果：同一个 md5 不能再落两行（0010 之前是可以的）
       await db.insert('tb_books', {'title': 'a', 'file_md5': 'MD5-SAME'});
-      await db.insert('tb_books', {'title': 'b', 'file_md5': 'MD5-SAME'});
-      final n = Sqflite.firstIntValue(
-        await db.rawQuery("SELECT COUNT(*) FROM tb_books WHERE file_md5='MD5-SAME'"),
+      await expectLater(
+        db.insert('tb_books', {'title': 'b', 'file_md5': 'MD5-SAME'}),
+        throwsA(isA<DatabaseException>()),
       );
-      expect(n, 2, reason: '数据层不阻止重复 —— 修好后这里应该是 1（加 UNIQUE 索引）');
+      // 但多行 NULL 仍可共存 —— 无损去重方案正是靠这一点成立
+      await db.insert('tb_books', {'title': 'n1', 'file_md5': null});
+      await db.insert('tb_books', {'title': 'n2', 'file_md5': null});
+      final nulls = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM tb_books WHERE file_md5 IS NULL'));
+      expect(nulls, 2);
     });
 
     test('getBookByMd5 = WHERE file_md5=? LIMIT 1 且无 ORDER BY：重复时"谁赢"不稳定', () async {
@@ -176,13 +181,23 @@ void main() {
       // 残留（本批未修）：calculateFileMd5 失败时的 SjLog 只是一行 warning，UI 不提示。
     });
 
-    test("md5 == '' 会被当成「同一本」，与 getBooksWithoutMd5 口径冲突", () async {
+    test("md5 == '' 统一按「缺失」处理（0011 修好，不再是「同一本」）", () async {
       await db.insert('tb_books', {'title': 'z', 'file_md5': ''});
-      final hit = await bookDao.getBookByMd5('');
-      expect(hit, isNotNull, reason: "空串会被 `= ''` 命中"); // ignore: unnecessary_string_quotes
+      // 修复前：`= ''` 会命中这一行 → 被当成"就是这本书"
+      expect(await bookDao.getBookByMd5(''), isNull, reason: '空串不再参与查重');
+      // 修复前：同一行在 getBooksWithoutMd5 里也"算缺失"，两处口径相反
       final without = await bookDao.getBooksWithoutMd5();
-      expect(without.length, 1, reason: '同一行在 getBooksWithoutMd5 里也被算作"没有 md5"');
-      // 两个口径互相矛盾：一个当"同一本"，一个当"缺失"。修好后建议统一（查重前把 '' 归一成 null）。
+      expect(without.length, 1, reason: '权威口径是「缺失」');
+      // 修复后：新写入的空串会被拒绝（0011）
+      final id = Sqflite.firstIntValue(await db.rawQuery("SELECT id FROM tb_books WHERE file_md5 = ''"));
+      expect(await bookDao.updateBookMd5(id!, ''), 0);
+      // 且 0010 的自愈会把存量空串统一置 NULL（这里不调自愈，故仍是 ''）
+      expect(
+        Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM tb_books WHERE file_md5 = ''")),
+        1,
+      );
     });
+  });
+}
   });
 }
