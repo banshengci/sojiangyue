@@ -430,10 +430,21 @@ class DBHelper {
             "UPDATE tb_books SET file_path = SUBSTR(file_path, 0, 25)");
         await db.execute(
             "UPDATE tb_books SET cover_path = SUBSTR(cover_path, 0, 25)");
-        await db
-            .execute("UPDATE tb_books SET file_path = file_path || '.epub'");
-        await db
-            .execute("UPDATE tb_books SET cover_path = cover_path || '.png'");
+        // 幂等守卫：这一对 UPDATE 原先**无条件**追加后缀，重跑一次就变成
+        // 'x.epub.epub' / 'y.png.png'（阶段三 harness T9 实测）。
+        // 迁移理论上只跑一次，但只要有人做"重跑迁移修复"（很自然的想法），
+        // 就是一次静默的数据损坏 —— 而且损坏的是 file_path，直接导致书打不开。
+        // 加 NOT LIKE 守卫后，重复执行是 no-op。
+        //
+        // 注意：上面两句 SUBSTR(file_path, 0, 25) 是**有意的**历史规范化
+        // （v2 时代把长路径裁到文件系统友好的长度），它本身是幂等的，故保留不动；
+        // 但已经被裁掉的原始文件名不可恢复 —— 见 patches 说明里的处置结论。
+        await db.execute(
+            "UPDATE tb_books SET file_path = file_path || '.epub' "
+            "WHERE file_path IS NOT NULL AND file_path NOT LIKE '%.epub'");
+        await db.execute(
+            "UPDATE tb_books SET cover_path = cover_path || '.png' "
+            "WHERE cover_path IS NOT NULL AND cover_path NOT LIKE '%.png'");
 
         final basePath = getBasePath('');
         final fileDir = Directory('$basePath/file');
