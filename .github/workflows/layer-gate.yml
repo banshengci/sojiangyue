@@ -1,0 +1,120 @@
+name: Layer Gate
+
+# 分层依赖门禁 —— 把 docs/DEVELOPMENT.md 里已经写好的分层规则变成可执行的检查。
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# 阻塞开关：用 **仓库变量** `LAYER_GATE_BLOCKING` 切换，不需要改本文件。
+#   GitHub → Settings → Secrets and variables → Actions → Variables →
+#   New repository variable：Name = LAYER_GATE_BLOCKING，Value = true / false
+#
+#   LAYER_GATE_BLOCKING 未设置或 != 'true'
+#       → PR 走 warn-only（只告警不拦人）；push 到 main 仍阻塞
+#   LAYER_GATE_BLOCKING == 'true'
+#       → PR 也阻塞
+#
+# 为什么默认不阻塞：当前存量是 38 处违规、315 个环内文件。若 PR 一上来就阻塞，
+# 等于要求每个碰 lib/ 的人在**自己的 PR 里**清掉与他无关的存量债，结果只会是
+# "没人敢动代码"或"大家往基线里塞例外"，门禁三个月内失效。
+# 观察期建议 2–4 周，或直到"新增违规 = 0"连续若干次成立，再把变量置为 true。
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 为什么单独一个 workflow 而不并进 ci.yml：
+#   1. 零依赖 —— 纯 Python 3，不需要 Flutter SDK、不需要 pub get。本仓库有一批
+#      指向作者个人 fork 的 git 依赖，pub get 需联网访问 GitHub；依赖解析失败时
+#      ci.yml 的 analyze-and-test 会整条挂掉，而门禁恰好最该在那时仍可用。
+#   2. 快（秒级 vs 分钟级），适合每次 push / PR 都跑。
+#   3. 需要单独收紧 / 放行（上面的仓库变量）。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'tool/**'
+      - '.github/workflows/layer-gate.yml'
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'tool/**'
+      - '.github/workflows/layer-gate.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '本次手动运行的门禁模式（不影响仓库变量的日常行为）'
+        required: true
+        default: 'warn-only'
+        type: choice
+        options:
+          - warn-only
+          - blocking
+
+concurrency:
+  group: layer-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  layer-gate:
+    name: Layer gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 棘轮需要 git 历史来区分「本次新建的文件」与「既有文件」，
+          # 故不能只取 merge commit 一层。
+          fetch-depth: 0
+
+      - name: Verify python3
+        run: python3 --version
+
+      # 模式判定（优先级）：手动 dispatch 用显式选择 > push 恒阻塞 > PR 看仓库变量。
+      # 手动运行保留完全自由：想单次验证阻塞效果时不必先改仓库变量。
+      - name: Resolve gate mode
+        id: mode
+        run: |
+          BLOCKING="false"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.mode }}" = "blocking" ]; then BLOCKING="true"; fi
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            BLOCKING="true"
+          elif [ "${{ vars.LAYER_GATE_BLOCKING }}" = "true" ]; then
+            BLOCKING="true"
+          fi
+          echo "blocking=${BLOCKING}" >> "$GITHUB_OUTPUT"
+          echo "Layer gate blocking = ${BLOCKING}"
+
+      - name: Layer gate (blocking)
+        if: steps.mode.outputs.blocking == 'true'
+        run: python3 tool/layer_gate.py --repo . --baseline tool/layer_gate_baseline.json
+
+      - name: Layer gate (warn-only)
+        if: steps.mode.outputs.blocking != 'true'
+        run: python3 tool/layer_gate.py --repo . --baseline tool/layer_gate_baseline.json --warn-only
+
+      # 类型搬家后的符号可达性 + 新家文件自身引用自检。
+      # 与门禁无关（检查"搬完之后还能不能解析"），故 always 执行。
+      - name: Symbol reachability after type moves
+        if: always()
+        run: python3 tool/verify_symbol_move.py --repo . --manifest tool/moved_symbols.json
+
+      # 无论成败都留一份报告；Markdown 汇总会自动写进 GitHub Step Summary
+      - name: Emit reports
+        if: always()
+        run: |
+          python3 tool/layer_gate.py --repo . --json --list-all \
+            > layer-gate-report.json || true
+          python3 tool/layer_gate.py --repo . --markdown-out layer-gate-summary.md \
+            > /dev/null || true
+
+      - name: Upload layer gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: layer-gate-report
+          path: |
+            layer-gate-report.json
+            layer-gate-summary.md
+          retention-days: 14
