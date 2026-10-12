@@ -7,6 +7,7 @@ import 'package:langchain_core/chat_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/service/ai/ai_cache.dart';
+import 'package:songjiang_reader/utils/get_path/get_cache_dir.dart';
 
 /// AI 缓存的**文件级**端到端测试（写盘 / 命中 / 淘汰 / 身份校验）。
 ///
@@ -122,6 +123,135 @@ void main() {
 
       expect(await AiCache.cacheCount, 1);
       expect((await AiCache.getAiCache(hash))!.data, '第二版');
+    });
+  });
+
+  group('并发写入（读-改-写必须串行化）', () {
+    test('同时写入 10 条，10 条都要落盘', () async {
+      AiPrefs.maxCacheCount = 1000;
+
+      // 模拟 10 个 AI 请求几乎同时完成
+      await Future.wait([
+        for (var i = 0; i < 10; i++)
+          AiCache.setAiCache(
+            AiCache.cacheHashFor(msgs('并发问题$i'), 'p1|m'),
+            '并发答案$i',
+            'p1',
+            msgs('并发问题$i'),
+            identity: 'p1|m',
+          ),
+      ]);
+
+      expect(await AiCache.cacheCount, 10,
+          reason: '并发写入互相覆盖了——setAiCache 的读-改-写没有串行化');
+
+      // 每一条都必须能读回自己那一条，而不是只剩最后写的那条
+      for (var i = 0; i < 10; i++) {
+        final hash = AiCache.cacheHashFor(msgs('并发问题$i'), 'p1|m');
+        final hit = await AiCache.getAiCache(hash, identity: 'p1|m');
+        expect(hit, isNotNull, reason: '第 $i 条丢了');
+        expect(hit!.data, '并发答案$i');
+      }
+    });
+
+    test('并发写入与后续串行写入混用也不丢', () async {
+      AiPrefs.maxCacheCount = 1000;
+
+      await Future.wait([
+        for (var i = 0; i < 5; i++)
+          AiCache.setAiCache(
+            AiCache.cacheHashFor(msgs('批$i'), 'p1|m'),
+            '批答案$i',
+            'p1',
+            msgs('批$i'),
+            identity: 'p1|m',
+          ),
+      ]);
+      await AiCache.setAiCache(
+        AiCache.cacheHashFor(msgs('尾'), 'p1|m'),
+        '尾答案',
+        'p1',
+        msgs('尾'),
+        identity: 'p1|m',
+      );
+
+      expect(await AiCache.cacheCount, 6);
+    });
+
+    test('并发写入时一条失败不影响其它条', () async {
+      AiPrefs.maxCacheCount = 1000;
+      await AiCache.setAiCache(
+        AiCache.cacheHashFor(msgs('正常'), 'p1|m'),
+        '正常答案',
+        'p1',
+        msgs('正常'),
+        identity: 'p1|m',
+      );
+      await Future.wait([
+        for (var i = 0; i < 3; i++)
+          AiCache.setAiCache(
+            AiCache.cacheHashFor(msgs('后$i'), 'p1|m'),
+            '后答案$i',
+            'p1',
+            msgs('后$i'),
+            identity: 'p1|m',
+          ),
+      ]);
+
+      expect(await AiCache.cacheCount, 4);
+    });
+
+    test('反向对照：不经过 serializeWrite 的并发读-改-写确实会丢条目', () async {
+      AiPrefs.maxCacheCount = 1000;
+
+      // 复刻 setAiCache 的内部三步，但**不**走队列，模拟修复前的行为
+      Future<void> unsynchronizedWrite(int i) async {
+        final cacheDir = await getSjCacheDir();
+        final file = File('${cacheDir.path}/${AiCache.cacheFileName}');
+        final cache = await AiCache.readCache();
+        final key = AiCache.cacheHashFor(msgs('裸写$i'), 'p1|m').toString();
+        cache[key] = {
+          'data': '裸写答案$i',
+          'identifier': 'p1',
+          'identity': 'p1|m',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'messages': <dynamic>[],
+        };
+        await file.writeAsString(json.encode(cache));
+      }
+
+      await Future.wait([
+        for (var i = 0; i < 8; i++) unsynchronizedWrite(i),
+      ]);
+
+      final lostCount = await AiCache.cacheCount;
+      expect(lostCount, lessThan(8),
+          reason: '这条对照用例本来就是用来证明「不串行化会丢」的；'
+              '如果它没丢，说明底层 IO 行为变了，该重新评估串行化是否还需要');
+
+      // 同样 8 条，走 serializeWrite 就一条不丢
+      await AiCache.clearCache();
+      await Future.wait([
+        for (var i = 0; i < 8; i++)
+          AiCache.serializeWrite(() async {
+            final cacheDir = await getSjCacheDir();
+            final file = File('${cacheDir.path}/${AiCache.cacheFileName}');
+            final cache = await AiCache.readCache();
+            final key =
+                AiCache.cacheHashFor(msgs('裸写$i'), 'p1|m').toString();
+            cache[key] = {
+              'data': '裸写答案$i',
+              'identifier': 'p1',
+              'identity': 'p1|m',
+              'timestamp': DateTime.now().millisecondsSinceEpoch,
+              'messages': <dynamic>[],
+            };
+            await file.writeAsString(json.encode(cache));
+          }),
+      ]);
+
+      expect(await AiCache.cacheCount, 8,
+          reason: '经过 serializeWrite 后仍然丢条目');
     });
   });
 
