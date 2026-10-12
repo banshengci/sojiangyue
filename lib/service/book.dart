@@ -97,6 +97,13 @@ Future<void> importBookList(
   SjLog.info(
       'importBook normalized: ${normalizedFiles.map((f) => f.path).join(', ')}');
 
+  // 规范化是异步的（要读文件头判定真实格式），期间用户可能已经离开书架页。
+  // 下面要用 context 取文案、并把它传给导入对话框，所以先确认它仍然可用。
+  if (!context.mounted) {
+    SjLog.info('importBook: context unmounted after normalize, abort');
+    return;
+  }
+
   List<File> supportedFiles = normalizedFiles.where((file) {
     return allowBookExtensions
         .contains(file.path.split('.').last.toLowerCase());
@@ -139,6 +146,13 @@ Future<void> importBookList(
   );
 }
 
+/// 导入去重校验进度对话框的专用 navigator key。
+///
+/// 用它而不是页面自己的 context 来关闭该对话框：MD5 校验是异步的，
+/// 期间页面可能已被销毁，此时用陈旧 context 或全局 navigator 直接 pop
+/// 会误关掉用户当前所在的路由。绑到对话框自己的 navigator 上就只可能关掉它。
+final _importProgressDialogKey = GlobalKey<NavigatorState>();
+
 void _checkDuplicatesAndShowDialog(
     List<File> supportedFiles,
     List<File> unsupportedFiles,
@@ -148,15 +162,21 @@ void _checkDuplicatesAndShowDialog(
   showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      title: Text(L10n.of(context).md5Calculating),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(L10n.of(context).md5Calculating),
-        ],
+    useRootNavigator: true,
+    builder: (context) => Navigator(
+      key: _importProgressDialogKey,
+      onGenerateRoute: (settings) => MaterialPageRoute(
+        builder: (context) => AlertDialog(
+          title: Text(L10n.of(context).md5Calculating),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(L10n.of(context).md5Calculating),
+            ],
+          ),
+        ),
       ),
     ),
   );
@@ -165,7 +185,7 @@ void _checkDuplicatesAndShowDialog(
     final filePaths = supportedFiles.map((f) => f.path).toList();
     final checkResults = await MD5Service.checkImportFiles(filePaths);
 
-    Navigator.of(context).pop();
+    _importProgressDialogKey.currentState?.pop();
 
     List<File> duplicateFiles = [];
     List<File> uniqueFiles = [];
@@ -192,7 +212,9 @@ void _checkDuplicatesAndShowDialog(
       ref,
     );
   } catch (e) {
-    Navigator.of(navigatorKey.currentContext!).pop();
+    // 同上：只关掉自己弹出的进度对话框，不要碰全局 navigator，
+    // 也避免 navigatorKey.currentContext 为 null 时 `!` 直接抛异常。
+    _importProgressDialogKey.currentState?.pop();
     SjLog.severe('MD5 check failed: $e');
     _showImportDialog(
       supportedFiles,

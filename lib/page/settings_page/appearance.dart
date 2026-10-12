@@ -308,7 +308,8 @@ Future<void> showColorPickerDialog(BuildContext context) async {
                     spacing: 10,
                     runSpacing: 10,
                     children: SongJiangColors.themePalette.map((color) {
-                      final selected = pickedColor.value == color.value;
+                      final selected =
+                          pickedColor.toARGB32() == color.toARGB32();
                       return GestureDetector(
                         onTap: () => setDialogState(() => pickedColor = color),
                         child: Container(
@@ -362,7 +363,7 @@ Future<void> showColorPickerDialog(BuildContext context) async {
           TextButton(
             child: Text(L10n.of(context).commonOk),
             onPressed: () {
-              ThemePrefs.saveThemeColor(pickedColor.value);
+              ThemePrefs.saveThemeColor(pickedColor.toARGB32());
               Navigator.of(context).pop();
             },
           ),

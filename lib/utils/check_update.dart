@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/config/remote_config.dart';
+import 'package:songjiang_reader/config/remote_config.dart';
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
@@ -39,13 +39,17 @@ Future<void> checkUpdate(bool manualCheck) async {
   }
   AppMiscPrefs.lastShowUpdate = DateTime.now();
 
-  BuildContext context = navigatorKey.currentContext!;
   Response response;
   try {
     response = await Dio().get(apiUrl);
   } catch (e) {
     if (manualCheck) {
-      SjToast.show(L10n.of(context).commonFailed);
+      // 网络等待期间用户可能已离开当前页面，故在使用点重新取 context 并判断可用性，
+      // 不要用 await 之前捕获的陈旧 context。
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        SjToast.show(L10n.of(ctx).commonFailed);
+      }
     }
     SjLog.severe('Update: Failed to check for updates $e');
     return;
@@ -61,7 +65,12 @@ Future<void> checkUpdate(bool manualCheck) async {
   }
   if (newVersion == null || newVersion.isEmpty) {
     SjLog.severe('Update: invalid response payload');
-    if (manualCheck) SjToast.show(L10n.of(context).commonFailed);
+    if (manualCheck) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        SjToast.show(L10n.of(ctx).commonFailed);
+      }
+    }
     return;
   }
 
@@ -98,7 +107,12 @@ Future<void> checkUpdate(bool manualCheck) async {
 
   if (needUpdate) {
     if (manualCheck) {
-      Navigator.of(context).pop();
+      // 「手动检查」时外层会先弹出一个加载对话框，这里关掉它。
+      // 若等待期间该对话框已随页面一起销毁，pop 会误关其它路由，故先确认 navigator 可用。
+      final nav = navigatorKey.currentState;
+      if (nav != null && nav.canPop()) {
+        nav.pop();
+      }
     }
     SmartDialog.show(
       builder: (BuildContext context) {
@@ -136,7 +150,10 @@ $cleanBody'''),
     );
   } else {
     if (manualCheck) {
-      SjToast.show(L10n.of(context).commonNoNewVersion);
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        SjToast.show(L10n.of(ctx).commonNoNewVersion);
+      }
     }
   }
 }

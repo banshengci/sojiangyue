@@ -123,6 +123,10 @@ class _OpdsSettingsPageState extends ConsumerState<OpdsSettingsPage> {
 
     if (ok != true) return;
 
+    // 表单对话框是异步返回的；用户在等待期间可能已离开本设置页，
+    // 后续要用 context 取文案与提示，先确认它仍然可用。
+    if (!mounted) return;
+
     final name = _nameController.text.trim();
     final url = _urlController.text.trim();
     if (name.isEmpty || url.isEmpty) {
@@ -152,6 +156,7 @@ class _OpdsSettingsPageState extends ConsumerState<OpdsSettingsPage> {
       );
     }
     _reload();
+    if (!mounted) return;
     SjToast.show(L10n.of(context).commonSuccess);
   }
 

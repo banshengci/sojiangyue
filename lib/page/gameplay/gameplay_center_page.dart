@@ -669,6 +669,9 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
       SjToast.show('运行失败：${result['message'] ?? '未知错误'}');
       return;
     }
+    // 运行对话框关闭、以及上面的 mounted 判断都发生在异步间隙之前，
+    // 这里再确认一次，避免用已卸载的 context 弹结果框。
+    if (!context.mounted) return;
     await showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(

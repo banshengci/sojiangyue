@@ -54,6 +54,11 @@ Future<void> showContextMenu(
     isNewNote = true;
   }
 
+  // 上面新增批注时 await 了 DAO 落库，期间阅读页/选区可能已经销毁。
+  // 后面要用 context 取 MediaQuery 与 Overlay，先确认它仍然可用，
+  // 否则 Overlay.of 会作用在已卸载的 element 上。
+  if (!context.mounted) return;
+
   final renderBox =
       epubPlayerKey.currentContext?.findRenderObject() as RenderBox?;
   final renderBoxSize = renderBox?.size;
@@ -128,7 +133,7 @@ Future<void> showContextMenu(
     boxShadow: [
       if (!ThemePrefs.eInkMode)
         BoxShadow(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           spreadRadius: 5,
           blurRadius: 7,
           offset: const Offset(0, 3),

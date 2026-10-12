@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:songjiang_reader/config/remote_config.dart';
@@ -71,6 +71,9 @@ class _SyncSettingState extends ConsumerState<SyncSetting> {
                     if (!await launchUrl(
                         Uri.parse(helpUrl),
                         mode: LaunchMode.externalApplication)) {
+                      // 打开外链可能耗时（要等系统浏览器响应），
+                      // 回来时本页可能已销毁，避免用陈旧 context 取文案。
+                      if (!context.mounted) return;
                       SjToast.show(L10n.of(context).commonFailed);
                     }
                   },

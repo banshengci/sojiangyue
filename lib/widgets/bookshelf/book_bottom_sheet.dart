@@ -140,6 +140,8 @@ class BookBottomSheet extends ConsumerWidget {
       String extension =
           p.extension(newFile.name).replaceAll('.', '').toLowerCase();
       if (!allowBookExtensions.contains(extension)) {
+        // 文件选择是异步的，返回时本弹层可能已关闭。
+        if (!context.mounted) return;
         SjToast.show(
             L10n.of(context).bookBottomSheetUnsupportedFileFormat(extension));
         return;
@@ -248,6 +250,9 @@ class BookBottomSheet extends ConsumerWidget {
           ref.read(syncProvider.notifier).syncData(SyncDirection.upload, ref);
         }
       } catch (e) {
+        // 替换流程内部有多次 await（读长度、删旧文件、刷新书架），
+        // 失败时重新确认 context 仍可用再取文案，不要沿用 await 之前的引用。
+        if (!context.mounted) return;
         SjToast.show(
             L10n.of(context).bookBottomSheetReplaceFailed(e.toString()));
       }
