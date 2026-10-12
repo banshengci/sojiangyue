@@ -345,6 +345,13 @@ Stream<String> _cachedExecuteStream({
     final cached = await AiCache.getAiCache(hash, identity: cacheIdentity);
     if (cached != null && cached.data.isNotEmpty) {
       SjLog.info('AiCache hit: $cacheIdentity');
+      // 命中缓存就直接返回，不会走到 _executeStream 的 cleanup，
+      // 所以必须在这里自己关掉 model。model 是每次请求新建的
+      // （见 LangchainRegistry.resolveByProtocol，ChatOpenAI/ChatAnthropic
+      // 都持有自己的 dio 客户端），不关就是每次命中泄漏一个。
+      try {
+        model.close();
+      } catch (_) {}
       yield cached.data;
       return;
     }
