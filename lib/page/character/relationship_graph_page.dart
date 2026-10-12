@@ -57,7 +57,9 @@ class _RelationshipGraphPageState extends State<RelationshipGraphPage> {
       final cards = await characterDao.getCharacters(widget.bookId);
       final relations = await characterDao.getRelations(widget.bookId);
       if (!mounted) return;
-      for (final c in cards) _byName[c.name] = c;
+      for (final c in cards) {
+        _byName[c.name] = c;
+      }
 
       final graph = Graph()..isTree = false;
       final nodeCache = <String, Node>{};
@@ -144,7 +146,10 @@ class _RelationshipGraphPageState extends State<RelationshipGraphPage> {
           ? const AppLoadingHint()
           : _error != null
               ? Center(child: Text(_error!, style: SjText.body(c.inkSoft)))
-              : _graph == null || _graph!.nodeCount == 0
+              // graphview 的 nodeCount 是方法（int nodeCount()），
+              // 原先漏了括号，等于拿函数引用和 0 比较，条件恒为 false，
+              // 关系图为空时不会走空态分支。
+              : _graph == null || _graph!.nodeCount() == 0
                   ? EmptyStateHint(
                       icon: Icons.account_tree_outlined,
                       title: CharactersPageText.viewGraph,

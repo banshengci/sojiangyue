@@ -223,10 +223,12 @@ class _MindmapStepTileState extends State<MindmapStepTile> {
       return;
     }
 
+    // Matrix4 的 translate/scale 已废弃，改用按分量传参的新 API，
+    // 语义等价：先平移到焦点、缩放、再平移回去。
     final nextMatrix = currentMatrix.clone()
-      ..translate(focalPoint.dx, focalPoint.dy)
-      ..scale(zoomFactor)
-      ..translate(-focalPoint.dx, -focalPoint.dy);
+      ..translateByDouble(focalPoint.dx, focalPoint.dy, 0, 1)
+      ..scaleByDouble(zoomFactor, zoomFactor, 1, 1)
+      ..translateByDouble(-focalPoint.dx, -focalPoint.dy, 0, 1);
 
     _transformController.value = nextMatrix;
   }

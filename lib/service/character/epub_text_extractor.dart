@@ -161,8 +161,7 @@ Map<String, String> _extractNavXhtmlTitles(String navXml) {
 }
 
 /// EPUB2 导航：解析 toc.ncx 的
-/// `<navPoint><navLabel><text>标题</text></navLabel><content src="href"/>
-/// </navPoint>`。
+/// `<navPoint><navLabel><text>标题</text></navLabel><content src="href"/></navPoint>`。
 ///
 /// 采用「content 向前取最近 `<text>`」的启发式：标准 ncx 规范里 navLabel
 /// 总在 content 之前，对嵌套 navPoint（子章节）同样成立——父 content 前最近
@@ -228,8 +227,8 @@ Map<String, String> _extractNavTitles(
 
 /// 给定 epub 文件路径，返回按阅读顺序排列的章节（标题 + 纯文本）。
 ///
-/// 解析链：META-INF/container.xml → content.opf 的 <manifest>(href) 与
-/// <spine>(idref 顺序) → 依次读取每个 XHTML 章节并清洗为纯文本。
+/// 解析链：META-INF/container.xml → content.opf 的 `<manifest>`(href) 与
+/// `<spine>`(idref 顺序) → 依次读取每个 XHTML 章节并清洗为纯文本。
 /// 若 OPF 无 spine，则退化为按 manifest 顺序读取全部 XHTML。
 /// 章节标题优先取导航文档真实标题，缺失时回退文件名。
 Future<List<BookChapter>> extractEpubChapters(String epubPath) async {

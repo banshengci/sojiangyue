@@ -93,11 +93,10 @@ ThemeData colorSchema(
 
   final radius = const BorderRadius.all(Radius.circular(16));
 
+  // SliderThemeData/ProgressIndicatorThemeData 的 year2023 已废弃，
+  // 且新默认值就是「非 2023 外观」，无需再显式传 false。
   return themeData
       .copyWith(
-          sliderTheme: const SliderThemeData(year2023: false),
-          progressIndicatorTheme:
-              const ProgressIndicatorThemeData(year2023: false),
           scaffoldBackgroundColor: gropedBackgroundColor,
           bottomSheetTheme: BottomSheetThemeData()
               .copyWith(backgroundColor: gropedBackgroundColor),

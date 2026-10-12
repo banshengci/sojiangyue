@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:songjiang_reader/config/remote_config.dart';
@@ -224,7 +224,7 @@ class AliyunTtsProvider extends TtsServiceProvider {
 
     final queryString = _canonicalizedQuery(params);
     final stringToSign = _createStringToSign('GET', '/', queryString);
-    final signature = _sign(stringToSign, '${accessKeySecret}&');
+    final signature = _sign(stringToSign, '$accessKeySecret&');
     final signedQuery = 'Signature=$signature&$queryString';
     final url = Uri.parse('https://$_tokenHost/?$signedQuery');
 

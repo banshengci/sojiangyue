@@ -181,7 +181,10 @@ class GameplayPackService {
   }
 
   /// 系统分享名场面卡（share_plus）。
+  ///
+  /// 静态的 `Share.share()` 在 share_plus 11 已废弃，改用 `SharePlus.instance.share`
+  /// 配合 [ShareParams]。
   static Future<void> shareSceneCard(SceneCard card) async {
-    await Share.share(buildSceneCardShareText(card));
+    await SharePlus.instance.share(ShareParams(text: buildSceneCardShareText(card)));
   }
 }

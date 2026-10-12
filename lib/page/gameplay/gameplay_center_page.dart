@@ -792,8 +792,8 @@ class _ScriptRunDialogState extends State<_ScriptRunDialog> {
       ),
       actions: [
         TextButton(
-          child: const Text('取消'),
           onPressed: _running ? null : () => Navigator.pop(context),
+          child: const Text('取消'),
         ),
         _running
             ? const Padding(

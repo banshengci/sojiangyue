@@ -8,7 +8,6 @@
 // 或经镜像根解析的相对路径（私有部署）。
 
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
