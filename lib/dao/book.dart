@@ -76,6 +76,40 @@ class BookDao extends BaseDao {
     );
   }
 
+  /// 批量按 MD5 取书，返回 `md5 -> Book` 映射。
+  ///
+  /// 供导入去重使用：一次导入可能有几十个文件，逐个调 [getBookByMd5]
+  /// 就是几十次数据库往返。这里用一条 `IN (...)` 查询换掉。
+  Future<Map<String, Book>> getBooksByMd5s(List<String> md5s) async {
+    final distinct = md5s.where((m) => m.isNotEmpty).toSet().toList();
+    if (distinct.isEmpty) {
+      return const {};
+    }
+
+    const chunkSize = 500; // 避免 SQLite 变量数量上限
+    final result = <String, Book>{};
+    for (var i = 0; i < distinct.length; i += chunkSize) {
+      final chunk = distinct.sublist(
+        i,
+        (i + chunkSize) > distinct.length ? distinct.length : i + chunkSize,
+      );
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final books = await queryList(
+        table,
+        mapper: Book.fromDb,
+        where: 'file_md5 IN ($placeholders)',
+        whereArgs: chunk,
+      );
+      for (final book in books) {
+        final md5 = book.md5;
+        if (md5 != null && md5.isNotEmpty) {
+          result[md5] = book;
+        }
+      }
+    }
+    return result;
+  }
+
   Future<List<Book>> searchBooks(String keyword) async {
     final query = keyword.trim();
     if (query.isEmpty) {

@@ -582,16 +582,16 @@ Future<void> ensureSchemaIntegrity(Database db) async {
   }
 }
 
-/// 补齐阅读统计与笔记表上缺失的索引。
+/// 补齐高频读路径上缺失的索引。
 ///
-/// 这两张表从建库起就没有任何索引（全库 14 个 CREATE INDEX 全在
-/// 人物/玩法/生词等后加的表上），而它们是高频读路径：
+/// 这些表从建库起就没有索引（全库原有 14 个 CREATE INDEX 全在
+/// 人物/玩法/生词等后加的表上）：
 ///
-/// - `tb_reading_time`：热力图、连续天数、周月趋势、每日目标等一批查询都是
-///   `WHERE DATE(date) BETWEEN ...` / `WHERE DATE(date) >= ...` 再 GROUP BY day，
+/// - `tb_reading_time`：热力图、连续天数、周月趋势、每日目标等一批查询都要按日期筛，
 ///   没有索引时每行都要算一次 DATE() 并全表扫描。
 /// - `tb_notes`：`book_id = ? AND type IN (...)` 取某本书笔记、
 ///   `WHERE type IN (...) GROUP BY book_id` 统计每本书笔记数，同样是全表扫描。
+/// - `tb_books.file_md5`：导入去重与「补算 MD5」都按它查（`IN (...)`）。
 ///
 /// 放在 [ensureSchemaIntegrity] 里而不是开一个迁移 case，是刻意的：
 /// 迁移是一次性的（一旦 user_version 写成最新值就永不重跑），
@@ -607,6 +607,9 @@ Future<void> _ensureReadStatsIndexes(Database db) async {
     // 某本书的笔记列表（book_id 等值 + type 过滤 + 按 book_id 分组统计）
     'CREATE INDEX IF NOT EXISTS idx_notes_book_type '
         'ON tb_notes(book_id, type)',
+    // 导入去重与「补算 MD5」都按 file_md5 查（bookDao.getBooksByMd5s 的 IN 查询）
+    'CREATE INDEX IF NOT EXISTS idx_books_file_md5 '
+        'ON tb_books(file_md5)',
   ];
   for (final sql in statements) {
     try {

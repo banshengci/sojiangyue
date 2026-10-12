@@ -184,6 +184,7 @@ CREATE TABLE tb_reading_time (
       expect(source, contains('idx_reading_time_date'));
       expect(source, contains('idx_reading_time_book'));
       expect(source, contains('idx_notes_book_type'));
+      expect(source, contains('idx_books_file_md5'));
       expect(source, contains('_ensureReadStatsIndexes(db)'),
           reason: '补索引函数必须在 ensureSchemaIntegrity 里被调用，否则老库拿不到索引');
     });
