@@ -74,11 +74,18 @@ $env:FLUTTER_HOME = "D:\flutter_windows_3.35.3-stable\flutter"
 
 | 检查 | 标准 |
 |------|------|
-| `flutter analyze` | **0 error / 0 warning**（允许既有 ~60 条 info） |
-| `flutter test` | 全部通过 |
+| `dart analyze lib` | **0 error / 0 warning**（info 允许，当前约 75 条） |
+| `flutter test` | 全部通过（当前 158 用例） |
 | PR CI | `.github/workflows/pr-check.yml` + `ci.yml` 的 `analyze-and-test` job |
 
+info 里占比最大的是 `use_build_context_synchronously`（31 条，async gap 后使用
+`BuildContext` 的真实崩溃风险，**修的时候要逐个确认**，不要机械加 `mounted` 判断）。
+其余为 `deprecated_member_use`（19）、`unintended_html_in_doc_comment`（10）等风格项。
+
 新增 lint 规则前先跑全量 analyze，避免一次引入数百条噪音。
+
+> 本机如何在 agent / 无 cmd.exe 环境下跑构建与测试，见 `.workbuddy/memory/MEMORY.md`：
+> 用 `flutter_tools.snapshot` 直调，加 `--no-pub` 绕开 pub 解析。
 
 ## 多语言
 
