@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/enums/chart_mode.dart';
+import 'package:songjiang_reader/enums/chart_mode.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/statistic_data.dart';
 import 'package:songjiang_reader/utils/date/week_of_year.dart';
@@ -8,7 +8,6 @@ import 'package:songjiang_reader/widgets/statistic/heatmap_chart.dart';
 import 'package:songjiang_reader/widgets/statistic/statistic_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:icons_plus/icons_plus.dart';
 
 class StatisticCard extends ConsumerWidget {
   const StatisticCard({super.key});

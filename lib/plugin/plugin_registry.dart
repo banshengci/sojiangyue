@@ -9,7 +9,6 @@
 // - 预置插件：随包分发的第三方 plugin.json 在启动时自动加载（assets/plugins/）。
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';

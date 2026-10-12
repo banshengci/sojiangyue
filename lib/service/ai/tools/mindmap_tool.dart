@@ -1,11 +1,9 @@
 import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
 import 'package:songjiang_reader/service/ai/tools/input/mindmap_input.dart';
 import 'package:songjiang_reader/service/ai/tools/util/mindmap_outline_parser.dart';
-
-import 'base_tool.dart';
+import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
 class MindmapTool extends RepositoryTool<MindmapInput, Map<String, dynamic>> {
   MindmapTool()

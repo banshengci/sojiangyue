@@ -1,11 +1,10 @@
 import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
-
-import 'base_tool.dart';
 import 'input/book_content_search_input.dart';
 import 'repository/book_content_search_repository.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
+import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
 class BookContentSearchTool
     extends RepositoryTool<BookContentSearchInput, Map<String, dynamic>> {

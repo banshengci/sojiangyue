@@ -1,11 +1,11 @@
 import 'package:songjiang_reader/dao/tag.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/tag.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/input/apply_book_tags_input.dart';
 import 'package:songjiang_reader/service/ai/tools/repository/books_repository.dart';
 import 'package:songjiang_reader/service/ai/tools/repository/tag_repository.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
 import 'package:songjiang_reader/utils/color/hash_color.dart';
 import 'package:songjiang_reader/utils/color/rgb.dart';
 
@@ -15,8 +15,13 @@ final applyBookTagsToolDefinition = AiToolDefinition(
   id: _applyBookTagsToolId,
   displayNameBuilder: (L10n l10n) => l10n.aiToolApplyBookTagsName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolApplyBookTagsDescription,
+  // build 的形参静态类型是 Object（见 base_tool.dart 的 AiToolDefinition），
+  // 必须显式向下转型才能取到仓库；分析器在此处会误报 unnecessary_cast，
+  // 实测去掉 cast 会直接编译失败（undefined_getter on Object）。
   build: (context) => ApplyBookTagsTool(
+    // ignore: unnecessary_cast
     (context as AiToolContext).tagRepository,
+    // ignore: unnecessary_cast
     (context as AiToolContext).booksRepository,
   ).tool,
 );

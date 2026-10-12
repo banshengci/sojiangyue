@@ -15,7 +15,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -323,7 +322,7 @@ Future<void> openAboutDialog() async {
                       if (RemoteConfig.projectHome.isNotEmpty)
                         linkIcon(
                             icon: Icon(
-                              IonIcons.earth,
+                              Icons.public,
                               color: Theme.of(context).colorScheme.secondary,
                             ),
                             url: RemoteConfig.projectHome,
@@ -331,7 +330,7 @@ Future<void> openAboutDialog() async {
                       if (RemoteConfig.projectHome.isNotEmpty)
                         linkIcon(
                             icon: Icon(
-                              IonIcons.logo_github,
+                              Icons.code,
                               color: Theme.of(context).colorScheme.secondary,
                             ),
                             url: RemoteConfig.projectHome,

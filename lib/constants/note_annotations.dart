@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:icons_plus/icons_plus.dart';
 
 class NoteTypeOption {
   final String type;
@@ -22,7 +21,7 @@ const List<String> notesColors = [
 const List<NoteTypeOption> notesType = [
   NoteTypeOption(
     type: 'highlight',
-    icon: AntDesign.highlight_outline,
+    icon: Icons.highlight_alt,
   ),
   NoteTypeOption(
     type: 'underline',

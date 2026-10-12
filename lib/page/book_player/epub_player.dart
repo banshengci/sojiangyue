@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -58,7 +58,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -180,8 +179,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       ''');
   }
 
-  /// 安全区由外层 reading_page.dart 的 Padding 统一处理，
-  /// WebView 内部不再重复添加，避免双重留白。
+  /// 瀹夊叏鍖虹敱澶栧眰 reading_page.dart 鐨?Padding 缁熶竴澶勭悊锛?
+  /// WebView 鍐呴儴涓嶅啀閲嶅娣诲姞锛岄伩鍏嶅弻閲嶇暀鐧姐€?
   ({double top, double bottom}) _safeInsets() {
     return (top: 0, bottom: 0);
   }
@@ -667,7 +666,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
             writingMode =
                 WritingModeEnum.fromCode(location['writingMode'] ?? '');
           });
-          // 进入新章节时触发插件事件（发即弃，chapterHref 去重避免同章内翻页重复触发）。
+          // 杩涘叆鏂扮珷鑺傛椂瑙﹀彂鎻掍欢浜嬩欢锛堝彂鍗冲純锛宑hapterHref 鍘婚噸閬垮厤鍚岀珷鍐呯炕椤甸噸澶嶈Е鍙戯級銆?
           if (chapterHref != _dispatchedChapterHref) {
             _dispatchedChapterHref = chapterHref;
             PluginEventDispatcher.instance.onChapterEntered(
@@ -915,7 +914,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
     Future.delayed(const Duration(milliseconds: 300), () {
       setTranslationMode(
           Prefs().getBookTranslationMode(widget.book.id.toString()));
-      // 再次下发样式：确保安全区边距在首屏渲染后仍生效（防圆角裁字）
+      // 鍐嶆涓嬪彂鏍峰紡锛氱‘淇濆畨鍏ㄥ尯杈硅窛鍦ㄩ灞忔覆鏌撳悗浠嶇敓鏁堬紙闃插渾瑙掕瀛楋級
       changeStyle(null);
     });
   }
@@ -1144,7 +1143,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
                     child: Text('${snapshot.data}', style: batteryTextStyle),
                   ),
                   Icon(
-                    HeroIcons.battery_0,
+                    Icons.battery_0_bar,
                     size: batteryIconSize,
                     color: iconColor,
                   ),
