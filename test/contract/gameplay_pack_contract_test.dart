@@ -142,7 +142,8 @@ void main() {
   });
 
   group('GameplayPackService 序列化往返（ZIP 进出不丢字段）', () {
-    GameplayPackManifest _sample() => GameplayPackManifest.fromJson({
+    // 局部函数不加前导下划线（no_leading_underscores_for_local_identifiers）
+    GameplayPackManifest sample() => GameplayPackManifest.fromJson({
           'packType': 'reading_script',
           'id': 'com.songjiang.roundtrip',
           'name': '往返测试包',
@@ -183,7 +184,7 @@ void main() {
         });
 
     test('exportPack → importPack 字段一致', () async {
-      final m = _sample();
+      final m = sample();
       final bytes = await GameplayPackService.instance.exportPack(m);
       expect(bytes.length, greaterThan(0));
       final back = await GameplayPackService.instance.importPack(bytes);

@@ -33,23 +33,39 @@ class CharacterDao extends BaseDao {
   ///
   /// 用于「蒸馏后挑选」：一次抽出几百个龙套时，用户勾掉不要的，
   /// 关系表里指向这些人的连线也必须一起删，否则关系图会出现连不上人的孤立线。
+  ///
+  /// 实现上按块用 `IN (...)` 批量删，而不是逐个名字删：
+  /// 原实现是「每个名字 2 条 DELETE」，删 200 个名字就是 400 次数据库往返，
+  /// 而本方法的典型调用场景恰恰就是一次几百个。分块是为了避开
+  /// SQLite 的变量个数上限（默认 999）。
   Future<void> deleteCharacters(int bookId, List<String> names) async {
     if (names.isEmpty) return;
+    // 去重，避免同一个名字被算进占位符浪费变量额度
+    final unique = names.toSet().toList();
+    const chunkSize = 400;
+
     await transaction((txn) async {
-      for (final name in names) {
+      for (var i = 0; i < unique.length; i += chunkSize) {
+        final chunk = unique.sublist(
+          i,
+          (i + chunkSize) > unique.length ? unique.length : i + chunkSize,
+        );
+        final placeholders = List.filled(chunk.length, '?').join(',');
+
         await txn.delete(
           tableCard,
-          where: 'book_id = ? AND name = ?',
-          whereArgs: [bookId, name],
+          where: 'book_id = ? AND name IN ($placeholders)',
+          whereArgs: [bookId, ...chunk],
         );
         await txn.delete(
           tableRelation,
-          where: 'book_id = ? AND (source_name = ? OR target_name = ?)',
-          whereArgs: [bookId, name, name],
+          where: 'book_id = ? AND (source_name IN ($placeholders) '
+              'OR target_name IN ($placeholders))',
+          whereArgs: [bookId, ...chunk, ...chunk],
         );
       }
     });
-    SjLog.info('CharacterDao: 已删除 ${names.length} 个人物（含其关系）');
+    SjLog.info('CharacterDao: 已删除 ${unique.length} 个人物（含其关系）');
   }
 
   /// 保存人物卡，并在改名时同步所有「按姓名关联」的引用。
