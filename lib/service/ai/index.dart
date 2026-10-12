@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:songjiang_reader/config/ai_prefs.dart';
@@ -6,6 +6,7 @@ import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/models/ai_provider.dart';
 import 'package:songjiang_reader/providers/ai_providers.dart';
+import 'package:songjiang_reader/service/ai/ai_cache.dart';
 import 'package:songjiang_reader/service/ai/ai_key_rotator.dart';
 import 'package:songjiang_reader/service/ai/langchain_ai_config.dart';
 import 'package:songjiang_reader/service/ai/langchain_registry.dart';
@@ -79,6 +80,18 @@ Stream<String> _generateStream({
   SjLog.info('aiGenerateStream called identifier: $identifier');
   final sanitizedMessages = _sanitizeMessagesForPrompt(messages);
 
+  // 缓存只读一次：provider 解析可能失败并落到后面的分支，
+  // 若每个分支都尝试读缓存，同一句话会被反复读文件。
+  // regenerate=true 表示用户主动要新的（「重新生成」），跳过读缓存但不影响写。
+  var cacheReadAttempted = regenerate;
+
+  /// 本轮是否应跳过「读缓存」。调用后即标记为已读，保证每轮只读一次。
+  bool takeSkipRead() {
+    final skip = cacheReadAttempted;
+    cacheReadAttempted = true;
+    return skip;
+  }
+
   LangchainAiConfig config;
 
   // Try to use new provider system first if ref is available
@@ -110,11 +123,15 @@ Stream<String> _generateStream({
           final model = pipeline.model;
 
           await _throttleIfNeeded();
-          yield* _executeStream(
+          final cacheIdentity = '${provider.id}|${config.model}';
+          yield* _cachedExecuteStream(
             model: model,
             pipeline: pipeline,
             sanitizedMessages: sanitizedMessages,
             useAgent: useAgent,
+            cacheIdentity: cacheIdentity,
+            cacheIdentifier: provider.id,
+            skipRead: takeSkipRead(),
           );
 
           // Advance key index for round-robin rotation after successful call
@@ -176,11 +193,15 @@ Stream<String> _generateStream({
             final model = pipeline.model;
 
             await _throttleIfNeeded();
-            yield* _executeStream(
+            final cacheIdentity = '${provider.id}|${config.model}';
+            yield* _cachedExecuteStream(
               model: model,
               pipeline: pipeline,
               sanitizedMessages: sanitizedMessages,
               useAgent: useAgent,
+              cacheIdentity: cacheIdentity,
+              cacheIdentifier: provider.id,
+              skipRead: takeSkipRead(),
             );
 
             // Advance key index in persistent storage for round-robin rotation
@@ -230,11 +251,14 @@ Stream<String> _generateStream({
   final model = pipeline.model;
 
   await _throttleIfNeeded();
-  yield* _executeStream(
+  yield* _cachedExecuteStream(
     model: model,
     pipeline: pipeline,
     sanitizedMessages: sanitizedMessages,
     useAgent: useAgent,
+    cacheIdentity: '$selectedIdentifier|${config.model}',
+    cacheIdentifier: selectedIdentifier,
+    skipRead: takeSkipRead(),
   );
 }
 
@@ -290,6 +314,66 @@ Stream<String> _executeStream({
     try {
       model.close();
     } catch (_) {}
+  }
+}
+
+/// 在 [_executeStream] 外面套一层缓存。
+///
+/// 背景：`AiCache.setAiCache/getAiCache` 此前是**死代码**——
+/// UI 上「AI 缓存 / 缓存大小 / 清空缓存」都在（`settings_page/ai.dart`），
+/// 但没有任何地方调用写入或读取，于是缓存数恒为 0、清空按钮空转，
+/// 用户每次都要等完整的生成。这里把读写接回主链路。
+///
+/// 语义：
+/// - 写：仅在流正常走完后落库。`_executeStream` 产出的是一串**累积**文本
+///   （每个 chunk 是「到目前为止的全部内容」），所以以最后一个 chunk 为准，
+///   天然不会把半截内容写进缓存；被取消的生成因为提前 break 也不会写。
+/// - 读：命中则一次性产出缓存内容并**跳过**网络请求，
+///   因此不消耗额度、也不受 RPM 限流影响。
+/// - `regenerate=true`（用户主动要新答案）时跳过读，避免「重新生成」拿到同一份缓存。
+Stream<String> _cachedExecuteStream({
+  required BaseChatModel model,
+  required LangchainPipeline pipeline,
+  required List<ChatMessage> sanitizedMessages,
+  required bool useAgent,
+  required String cacheIdentity,
+  required String cacheIdentifier,
+  required bool skipRead,
+}) async* {
+  if (!skipRead && cacheIdentity.isNotEmpty) {
+    final hash = AiCache.cacheHashFor(sanitizedMessages, cacheIdentity);
+    final cached = await AiCache.getAiCache(hash, identity: cacheIdentity);
+    if (cached != null && cached.data.isNotEmpty) {
+      SjLog.info('AiCache hit: $cacheIdentity');
+      yield cached.data;
+      return;
+    }
+  }
+
+  var last = '';
+  await for (final chunk in _executeStream(
+    model: model,
+    pipeline: pipeline,
+    sanitizedMessages: sanitizedMessages,
+    useAgent: useAgent,
+  )) {
+    last = chunk;
+    yield chunk;
+  }
+
+  // 只有拿到非空结果才写；错误信息（_mapError 的产物）不写
+  if (cacheIdentity.isNotEmpty &&
+      last.isNotEmpty &&
+      !last.startsWith('Error: ')) {
+    final hash = AiCache.cacheHashFor(sanitizedMessages, cacheIdentity);
+    await AiCache.setAiCache(
+      hash,
+      last,
+      cacheIdentifier,
+      sanitizedMessages,
+      identity: cacheIdentity,
+    );
+    SjLog.info('AiCache stored: $cacheIdentity');
   }
 }
 
