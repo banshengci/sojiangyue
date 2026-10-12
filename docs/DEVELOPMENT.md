@@ -27,6 +27,28 @@ page / widgets  →  providers / service  →  dao
 - **service 不调 Toast / SmartDialog** 等 UI；错误上抛或回调到 UI 层。
 - 配置读写优先走 **领域 Prefs**（`lib/config/*_prefs.dart`），不要新增 `Prefs().xxx` 业务字段。
 
+### 数据库：日期列可用索引
+
+`tb_reading_time.date` 与 `tb_notes.create_time` 存的是 **`'YYYY-MM-DD'` 字符串**
+（写入处一律 `toIso8601String().substring(0, 10)`）。ISO 日期的字典序与时间序一致，
+所以**不要**把列包进 `DATE()` 再比较：
+
+```sql
+-- ✗ 索引失效：EXPLAIN 显示 SCAN，每行都要算一次 DATE()
+WHERE DATE(date) BETWEEN DATE(?) AND DATE(?)
+-- ✓ 命中 idx_reading_time_date，且结果与上一行逐行一致
+WHERE date BETWEEN ? AND ?
+```
+
+热力图 / 周月年趋势 / 连续天数 / 每日目标这些都是高频查询，`tb_reading_time`
+与 `tb_notes` 原先完全没有索引。索引由 `dao/database.dart` 的
+`_ensureReadStatsIndexes()` 在每次打开数据库时幂等补齐——**刻意不放进迁移 case**，
+因为迁移只跑一次，而这样已安装的用户也能拿到索引。
+
+回归测试见 `test/dao/reading_time_index_test.dart`：它既比对新旧写法结果一致，
+也用 `EXPLAIN QUERY PLAN` 断言确实走索引（否则改回 `DATE(date)` 仍会「测试通过」，
+性能退化无人察觉）。
+
 ### 领域 Prefs 模式
 
 新配置请仿照已有实现：

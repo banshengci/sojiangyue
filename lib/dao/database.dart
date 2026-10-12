@@ -574,9 +574,47 @@ Future<void> ensureSchemaIntegrity(Database db) async {
     // 其他表的历史新增列
     await _ensureColumn(db, 'tb_notes', 'reader_note', 'TEXT');
     await _ensureColumn(db, 'tb_themes', 'name', 'TEXT');
+
+    await _ensureReadStatsIndexes(db);
   } catch (e, st) {
     // 自检失败不应阻断启动
     SjLog.severe('Database: 结构自检失败: $e\n$st');
+  }
+}
+
+/// 补齐阅读统计与笔记表上缺失的索引。
+///
+/// 这两张表从建库起就没有任何索引（全库 14 个 CREATE INDEX 全在
+/// 人物/玩法/生词等后加的表上），而它们是高频读路径：
+///
+/// - `tb_reading_time`：热力图、连续天数、周月趋势、每日目标等一批查询都是
+///   `WHERE DATE(date) BETWEEN ...` / `WHERE DATE(date) >= ...` 再 GROUP BY day，
+///   没有索引时每行都要算一次 DATE() 并全表扫描。
+/// - `tb_notes`：`book_id = ? AND type IN (...)` 取某本书笔记、
+///   `WHERE type IN (...) GROUP BY book_id` 统计每本书笔记数，同样是全表扫描。
+///
+/// 放在 [ensureSchemaIntegrity] 里而不是开一个迁移 case，是刻意的：
+/// 迁移是一次性的（一旦 user_version 写成最新值就永不重跑），
+/// 而这里每次打开数据库都会幂等补齐，**已安装的用户也能拿到索引**。
+Future<void> _ensureReadStatsIndexes(Database db) async {
+  const statements = <String>[
+    // 按日期聚合（热力图 / 趋势 / 连续天数）
+    'CREATE INDEX IF NOT EXISTS idx_reading_time_date '
+        'ON tb_reading_time(date)',
+    // 按书聚合（每本书累计时长、某书近 N 天）
+    'CREATE INDEX IF NOT EXISTS idx_reading_time_book '
+        'ON tb_reading_time(book_id, date)',
+    // 某本书的笔记列表（book_id 等值 + type 过滤 + 按 book_id 分组统计）
+    'CREATE INDEX IF NOT EXISTS idx_notes_book_type '
+        'ON tb_notes(book_id, type)',
+  ];
+  for (final sql in statements) {
+    try {
+      await db.execute(sql);
+    } catch (e) {
+      // 与 _ensureColumn 一致：单个索引失败不影响启动
+      SjLog.warning('Database: 自检补索引失败: $e');
+    }
   }
 }
 

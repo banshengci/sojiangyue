@@ -139,11 +139,16 @@ class ReadingTimeDao extends BaseDao {
   Future<List<int>> selectReadingTimeOfWeek(DateTime dateTime) async {
     final start = dateTime.subtract(Duration(days: dateTime.weekday - 1));
     final end = start.add(const Duration(days: 6));
+    // 走索引：tb_reading_time(date) 上已有 idx_reading_time_date。
+    // 这里刻意不再写 DATE(date) BETWEEN DATE(?) AND DATE(?)：
+    // 把列包进 DATE() 会让索引失效（EXPLAIN 显示 SCAN）。
+    // 写入的 date 是 'YYYY-MM-DD'，字典序与时间序一致，故字符串区间比较结果相同
+    // （已用含时间戳数据的探针验证过两种写法结果逐行一致）。
     final rows = await rawQueryList(
       '''
       SELECT DATE(date) AS day, SUM(reading_time) AS total_sum 
       FROM $table 
-      WHERE DATE(date) BETWEEN DATE(?) AND DATE(?) 
+      WHERE date BETWEEN ? AND ? 
       GROUP BY day
       ''',
       arguments: [
@@ -173,7 +178,7 @@ class ReadingTimeDao extends BaseDao {
       '''
       SELECT DATE(date) AS day, SUM(reading_time) AS total_sum 
       FROM $table 
-      WHERE DATE(date) BETWEEN DATE(?) AND DATE(?) 
+      WHERE date BETWEEN ? AND ? 
       GROUP BY day
       ''',
       arguments: [
@@ -204,7 +209,7 @@ class ReadingTimeDao extends BaseDao {
       '''
       SELECT strftime('%Y-%m', date) AS month, SUM(reading_time) AS total_sum 
       FROM $table 
-      WHERE DATE(date) BETWEEN DATE(?) AND DATE(?) 
+      WHERE date BETWEEN ? AND ? 
       GROUP BY month
       ''',
       arguments: [
@@ -283,7 +288,7 @@ class ReadingTimeDao extends BaseDao {
       '''
       SELECT book_id, SUM(reading_time) AS total_sum 
       FROM $table 
-      WHERE DATE(date) >= DATE(?) 
+      WHERE date >= ? 
       GROUP BY book_id 
       ORDER BY total_sum DESC
       ''',
@@ -305,8 +310,10 @@ class ReadingTimeDao extends BaseDao {
   }
 
   Future<List<Map<Book, int>>> selectBookReadingTimeOfDay(DateTime date) async {
+    // date 存的是 'YYYY-MM-DD'，故等值比较与 DATE(date) = DATE(?) 等价，
+    // 但能命中 idx_reading_time_book(book_id, date)——见 _ensureReadStatsIndexes。
     final rows = await _aggregateByBook(
-      where: 'DATE(date) = DATE(?)',
+      where: 'date = ?',
       whereArgs: [date.toIso8601String().substring(0, 10)],
     );
     return _attachBooks(rows);
@@ -317,7 +324,7 @@ class ReadingTimeDao extends BaseDao {
     final start = date.subtract(Duration(days: date.weekday - 1));
     final end = start.add(const Duration(days: 6));
     final rows = await _aggregateByBook(
-      where: 'DATE(date) BETWEEN DATE(?) AND DATE(?)',
+      where: 'date BETWEEN ? AND ?',
       whereArgs: [
         start.toIso8601String().substring(0, 10),
         end.toIso8601String().substring(0, 10),
@@ -331,7 +338,7 @@ class ReadingTimeDao extends BaseDao {
     final start = DateTime(date.year, date.month, 1);
     final end = DateTime(date.year, date.month + 1, 0);
     final rows = await _aggregateByBook(
-      where: 'DATE(date) BETWEEN DATE(?) AND DATE(?)',
+      where: 'date BETWEEN ? AND ?',
       whereArgs: [
         start.toIso8601String().substring(0, 10),
         end.toIso8601String().substring(0, 10),
@@ -345,7 +352,7 @@ class ReadingTimeDao extends BaseDao {
     final start = DateTime(date.year, 1, 1);
     final end = DateTime(date.year, 12, 31);
     final rows = await _aggregateByBook(
-      where: 'DATE(date) BETWEEN DATE(?) AND DATE(?)',
+      where: 'date BETWEEN ? AND ?',
       whereArgs: [
         start.toIso8601String().substring(0, 10),
         end.toIso8601String().substring(0, 10),
@@ -455,7 +462,7 @@ class ReadingTimeDao extends BaseDao {
       '''
       SELECT DATE(date) as day, SUM(reading_time) as total_time
       FROM $table
-      WHERE book_id = ? AND DATE(date) >= DATE(?)
+      WHERE book_id = ? AND date >= ?
       GROUP BY day
       ORDER BY day ASC
       ''',
@@ -476,7 +483,7 @@ class ReadingTimeDao extends BaseDao {
       '''
       SELECT DATE(date) as day, SUM(reading_time) as total_time
       FROM $table
-      WHERE DATE(date) >= DATE(?)
+      WHERE date >= ?
       GROUP BY day
       ORDER BY day ASC
       ''',
