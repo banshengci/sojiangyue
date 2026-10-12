@@ -74,13 +74,22 @@ $env:FLUTTER_HOME = "D:\flutter_windows_3.35.3-stable\flutter"
 
 | 检查 | 标准 |
 |------|------|
-| `dart analyze lib` | **0 error / 0 warning**（info 允许，当前约 75 条） |
+| `dart analyze lib` | **No issues found**（0 error / 0 warning / 0 info） |
 | `flutter test` | 全部通过（当前 158 用例） |
-| PR CI | `.github/workflows/pr-check.yml` + `ci.yml` 的 `analyze-and-test` job |
+| PR CI | `.github/workflows/pr-check.yml` + `ci.yml` 的 `analyze-and-test` job，用 `--fatal-warnings --fatal-infos` 强制上述标准 |
 
-info 里占比最大的是 `use_build_context_synchronously`（31 条，async gap 后使用
-`BuildContext` 的真实崩溃风险，**修的时候要逐个确认**，不要机械加 `mounted` 判断）。
-其余为 `deprecated_member_use`（19）、`unintended_html_in_doc_comment`（10）等风格项。
+门禁已收紧到零问题：CI 里任何级别的分析问题都会让 PR 失败。
+若要临时放宽，只放宽到 `--no-fatal-infos`，并在 PR 说明原因。
+
+历史上这批 info 里有不少是**真问题而非风格噪音**，值得引以为戒、不要看到 info 就忽略：
+
+- `use_build_context_synchronously`×31：async gap 后使用 `BuildContext`。其中
+  `service/book.dart` 与 `utils/check_update.dart` 是 await 之后
+  `Navigator.pop()`，页面若已被销毁会**关掉用户当前所在的路由**；
+  `context_menu.dart` 则可能把 OverlayEntry 插到已卸载的 element 上。
+- `unrelated_type_equality_checks`×1：`graph.nodeCount == 0`，而 graphview 的
+  `nodeCount` 是方法（`int nodeCount()`），条件恒为 false，导致关系图为空时
+  不显示空态、只看到空白图。
 
 新增 lint 规则前先跑全量 analyze，避免一次引入数百条噪音。
 
