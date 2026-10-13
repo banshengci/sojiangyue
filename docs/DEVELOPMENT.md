@@ -96,8 +96,8 @@ $env:FLUTTER_HOME = "D:\flutter_windows_3.35.3-stable\flutter"
 
 | 检查 | 标准 |
 |------|------|
-| `dart analyze lib` | **No issues found**（0 error / 0 warning / 0 info） |
-| `flutter test` | 全部通过（当前 158 用例） |
+| `dart analyze lib test` | **No issues found**（0 error / 0 warning / 0 info） |
+| `flutter test` | 全部通过（当前 233 用例） |
 | PR CI | `.github/workflows/pr-check.yml` + `ci.yml` 的 `analyze-and-test` job，用 `--fatal-warnings --fatal-infos` 强制上述标准 |
 
 门禁已收紧到零问题：CI 里任何级别的分析问题都会让 PR 失败。
@@ -117,6 +117,50 @@ $env:FLUTTER_HOME = "D:\flutter_windows_3.35.3-stable\flutter"
 
 > 本机如何在 agent / 无 cmd.exe 环境下跑构建与测试，见 `.workbuddy/memory/MEMORY.md`：
 > 用 `flutter_tools.snapshot` 直调，加 `--no-pub` 绕开 pub 解析。
+
+## 本仓库踩过的坑（改代码前先看）
+
+### 一、异步读-改-写必须串行化
+
+「读共享状态 → 改 → 写回」如果跨越 `await`，并发进入时各自都会基于同一份
+旧状态计算，后写的把先写的整体覆盖。工具在 `lib/utils/async_mutex.dart`：
+
+```dart
+await mutex.run(() async { /* 读-改-写整体 */ });
+```
+
+已踩过：`AiCache.setAiCache` 读整个缓存文件、加一条、写回整个文件，
+未串行化时实测**并发写 5 条只剩 1 条**，缓存等于失效。
+
+**但不要一律加锁。** `service/ai/index.dart` 的 `_throttleIfNeeded`
+「判断配额 → 追加时间戳」之间**没有 await**，同步段在单线程事件循环下
+不会被打断，本来就是竞态安全的。曾误判并给它加锁＋改成「按预期发出时刻记账」，
+结果过期条目推迟 60 秒才清理、列表不断增长、请求被误限流。
+判断依据是**判断与写入之间有没有 await**，而不是「是不是读-改-写」。
+
+### 二、日期列不要包进 `DATE()`
+
+见下方「数据库：日期列可用索引」。`WHERE DATE(date) BETWEEN ...` 会让索引失效。
+
+### 三、测试的正当性依赖「形状是否忠于被测代码」
+
+这一条比看起来重要。写「修复前会失败、修复后通过」的对照用例时，
+如果模拟的形状与被测代码不一致，会得到**两个方向的错误结论**：
+
+- 本仓库实测：模拟 RPM 限流时，第一版把整个临界区放进锁内 await，
+  形状错了 → 反向对照「不丢」，差点得出「这里没有竞态」的错误结论；
+  第二版把「占配额」放在等待之后 → 正确实现的形状被改坏，反而「通过」了错误版本。
+
+写这类用例前，先把被测函数的 await 位置逐个标出来，照着抄。
+另外两条具体忌讳：
+
+- **不要用自增 id 做新旧实现的比对快照**：两组数据分别重灌后 id 必然不同，
+  断言会失败在无意义的地方（本仓库连续踩了两次）。
+- **探针里不要在循环之间 `clearCache()` 之后又复用同一目录**，
+  否则会把「覆盖」误读成「全丢」（曾得出「并发 2 条落盘 0 条」的假数字）。
+
+跑动态分析类探针时也要注意：`dart run` 不能加载 Flutter 库
+（`sqflite_common_ffi` 这类纯 Dart 依赖可以，引到 `dao/*` 就会连带 Flutter 而失败）。
 
 ## 多语言
 
