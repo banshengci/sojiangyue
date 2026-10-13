@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
+import 'package:songjiang_reader/utils/async_mutex.dart';
 import 'package:songjiang_reader/utils/get_path/get_cache_dir.dart';
 import 'package:langchain_core/chat_models.dart';
 
@@ -90,29 +91,23 @@ class AiCache {
     return {};
   }
 
-  /// 写入串行化用的链尾。
+  /// 写入串行化用的互斥器。
   ///
   /// [setAiCache] 是「读整个文件 → 改一条 → 写回整个文件」，没有锁的话
   /// 两个请求同时完成时会互相覆盖。实测：同时写 5 条只有 1 条落盘，
   /// 写 20 条也只有 1 条——缓存会退化成「只留最后一条」，命中率几乎为 0。
   ///
-  /// 这里用一条 Future 链把所有写操作排队，无需引入额外依赖。
   /// 只串行化**写**；读不走队列（读本身不改文件，读不到只是未命中，
   /// 顶多退回一次网络请求，不值得为它付出排队延迟）。
-  static Future<void> _writeQueue = Future<void>.value();
+  static final AsyncMutex _writeMutex = AsyncMutex();
 
   /// 把 [task] 排到写队列尾部，返回它自己的结果。
   ///
-  /// 公开出来是为了可测：测试可以显式对比「经过串行化」与「不经过串行化」
-  /// 两种情况的落盘条数，从而证明这个原语确实在防覆盖，
+  /// 保留这个薄封装是为了可测：测试会显式对比「经过串行化」与「不经过串行化」
+  /// 两种情况的落盘条数，从而证明互斥器确实在防覆盖，
   /// 而不是只能相信 [setAiCache] 恰好写对了。
-  static Future<T> serializeWrite<T>(Future<T> Function() task) {
-    final result = _writeQueue.then((_) => task());
-    // 队列本身要吞掉异常，否则一次失败会让后续所有写入都被跳过。
-    // 真正的错误通过 [result] 抛给调用方。
-    _writeQueue = result.then((_) {}, onError: (_, __) {});
-    return result;
-  }
+  static Future<T> serializeWrite<T>(Future<T> Function() task) =>
+      _writeMutex.run(task);
 
   /// 读-改-写整体排队，避免并发写入互相覆盖。
   static Future<void> setAiCache(

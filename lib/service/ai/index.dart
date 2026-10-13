@@ -23,6 +23,17 @@ final CancelableLangchainRunner _runner = CancelableLangchainRunner();
 final List<DateTime> _aiRequestTimestamps = [];
 
 /// Throttle AI requests if RPM limit is configured (sliding 1-minute window).
+///
+/// 关于并发：本函数**刻意不加锁**，因为它已经是竞态安全的。
+/// 「读时间戳列表 → 判断是否超配额 → 追加一条」这三步之间没有任何 `await`
+/// （`await Future.delayed` 在判断与追加**之后**才发生，且期间不会碰列表），
+/// Dart 是单线程事件循环，同步段不会被打断，所以并发调用不会一起通过判断。
+///
+/// 曾经想当然地在这里加过互斥锁并改成「按预期发出时刻记账」，结果是**引入了 bug**：
+/// 把时间戳记成 `now + wait` 会让过期条目推迟到 60 秒后才被清理，
+/// 列表从「近似恒为 60 秒的滑动窗口」退化成不断增长，于是后续请求被误限流。
+/// 该次改动已回滚，并有 `test/utils/async_mutex_test.dart` 里的
+/// 限流不变量用例守着这个形状，避免再被"好心"重构坏。
 Future<void> _throttleIfNeeded() async {
   final rpm = AiPrefs.rpm;
   if (rpm <= 0) return;
