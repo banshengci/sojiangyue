@@ -1,18 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langchain_core/chat_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/service/ai/ai_cache.dart';
-import 'package:songjiang_reader/utils/get_path/get_cache_dir.dart';
 
 /// AI 缓存的**文件级**端到端测试（写盘 / 命中 / 淘汰 / 身份校验）。
 ///
 /// `ai_cache_test.dart` 只覆盖了纯函数（缓存键、序列化）与源码级接线守护，
-/// 没有真正落过盘。这里补上：把 path_provider 的缓存目录通道 mock 到临时目录，
+/// 没有真正落过盘。这里补上：用 `debugCacheDirOverride` 把缓存目录指到临时目录，
 /// 走一遍真实的 `setAiCache` / `getAiCache` / `cleanCache` / `cacheCount`。
 ///
 /// 为什么值得单独测：缓存是**跨进程持久化**的，格式或键算错不会当场报错，
@@ -21,7 +19,6 @@ import 'package:songjiang_reader/utils/get_path/get_cache_dir.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const channel = MethodChannel('plugins.flutter.io/path_provider');
   late Directory tmp;
 
   setUp(() async {
@@ -30,20 +27,13 @@ void main() {
     await AiPrefs.ensureInitialized();
 
     tmp = Directory.systemTemp.createTempSync('ai_cache_e2e');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'getApplicationCacheDirectory' ||
-          call.method == 'getApplicationSupportDirectory' ||
-          call.method == 'getTemporaryDirectory') {
-        return tmp.path;
-      }
-      return null;
-    });
+    // 绕开 path_provider：在纯 Dart / Linux runner 测试中，
+    // SjPlatform.type 会抛 UnsupportedError，直接指定缓存目录最稳。
+    AiCache.debugCacheDirOverride = tmp;
   });
 
   tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, null);
+    AiCache.debugCacheDirOverride = null;
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });
 
@@ -206,7 +196,7 @@ void main() {
 
       // 复刻 setAiCache 的内部三步，但**不**走队列，模拟修复前的行为
       Future<void> unsynchronizedWrite(int i) async {
-        final cacheDir = await getSjCacheDir();
+        final cacheDir = tmp;
         final file = File('${cacheDir.path}/${AiCache.cacheFileName}');
         final cache = await AiCache.readCache();
         final key = AiCache.cacheHashFor(msgs('裸写$i'), 'p1|m').toString();
@@ -234,7 +224,7 @@ void main() {
       await Future.wait([
         for (var i = 0; i < 8; i++)
           AiCache.serializeWrite(() async {
-            final cacheDir = await getSjCacheDir();
+            final cacheDir = tmp;
             final file = File('${cacheDir.path}/${AiCache.cacheFileName}');
             final cache = await AiCache.readCache();
             final key =

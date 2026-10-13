@@ -75,8 +75,24 @@ class AiCacheEntry {
 class AiCache {
   static const String cacheFileName = 'ai_cache.json';
 
+  /// 缓存目录覆盖（仅供测试用）。
+  ///
+  /// 生产代码永远为 null，走正常的 [getSjCacheDir]。
+  /// 测试环境（Linux runner / 纯 Dart 测试）的 platform 不是已知的任何一个，
+  /// `SjPlatform.type` 会抛 `UnsupportedError`，
+  /// 这时如果直接调 `getSjCacheDir()` 会炸掉整组用例。
+  /// 通过设置这个变量，测试可以完全绕开平台判断、直接用临时目录，
+  /// 不影响任何真实运行路径。
+  static Directory? debugCacheDirOverride;
+
+  static Future<Directory> _cacheDir() async {
+    final override = debugCacheDirOverride;
+    if (override != null) return override;
+    return getSjCacheDir();
+  }
+
   static Future<Map<String, dynamic>> readCache() async {
-    final cacheDir = await getSjCacheDir();
+    final cacheDir = await _cacheDir();
     final file = File('${cacheDir.path}/$cacheFileName');
 
     if (await file.exists()) {
@@ -118,7 +134,7 @@ class AiCache {
     String identity = '',
   }) async {
     await serializeWrite(() async {
-      final cacheDir = await getSjCacheDir();
+      final cacheDir = await _cacheDir();
       final file = File('${cacheDir.path}/$cacheFileName');
       final cache = await readCache();
 
@@ -204,7 +220,7 @@ class AiCache {
     // 是 O(被删数量 × 总数量) 的线性查找。
     cache.removeWhere((key, _) => keysToRemove.contains(key));
 
-    final cacheDir = await getSjCacheDir();
+    final cacheDir = await _cacheDir();
     final file = File('${cacheDir.path}/$cacheFileName');
     await file.writeAsString(json.encode(cache), mode: FileMode.writeOnly);
   }
@@ -215,7 +231,7 @@ class AiCache {
   }
 
   static Future<void> clearCache() async {
-    final cacheDir = await getSjCacheDir();
+    final cacheDir = await _cacheDir();
     final file = File('${cacheDir.path}/$cacheFileName');
     if (await file.exists()) {
       await file.delete();
