@@ -22,10 +22,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Flutter 3.35.3
+      - name: Setup Flutter 3.44.8
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.35.3
+          flutter-version: 3.44.8
           channel: stable
 
       - name: Cache pub dependencies
@@ -70,11 +70,11 @@ jobs:
         run: flutter test --no-pub --reporter expanded
 
   # ============ Windows ============
-  # Flutter 3.35.3 的 CMake 生成器硬编码 "Visual Studio 16 2019"，
-  # 必须用 windows-2019 runner（自带 VS 2019），windows-latest 只有 VS 2022 不匹配。
+    # 生成器不是硬编码的：flutter_tools 按检测到的 VS 主版本号映射
+    #   17 => "Visual Studio 17 2022"，18 => "Visual Studio 18 2026"，其它/未检测到 => 兜底 2019。
   build-windows:
     name: Build Windows
-    runs-on: windows-2019
+    runs-on: windows-latest
     timeout-minutes: 60
     needs: analyze-and-test
     steps:
@@ -84,10 +84,10 @@ jobs:
       - name: Enable git long paths
         run: git config --system core.longpaths true
 
-      - name: Setup Flutter 3.35.3
+      - name: Setup Flutter 3.44.8
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.35.3
+          flutter-version: 3.44.8
           channel: stable
 
       - name: Cache pub dependencies
@@ -138,10 +138,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Flutter 3.35.3
+      - name: Setup Flutter 3.44.8
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.35.3
+          flutter-version: 3.44.8
           channel: stable
 
       - name: Cache pub dependencies
@@ -226,10 +226,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Flutter 3.35.3
+      - name: Setup Flutter 3.44.8
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.35.3
+          flutter-version: 3.44.8
           channel: stable
 
       - name: Enable git long paths
@@ -306,10 +306,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Flutter 3.35.3
+      - name: Setup Flutter 3.44.8
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.35.3
+          flutter-version: 3.44.8
           channel: stable
 
       - name: Cache pub dependencies
@@ -369,10 +369,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Flutter 3.35.3
+      - name: Setup Flutter 3.44.8
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.35.3
+          flutter-version: 3.44.8
           channel: stable
 
       - name: Cache pub dependencies
@@ -474,10 +474,10 @@ jobs:
           install_if_available libwpewebkit-1.0-dev
           install_if_available libwpe-1.0-dev libwpebackend-fdo-1.0-dev
 
-      - name: Setup Flutter 3.35.3
+      - name: Setup Flutter 3.44.8
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.35.3
+          flutter-version: 3.44.8
           channel: stable
 
       - name: Cache pub dependencies
