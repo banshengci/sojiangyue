@@ -240,7 +240,39 @@
 与钩子的区别：**钩子是"事件 → 跑工具"，增强器是"规则长期生效"**。
 
 用户在「设置 → AI → 插件 → 设置」里逐条开关；禁用插件会立刻失效。
-目前只支持"手动开、长期生效"，没有按回合数或概率触发的规则引擎。
+### 规则（rules）
+
+增强器是"一直生效"，规则是**满足条件才发生**：
+
+```json
+"rules": [
+  {
+    "id": "merchant",
+    "title": "神秘商人登场",
+    "event": "before_generation",
+    "match": { "everyTurns": 5, "chancePercent": 30 },
+    "actions": [{ "type": "add_instruction", "instruction": "让一名神秘商人自然进入场景。" }]
+  },
+  {
+    "id": "remember-refusal",
+    "title": "记录拒绝",
+    "event": "after_turn",
+    "match": { "keywords": ["拒绝", "不买"] },
+    "actions": [{ "type": "increment_state", "key": "refusals", "amount": 1 }]
+  }
+]
+```
+
+* `event`：`before_generation`（可注入指令）/ `after_turn`（可累计状态）
+* `match`：`everyTurns` / `chancePercent` / `keywords`，**多个条件取交集**
+* `actions`：`add_instruction` / `increment_state`
+
+状态按「插件 × 会话」隔离；**同一回合重试不会重复累计**，
+但指令每次都会重新注入（重新生成时仍然需要它）。
+
+规则**默认关闭**，用户要在插件设置页逐条开启。
+
+> 也可以把 `rules` 放在 `execution.rules` 里（与造梦写法一致），两种都认。
 
 ---
 
@@ -256,7 +288,7 @@
 | 权限 | 10 项，粒度细（如 `chat.cast.write`、`generation.enhance`） | 6 项（读取正文 / https / 调模型 / 写笔记 / 存储读写） |
 | 插件设置 | `settings[]`，宿主渲染 boolean / integer / enum | 同有（另有 `text` 型） |
 | 插件私有数据区 | `storage.read/write` + `{{storage.x}}` | 同有（单值 8 KB / 32 键 / 合计 64 KB） |
-| 注入主对话规则 | `generationEnhancers` + `execution.rules`（按回合/概率/关键词） | 有增强器（用户逐条开关），**没有**按回合/概率触发的规则引擎 |
+| 注入主对话规则 | `generationEnhancers` + `execution.rules`（按回合/概率/关键词） | 同有：增强器 + 规则引擎 |
 | 临时角色生成 | `temporaryNpcGenerators` | **无** |
 | API 版本协商 | `apiVersion`，宿主兼容 1/2 | 有 `schemaVersion` / `minAppVersion`，但没有版本分支策略 |
 | 包体限制 | ≤10 MiB、≤500 文件、解压 ≤100 MiB、禁路径穿越与符号链接 | 同有（本地安装校验） |
@@ -268,9 +300,8 @@
   我们把插件当作"给 agent 加工具"。两者都能扩展，但第三方写的插件**不能直接互换**。
 - **已经补上的**：插件设置、私有存储、生成增强器、本地 `.plugin.zip` 安装。
   到此为止，第三方插件可以配置、可以记忆、也可以影响对话的说话方式。
-- **仍然缺的**：按回合数 / 概率 / 关键词触发的规则引擎（造梦的 `execution.rules`），
-  以及临时角色生成（`temporaryNpcGenerators`）。我们现在只有"用户手动开、长期生效"
-  这一种增强方式，做不到"每 5 轮有 30% 概率来个神秘商人"。
+- **仍然缺的**：临时角色生成（`temporaryNpcGenerators`），
+  以及"按会话切换增强器"（我们的增强器是全局开关，不是每个会话各一份）。
 
 ---
 
