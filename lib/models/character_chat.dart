@@ -108,6 +108,7 @@ class CharacterChatSession {
     this.userPersona,
     this.memorySummary,
     this.memoryUptoMessageId,
+    this.parentSessionId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -137,6 +138,10 @@ class CharacterChatSession {
   /// 记忆已覆盖到哪条消息（含）；更早的消息不必再压。
   final int? memoryUptoMessageId;
 
+  /// 这条时间线从哪个会话分出来的（null = 主线）。
+  /// 有了它才能回答「回到主线」「还有哪些同源分支」。
+  final int? parentSessionId;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -161,6 +166,7 @@ class CharacterChatSession {
     String? userPersona,
     String? memorySummary,
     int? memoryUptoMessageId,
+    int? parentSessionId,
     DateTime? updatedAt,
   }) =>
       CharacterChatSession(
@@ -173,6 +179,7 @@ class CharacterChatSession {
         userPersona: userPersona ?? this.userPersona,
         memorySummary: memorySummary ?? this.memorySummary,
         memoryUptoMessageId: memoryUptoMessageId ?? this.memoryUptoMessageId,
+        parentSessionId: parentSessionId ?? this.parentSessionId,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -189,6 +196,7 @@ class CharacterChatSession {
         userPersona: map['user_persona'] as String?,
         memorySummary: map['memory_summary'] as String?,
         memoryUptoMessageId: map['memory_upto_message_id'] as int?,
+        parentSessionId: map['parent_session_id'] as int?,
         createdAt: DateTime.tryParse(map['created_at'] as String? ?? '') ??
             DateTime.now(),
         updatedAt: DateTime.tryParse(map['updated_at'] as String? ?? '') ??
@@ -204,6 +212,7 @@ class CharacterChatSession {
         'user_persona': userPersona,
         'memory_summary': memorySummary,
         'memory_upto_message_id': memoryUptoMessageId,
+        'parent_session_id': parentSessionId,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };

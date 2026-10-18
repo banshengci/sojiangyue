@@ -817,6 +817,13 @@ Future<void> ensureSchemaIntegrity(Database db) async {
       'memory_upto_message_id',
       'INTEGER',
     );
+    // 分支来源：有了它才能回答「回到主线」「还有哪些同源分支」
+    await _ensureColumn(
+      db,
+      'tb_character_chat_sessions',
+      'parent_session_id',
+      'INTEGER',
+    );
 
     // 放在最后：本步骤包含"无损去重 + 建唯一索引"，万一失败也不该拖累上面的补列/补表。
     await _ensureFileMd5Unique(db);

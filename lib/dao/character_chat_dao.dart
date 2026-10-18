@@ -225,6 +225,7 @@ class CharacterChatDao extends BaseDao {
         mode: src.mode,
         participation: src.participation,
         userPersona: src.userPersona,
+        parentSessionId: sourceSessionId,
         title: '${src.displayTitle} · 分支',
         createdAt: now,
         updatedAt: now,
@@ -258,6 +259,31 @@ class CharacterChatDao extends BaseDao {
     return newSessionId;
   }
 
+  /// 从 [parentId] 分出去的会话（含多层分叉的直接子代）。
+  Future<List<CharacterChatSession>> listBranches(int parentId) => queryList(
+        tableSession,
+        mapper: CharacterChatSession.fromMap,
+        where: 'parent_session_id = ?',
+        whereArgs: [parentId],
+        orderBy: 'id ASC',
+      );
+
+  /// 一路向上找到主线（parent 为空的会话）。
+  ///
+  /// 多层分叉时「回到主线」必须跳到根，而不是只回上一层——
+  /// 否则用户在 A→B→C 里点"回到主线"会停在 B，还是分支。
+  Future<CharacterChatSession> rootOf(CharacterChatSession session) async {
+    var current = session;
+    // 防御成环：万一数据被写坏，最多走 64 层就停
+    for (var i = 0; i < 64; i++) {
+      final parentId = current.parentSessionId;
+      if (parentId == null) return current;
+      final parent = await getSession(parentId);
+      if (parent == null) return current;
+      current = parent;
+    }
+    return current;
+  }
   Future<void> clearMessages(int sessionId) => delete(
         tableMessage,
         where: 'session_id = ?',

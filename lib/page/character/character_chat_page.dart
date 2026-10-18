@@ -508,10 +508,19 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   ///
   /// 为什么需要：现在选错一句话只能清空重来，玩家因此**不敢做选择**。
   /// 能分支，"试一条路"才变得安全——试完还能回到原来的时间线上。
+  /// 从末尾分叉（AppBar 的「另存为分支」）。
   Future<void> _fork() async {
+    if (_messages.isEmpty) return;
+    await _forkAt(_messages.last.id);
+  }
+
+  /// 从指定位置分叉。at 为 null 表示整段复制。
+  ///
+  /// 为什么需要：选错一句话只能清空重来，玩家因此**不敢做选择**。
+  /// 能分支，"试一条路"才变得安全——试完还能回到原来的时间线上。
+  Future<void> _forkAt(int? at) async {
     final session = _session;
     if (session?.id == null || _sending) return;
-    final at = _messages.isEmpty ? null : _messages.last.id;
     try {
       final newId = await characterChatDao.forkSession(
         session!.id!,
@@ -533,6 +542,94 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     } catch (e) {
       SjToast.show('分支失败：$e');
     }
+  }
+
+  /// 分支导航：回到主线 / 切到同源分支 / 走进从这条线分出去的分支。
+  ///
+  /// 「回到主线」必须跳到**根**而不是上一层：A→B→C 里停在 B 仍然是分支。
+  Future<void> _openBranches() async {
+    final session = _session;
+    if (session?.id == null) return;
+
+    CharacterChatSession? root;
+    var siblings = <CharacterChatSession>[];
+    var children = <CharacterChatSession>[];
+    try {
+      root = await characterChatDao.rootOf(session!);
+      final parentId = session.parentSessionId;
+      if (parentId != null) {
+        siblings = await characterChatDao.listBranches(parentId);
+      }
+      children = await characterChatDao.listBranches(session.id!);
+    } catch (e) {
+      SjToast.show('读取分支失败：$e');
+      return;
+    }
+    if (!mounted) return;
+
+    final target = await showModalBottomSheet<CharacterChatSession>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final rows = <Widget>[];
+        if (root != null && root.id != session.id) {
+          rows.add(ListTile(
+            leading: const Icon(Icons.home_outlined),
+            title: const Text('回到主线'),
+            subtitle: Text(root.displayTitle),
+            onTap: () => Navigator.pop(ctx, root),
+          ));
+        }
+        for (final s in siblings) {
+          if (s.id == session.id) continue;
+          rows.add(ListTile(
+            leading: const Icon(Icons.call_split),
+            title: Text(s.displayTitle),
+            subtitle: const Text('同源分支'),
+            onTap: () => Navigator.pop(ctx, s),
+          ));
+        }
+        for (final s in children) {
+          rows.add(ListTile(
+            leading: const Icon(Icons.subdirectory_arrow_right),
+            title: Text(s.displayTitle),
+            subtitle: const Text('从这条线分出'),
+            onTap: () => Navigator.pop(ctx, s),
+          ));
+        }
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (rows.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 20, 16, 24),
+                  child: Text(
+                    '这条时间线还没有分支。\n长按任意一条消息，可以「从这里分出分支」。',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13),
+                  ),
+                )
+              else
+                Flexible(child: ListView(shrinkWrap: true, children: rows)),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || target == null || target.id == session.id) return;
+    await Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CharacterChatPage(
+          session: target,
+          bookTitle: widget.bookTitle,
+          gameplayMode: widget.gameplayMode,
+        ),
+      ),
+    );
   }
 
   Future<void> _readMind() async {
@@ -588,6 +685,12 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
               title: const Text('复制这段话'),
               onTap: () => Navigator.pop(ctx, 'copy'),
             ),
+            ListTile(
+              leading: const Icon(Icons.call_split),
+              title: const Text('从这里分出分支'),
+              subtitle: const Text('保留到这为止的经过，另开一条时间线'),
+              onTap: () => Navigator.pop(ctx, 'fork'),
+            ),
             if (m.role == CharacterChatRole.character) ...[
               ListTile(
                 leading: const Icon(Icons.refresh),
@@ -610,6 +713,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       case 'copy':
         await Clipboard.setData(ClipboardData(text: m.content));
         if (mounted) SjToast.show('已复制');
+      case 'fork':
+        await _forkAt(m.id);
       case 'regenerate':
         await _regenerate();
       case 'mind':
@@ -682,6 +787,11 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
               )
             : null,
         actions: [
+          IconButton(
+            tooltip: '分支（回到主线 / 切换）',
+            icon: const Icon(Icons.alt_route),
+            onPressed: _openBranches,
+          ),
           IconButton(
             tooltip: '另存为分支',
             icon: const Icon(Icons.call_split),
