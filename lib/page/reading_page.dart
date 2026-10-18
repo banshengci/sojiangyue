@@ -36,6 +36,7 @@ import 'package:songjiang_reader/widgets/reading_page/tts_fab.dart';
 import 'package:songjiang_reader/widgets/reading_page/tts_widget.dart';
 import 'package:songjiang_reader/widgets/reading_page/style_widget.dart';
 import 'package:songjiang_reader/widgets/reading_page/toc_widget.dart';
+import 'package:songjiang_reader/design/songjiang/sj_reader_toolbar.dart';
 import 'package:songjiang_reader/widgets/common/axis_flex.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -794,62 +795,64 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                                   Expanded(
                                     child: _currentPage,
                                   ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
+                                // v3：底栏改为带文字的 5 项工具条。
+                                // 原来的 5 个裸图标没有文字标签，用户要靠猜；
+                                // 且每项热区只有图标大小（约 24–48），低于 44 下限。
+                                // SjReaderToolbar 给到 52 高、带标签、选中态双线索。
+                                SafeArea(
+                                  top: false,
+                                  child: SjReaderToolbar(
+                                    selectedIndex: -1,
+                                    showSafeArea: false,
+                                    background: Theme.of(context)
                                         .colorScheme
                                         .surfaceContainerLow
                                         .withAlpha(isDark ? 220 : 245),
-                                    border: Border(
-                                      top: BorderSide(
-                                        color: SongJiangColors.pine
-                                            .withAlpha(isDark ? 90 : 70),
-                                        width: 0.8,
+                                    borderColor: SongJiangColors.pine
+                                        .withAlpha(isDark ? 90 : 70),
+                                    foreground: toolbarIconColor,
+                                    accent: SongJiangColors.pine,
+                                    onTap: (int i) {
+                                      switch (i) {
+                                        case 0:
+                                          tocHandler();
+                                          break;
+                                        case 1:
+                                          noteHandler();
+                                          break;
+                                        case 2:
+                                          progressHandler();
+                                          break;
+                                        case 3:
+                                          styleHandler(setState);
+                                          break;
+                                        case 4:
+                                          ttsHandler();
+                                          break;
+                                      }
+                                    },
+                                    items: const [
+                                      SjReaderToolItem(
+                                        icon: SongJiangIcons.toc,
+                                        label: '目录',
                                       ),
-                                    ),
-                                  ),
-                                  child: IconTheme(
-                                    data: IconThemeData(color: toolbarIconColor),
-                                    child: SafeArea(
-                                      top: false,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 2),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceAround,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.toc),
-                                              onPressed: tocHandler,
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.edit),
-                                              onPressed: noteHandler,
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.activity),
-                                              onPressed: progressHandler,
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.palette),
-                                              onPressed: () {
-                                                styleHandler(setState);
-                                              },
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.tts),
-                                              onPressed: ttsHandler,
-                                            ),
-                                          ],
-                                        ),
+                                      SjReaderToolItem(
+                                        icon: SongJiangIcons.edit,
+                                        label: '笔记',
                                       ),
-                                    ),
+                                      SjReaderToolItem(
+                                        icon: SongJiangIcons.activity,
+                                        label: '进度',
+                                      ),
+                                      SjReaderToolItem(
+                                        icon: SongJiangIcons.palette,
+                                        label: '排版',
+                                      ),
+                                      SjReaderToolItem(
+                                        icon: SongJiangIcons.tts,
+                                        label: '听',
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],

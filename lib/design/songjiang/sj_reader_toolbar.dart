@@ -45,6 +45,11 @@ class SjReaderToolbar extends StatelessWidget {
     required this.items,
     required this.selectedIndex,
     required this.onTap,
+    this.background,
+    this.borderColor,
+    this.foreground,
+    this.accent,
+    this.showSafeArea = true,
   }) : assert(items.length <= 5, '阅读底栏最多 5 项');
 
   final List<SjReaderToolItem> items;
@@ -53,17 +58,32 @@ class SjReaderToolbar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
 
+  /// 以下四个可选：阅读页有自己的阅读配色（用户可换主题/背景图），
+  /// 传进来后底栏会跟随阅读配色，而不是用全局 SjColors。
+  final Color? background;
+  final Color? borderColor;
+  final Color? foreground;
+  final Color? accent;
+
+  /// 是否自己处理底部安全区（默认 true）。
+  final bool showSafeArea;
+
   @override
   Widget build(BuildContext context) {
     final c = SjColors.of(context);
+    final bg = background ?? c.card;
+    final line = borderColor ?? c.divider;
+    final fg = foreground ?? c.inkSoft;
+    final on = accent ?? c.pine;
+    final bottomInset = showSafeArea ? MediaQuery.of(context).padding.bottom : 0.0;
     return Container(
       decoration: BoxDecoration(
-        color: c.card,
-        border: Border(top: BorderSide(color: c.divider)),
+        color: bg,
+        border: Border(top: BorderSide(color: line)),
       ),
       padding: EdgeInsets.only(
         top: SjSpace.xxs,
-        bottom: SjSpace.xxs + MediaQuery.of(context).padding.bottom,
+        bottom: SjSpace.xxs + bottomInset,
       ),
       child: Row(
         children: [
@@ -72,7 +92,8 @@ class SjReaderToolbar extends StatelessWidget {
               child: _SjToolTab(
                 item: items[i],
                 selected: i == selectedIndex,
-                colors: c,
+                foreground: fg,
+                accent: on,
                 onTap: () => onTap(i),
               ),
             ),
@@ -86,18 +107,20 @@ class _SjToolTab extends StatelessWidget {
   const _SjToolTab({
     required this.item,
     required this.selected,
-    required this.colors,
+    required this.foreground,
+    required this.accent,
     required this.onTap,
   });
 
   final SjReaderToolItem item;
   final bool selected;
-  final SjColors colors;
+  final Color foreground;
+  final Color accent;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final fg = selected ? colors.pine : colors.inkSoft;
+    final fg = selected ? accent : foreground;
     return Semantics(
       label: item.label,
       button: true,

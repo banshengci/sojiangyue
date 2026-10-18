@@ -1,4 +1,5 @@
 import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
+import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
@@ -77,7 +78,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
           body: LayoutBuilder(builder: (context, constraints) {
             List<Map<String, dynamic>> settings = [
               {
-                "title": L10n.of(context).settingsAppearance,
+                "group": "外观", "title": L10n.of(context).settingsAppearance,
                 "icon": const SjIcon(SjIconName.typography),
                 "sections": const AppearanceSetting(),
                 "subtitles": [
@@ -87,7 +88,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                 ],
               },
               {
-                "title": L10n.of(context).settingsReading,
+                "group": "阅读", "title": L10n.of(context).settingsReading,
                 "icon": const SjIcon(SjIconName.read),
                 "sections": const ReadingSettings(),
                 "subtitles": [
@@ -98,7 +99,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                 ],
               },
               {
-                "title": L10n.of(context).settingsSync,
+                "group": "数据", "title": L10n.of(context).settingsSync,
                 "icon": const SjIcon(SjIconName.sync),
                 "sections": const SyncSetting(),
                 "subtitles": [
@@ -107,7 +108,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                 ],
               },
               {
-                "title": L10n.of(context).opdsTitle,
+                "group": "数据", "title": L10n.of(context).opdsTitle,
                 "icon": const SjIcon(SjIconName.opds),
                 "sections": const OpdsSettingsPage(),
                 "subtitles": [
@@ -116,7 +117,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                 ],
               },
               {
-                "title": L10n.of(context).settingsNarrate,
+                "group": "阅读", "title": L10n.of(context).settingsNarrate,
                 "icon": const SjIcon(SjIconName.listen),
                 "sections": const NarrateSettings(),
                 "subtitles": [
@@ -125,7 +126,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                 ],
               },
               {
-                "title": L10n.of(context).settingsTranslate,
+                "group": "阅读", "title": L10n.of(context).settingsTranslate,
                 "icon": const SjIcon(SjIconName.translate),
                 "sections": const TranslateSetting(),
                 "subtitles": [
@@ -134,7 +135,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
               },
               if (EnvVar.enableAIFeature)
                 {
-                  "title": L10n.of(context).settingsAi,
+                  "group": "AI", "title": L10n.of(context).settingsAi,
                   "icon": const SjIcon(SjIconName.aiDeepRead),
                   "sections": const AISettings(),
                   "subtitles": [
@@ -143,7 +144,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                   ],
                 },
               {
-                "title": L10n.of(context).storage,
+                "group": "数据", "title": L10n.of(context).storage,
                 "icon": const SjIcon(SjIconName.sync),
                 "sections": const StorageSettings(),
                 "subtitles": [
@@ -152,7 +153,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                 ],
               },
               {
-                "title": L10n.of(context).settingsAdvanced,
+                "group": "数据", "title": L10n.of(context).settingsAdvanced,
                 "icon": const SjIcon(SjIconName.settings),
                 "sections": const AdvancedSetting(),
                 "subtitles": [
@@ -163,6 +164,13 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                   L10n.of(context).settingsAdvancedNetwork,
                 ],
               },
+            ];
+
+            // ── v3：按四组重排（组内保持原顺序，便于扫描）──
+            const groupOrder = <String>['阅读', '外观', 'AI', '数据'];
+            settings = <Map<String, dynamic>>[
+              for (final g in groupOrder)
+                ...settings.where((s) => s['group'] == g),
             ];
 
             settingsDetail ??= SettingsPageBody(
@@ -180,7 +188,12 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
 
             Widget settingsList(bool isMobile, bool showDeveloper) {
               final children = <Widget>[
-                for (int index = 0; index < settings.length; index++)
+                for (int index = 0; index < settings.length; index++) ...[
+                  if (index == 0 ||
+                      settings[index]['group'] != settings[index - 1]['group'])
+                    _SettingsGroupHeader(
+                      label: settings[index]['group'] as String,
+                    ),
                   SettingsPageBuilder(
                     isMobile: isMobile,
                     id: index,
@@ -195,6 +208,8 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                     sections: settings[index]["sections"],
                     subTitles: settings[index]["subtitles"],
                   ),
+                ],
+                const _SettingsGroupHeader(label: '词典与词汇'),
                 ListTile(
                   leading: IconTheme(
                     data: IconThemeData(
@@ -230,6 +245,8 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                   },
                 ),
                 if (showDeveloper)
+                  const _SettingsGroupHeader(label: '开发者'),
+                if (showDeveloper)
                   ListTile(
                     leading: Icon(Icons.developer_mode,
                         color: Theme.of(context).colorScheme.primary),
@@ -244,6 +261,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                       );
                     },
                   ),
+                const _SettingsGroupHeader(label: '关于'),
                 const About(leadingColor: true),
               ];
 
@@ -272,6 +290,39 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
           }),
         );
       },
+    );
+  }
+}
+
+/// 设置分组标题（v3 新增）。
+///
+/// 原来 9 个设置分区平铺成一个长列表，用户无法判断「朗读」和「翻译」是一类、
+/// 「存储」和「高级」是一类。现在按 阅读 / 外观 / AI / 数据 四组分段。
+class _SettingsGroupHeader extends StatelessWidget {
+  const _SettingsGroupHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = SjColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        SjSpace.page,
+        SjSpace.l,
+        SjSpace.page,
+        SjSpace.xs,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: SjText.serif,
+          fontSize: SjType.label,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
+          color: c.inkSoft,
+        ),
+      ),
     );
   }
 }

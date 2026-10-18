@@ -8,9 +8,8 @@ import 'package:songjiang_reader/enums/sync_trigger.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/initialization_check.dart';
 import 'package:songjiang_reader/page/home_page/bookshelf_page.dart';
+import 'package:songjiang_reader/page/home_page/mine_page.dart';
 import 'package:songjiang_reader/page/home_page/notes_page.dart';
-import 'package:songjiang_reader/page/home_page/settings_page.dart';
-import 'package:songjiang_reader/page/home_page/statistics_page.dart';
 import 'package:songjiang_reader/page/gameplay/gameplay_center_page.dart';
 import 'package:songjiang_reader/service/receive_file/receive_share.dart';
 import 'package:songjiang_reader/service/vibration_service.dart';
@@ -23,7 +22,6 @@ import 'package:songjiang_reader/utils/platform_utils.dart';
 import 'package:songjiang_reader/providers/sync.dart';
 import 'package:songjiang_reader/providers/iap.dart';
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
-import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/theme/songjiang_icons.dart';
@@ -133,10 +131,14 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // 松江阅底部导航：书架 / 统计 / 笔记 / 设置 / 玩法（常驻）。
-    // AI 不占用底栏入口，改由「更多设置 → AI 对话」与阅读页侧栏进入。
-    // 玩法中心（阅读剧本 / 名场面卡 / 读书挑战）为常驻入口，使用 Material 图标，
-    // 不依赖品牌 SVG 资源（与「搜索 / 我的」同例）。
+    // 松江阅底部导航：书架 / 笔记 / 玩法 / 我的（4 项，常驻）。
+    //
+    // v3 变更：
+    //  - 「统计」不再是独立 tab —— 升为「我的」页首屏的摘要卡，
+    //    完整数据从摘要卡的「完整数据 ›」进入。
+    //  - 「设置」不再是独立 tab —— 降为「我的」页右上角的齿轮。
+    //  - 底栏从 5 项收敛到 4 项（iOS tab bar ≤5 / M3 3–5 的舒适区）。
+    //  - 品牌图标用于书架/笔记；玩法与我的用 Material 图标（品牌集里没有对应符号）。
     List<Map<String, dynamic>> navBarItems = [
       {
         'icon': SongJiangIcons.bookshelf,
@@ -145,37 +147,27 @@ class _HomePageState extends ConsumerState<HomePage> {
         'label': L10n.of(context).navBarBookshelf,
         'identifier': 'bookshelf'
       },
-      if (BookshelfPrefs.bottomNavShowStatistics)
-        {
-          'icon': SongJiangIcons.statistics,
-          'iconSelected': SongJiangIcons.statisticsSelected,
-          'brand': SjIconName.stats,
-          'label': L10n.of(context).navBarStatistics,
-          'identifier': 'statistics'
-        },
-      if (BookshelfPrefs.bottomNavShowNote)
-        {
-          'icon': SongJiangIcons.notes,
-          'iconSelected': SongJiangIcons.notesSelected,
-          'brand': SjIconName.note,
-          'label': L10n.of(context).navBarNotes,
-          'identifier': 'notes'
-        },
       {
-        'icon': SongJiangIcons.settings,
-        'iconSelected': SongJiangIcons.settingsSelected,
-        'brand': SjIconName.settings,
-        'label': L10n.of(context).navBarSettings,
-        'identifier': 'settings'
+        'icon': SongJiangIcons.notes,
+        'iconSelected': SongJiangIcons.notesSelected,
+        'brand': SjIconName.note,
+        'label': L10n.of(context).navBarNotes,
+        'identifier': 'notes'
       },
-      if (BookshelfPrefs.bottomNavShowGameplay)
-        {
-          'icon': SongJiangIcons.gameplay,
-          'iconSelected': SongJiangIcons.gameplaySelected,
-          'brand': null,
-          'label': L10n.of(context).navBarGameplay,
-          'identifier': 'gameplay'
-        },
+      {
+        'icon': SongJiangIcons.gameplay,
+        'iconSelected': SongJiangIcons.gameplaySelected,
+        'brand': null,
+        'label': L10n.of(context).navBarGameplay,
+        'identifier': 'gameplay'
+      },
+      {
+        'icon': Icons.person_outline,
+        'iconSelected': Icons.person,
+        'brand': null,
+        'label': '我的',
+        'identifier': 'mine'
+      },
     ];
 
     // 品牌导航项（用于 SjBottomNav）
@@ -201,12 +193,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     ) {
       final page = [
         BookshelfPage(controller: controller),
-        if (BookshelfPrefs.bottomNavShowStatistics)
-          StatisticPage(controller: controller),
-        if (BookshelfPrefs.bottomNavShowNote) NotesPage(controller: controller),
-        SettingsPage(controller: controller),
-        if (BookshelfPrefs.bottomNavShowGameplay)
-          GameplayCenterPage(controller: controller),
+        NotesPage(controller: controller),
+        GameplayCenterPage(controller: controller),
+        MinePage(controller: controller),
       ];
       return page[index];
     }
