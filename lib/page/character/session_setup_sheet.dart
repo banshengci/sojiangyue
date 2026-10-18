@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:songjiang_reader/dao/scene_card_dao.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
+import 'package:songjiang_reader/models/scene_card.dart';
 
 /// 一次开局的选择结果。
 class SessionSetup {
@@ -9,6 +11,7 @@ class SessionSetup {
     required this.participation,
     required this.characters,
     this.userPersona,
+    this.scenePremise,
   });
 
   /// 读者姿态：旁观 / 扮演 / 入场。
@@ -19,16 +22,19 @@ class SessionSetup {
 
   /// 读者身份。扮演时为所代入的书中人物名；入场时为自定义名字；旁观时为 null。
   final String? userPersona;
+
+  /// 选中的场景情境（未选场景时为 null，由调用方决定用什么开场）。
+  final String? scenePremise;
 }
 
-/// 弹出「开局设置」：选姿态 → 填身份 → 勾出场人物。
+/// 弹出「开局设置」：选姿态 → 填身份 → 挑场景 → 勾出场人物。
 ///
-/// 为什么要单独一屏而不是继续用「选一个人物」的列表：
-/// 造梦的开局是三件事一起定的（书卷 / 你的身份 / 出场人物），
-/// 只让人选人物，等于把「你是旁观、还是扮演其中一位」这层完全丢掉——
-/// 而那一层恰恰决定了对话会是什么样子。
+/// 为什么不继续用「选一个人物」的列表：造梦的开局是三件事一起定的
+/// （书卷 / 你的身份 / 出场人物），只让人选人物，等于把
+/// 「你是旁观、还是扮演其中一位」这层完全丢掉——而它恰恰决定了对话的样子。
 Future<SessionSetup?> showSessionSetupSheet(
   BuildContext context, {
+  required int bookId,
   required List<CharacterCard> cards,
   String? title,
 }) {
@@ -36,13 +42,22 @@ Future<SessionSetup?> showSessionSetupSheet(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (_) => _SessionSetupSheet(cards: cards, title: title),
+    builder: (_) => _SessionSetupSheet(
+      bookId: bookId,
+      cards: cards,
+      title: title,
+    ),
   );
 }
 
 class _SessionSetupSheet extends StatefulWidget {
-  const _SessionSetupSheet({required this.cards, this.title});
+  const _SessionSetupSheet({
+    required this.bookId,
+    required this.cards,
+    this.title,
+  });
 
+  final int bookId;
   final List<CharacterCard> cards;
   final String? title;
 
@@ -56,10 +71,31 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
   String? _roleplayAs;
   final TextEditingController _joinName = TextEditingController();
 
+  List<SceneCard> _scenes = const [];
+  SceneCard? _scene;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScenes();
+  }
+
   @override
   void dispose() {
     _joinName.dispose();
     super.dispose();
+  }
+
+  /// 读场景卡。测试环境没有数据库，失败时退化为「没有场景」而不是崩掉。
+  Future<void> _loadScenes() async {
+    try {
+      final list = await sceneCardDao.listForBook(widget.bookId);
+      if (!mounted) return;
+      setState(() => _scenes = list);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _scenes = const []);
+    }
   }
 
   /// 姿态说明：一句话讲清「这一局你在哪」。
@@ -86,6 +122,32 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
         CharacterParticipation.join => _joinName.text.trim(),
       };
 
+  Future<void> _createScene() async {
+    final drafted = await showDialog<SceneCard>(
+      context: context,
+      builder: (_) => const _SceneEditorDialog(),
+    );
+    if (drafted == null || !mounted) return;
+    try {
+      final id = await sceneCardDao.create(
+        name: drafted.name,
+        premise: drafted.premise,
+        bookId: widget.bookId,
+      );
+      await _loadScenes();
+      if (!mounted) return;
+      setState(() {
+        for (final s in _scenes) {
+          if (s.id == id) _scene = s;
+        }
+      });
+    } catch (_) {
+      // 落库失败不应阻断开局，至少让刚填的场景本次可用
+      if (!mounted) return;
+      setState(() => _scene = drafted);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final canStart = _canStart;
@@ -102,7 +164,8 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               child: Text(
                 widget.title ?? '开局设置',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
             Expanded(
@@ -123,10 +186,9 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
                           onSelected: (_) => setState(() {
                             _participation = p;
                             if (p == CharacterParticipation.roleplay &&
-                                _roleplayAs == null) {
-                              _roleplayAs = widget.cards.isEmpty
-                                  ? null
-                                  : widget.cards.first.name;
+                                _roleplayAs == null &&
+                                widget.cards.isNotEmpty) {
+                              _roleplayAs = widget.cards.first.name;
                             }
                           }),
                         ),
@@ -167,6 +229,48 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
                     ),
                   ],
 
+                  // 场景（可跳过）——造梦里场景可以暂时不选
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Text('场景（可跳过）',
+                          style: TextStyle(fontSize: 13, color: Colors.grey)),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: _createScene,
+                        child: const Text('新建'),
+                      ),
+                    ],
+                  ),
+                  DropdownButtonFormField<int?>(
+                    key: ValueKey<int>(_scenes.length),
+                    initialValue: _scene?.id,
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('不选场景'),
+                      ),
+                      for (final s in _scenes)
+                        DropdownMenuItem<int?>(
+                          value: s.id,
+                          child: Text(s.name),
+                        ),
+                    ],
+                    onChanged: (id) => setState(() {
+                      _scene = null;
+                      for (final s in _scenes) {
+                        if (s.id == id) _scene = s;
+                      }
+                    }),
+                  ),
+                  if (_scene != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _scene!.premise,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+
                   const SizedBox(height: 16),
                   Text(
                     '谁在场（已选 ${_onStage.length} 位）',
@@ -183,10 +287,9 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
                       contentPadding: EdgeInsets.zero,
                       value: _onStage.contains(c.name),
                       title: Text(c.name),
-                      subtitle:
-                          (c.role != null && c.role!.isNotEmpty)
-                              ? Text(c.role!)
-                              : null,
+                      subtitle: (c.role != null && c.role!.isNotEmpty)
+                          ? Text(c.role!)
+                          : null,
                       onChanged: (v) => setState(() {
                         if (v == true) {
                           _onStage.add(c.name);
@@ -215,6 +318,7 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
                               SessionSetup(
                                 participation: _participation,
                                 userPersona: _persona,
+                                scenePremise: _scene?.premise,
                                 characters: widget.cards
                                     .where((c) => _onStage.contains(c.name))
                                     .toList(),
@@ -229,6 +333,81 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 新建场景卡：名字 + 情境。
+class _SceneEditorDialog extends StatefulWidget {
+  const _SceneEditorDialog();
+
+  @override
+  State<_SceneEditorDialog> createState() => _SceneEditorDialogState();
+}
+
+class _SceneEditorDialogState extends State<_SceneEditorDialog> {
+  final TextEditingController _name = TextEditingController();
+  final TextEditingController _premise = TextEditingController();
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _premise.dispose();
+    super.dispose();
+  }
+
+  bool get _ok => _name.text.trim().isNotEmpty && _premise.text.trim().isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    return AlertDialog(
+      title: const Text('新建场景'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _name,
+            decoration: const InputDecoration(
+              labelText: '场景名',
+              hintText: '例如：雨夜书房',
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _premise,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: '情境',
+              hintText: '人物此刻在哪儿、心里装着什么事？',
+              alignLabelWithHint: true,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: _ok
+              ? () => Navigator.pop(
+                    context,
+                    SceneCard(
+                      name: _name.text.trim(),
+                      premise: _premise.text.trim(),
+                      createdAt: now,
+                      updatedAt: now,
+                    ),
+                  )
+              : null,
+          child: const Text('保存'),
+        ),
+      ],
     );
   }
 }

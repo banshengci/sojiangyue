@@ -8,6 +8,7 @@ import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/character_chat_schema.dart';
 import 'package:songjiang_reader/dao/character_extras_schema.dart';
 import 'package:songjiang_reader/dao/gameplay_schema.dart';
+import 'package:songjiang_reader/dao/scene_card_schema.dart';
 import 'package:songjiang_reader/dao/character_schema.dart';
 import 'package:songjiang_reader/utils/get_path/get_base_path.dart';
 import 'package:songjiang_reader/utils/get_path/databases_path.dart';
@@ -880,6 +881,8 @@ Future<void> _ensureBaseTables(Database db) async {
   await db.execute(ensureGroupRootSQL);
   await db.execute(ensureVocabItemsSQL);
   await db.execute(ensureVocabIndexSQL);
+  // 造梦场景卡：老库打开时补建（IF NOT EXISTS，幂等）
+  await applySceneCardSchema(db);
 }
 
 Future<void> _ensureColumn(

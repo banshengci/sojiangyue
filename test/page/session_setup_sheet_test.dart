@@ -37,6 +37,7 @@ void main() {
                 onPressed: () async {
                   result = await showSessionSetupSheet(
                     context,
+                    bookId: 1,
                     cards: cards,
                     title: '剧本杀 · 开局',
                   );
@@ -137,4 +138,45 @@ void main() {
     expect(result!.participation, CharacterParticipation.join);
     expect(result!.userPersona, '阿舟');
   });
-}
+
+  testWidgets('场景可跳过：默认「不选场景」', (tester) async {
+    await tester.pumpWidget(host());
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('场景（可跳过）'), findsOneWidget);
+    expect(find.text('不选场景'), findsOneWidget);
+    expect(find.text('新建'), findsOneWidget);
+  });
+
+  testWidgets('新建场景：名字或情境为空时保存按钮禁用', (tester) async {
+    await tester.pumpWidget(host());
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('新建'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('新建场景'), findsOneWidget);
+    // 两个输入框都空 → 保存禁用
+    final save = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '保存'),
+    );
+    expect(save.onPressed, isNull);
+
+    // 只填名字仍不够
+    await tester.enterText(find.widgetWithText(TextField, '场景名'), '雨夜书房');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<FilledButton>(find.widgetWithText(FilledButton, '保存')).onPressed,
+      isNull,
+    );
+
+    // 补上情境后可用
+    await tester.enterText(find.widgetWithText(TextField, '情境'), '窗外下雨，灯芯快烧尽了');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<FilledButton>(find.widgetWithText(FilledButton, '保存')).onPressed,
+      isNotNull,
+    );
+  });}

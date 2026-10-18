@@ -325,6 +325,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
     // 开局三件事一起定：你在这一局的位置、你是谁、谁在场。
     final setup = await showSessionSetupSheet(
       context,
+      bookId: book.id,
       cards: cards,
       title: '${mode.name} · 开局',
     );
@@ -333,8 +334,8 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
     final picked = setup.characters;
     if (picked.isEmpty) return;
 
-    // 玩法自带场景提示：随机取一条当开局情境
-    final scene = mode.randomSceneHint(Random());
+    // 选了场景卡就用场景；没选才退回玩法自带的随机情境
+    final scene = setup.scenePremise ?? mode.randomSceneHint(Random());
 
     final isGroup = picked.length > 1;
     final id = await characterChatDao.createSession(
