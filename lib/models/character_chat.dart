@@ -275,3 +275,40 @@ String participationLabel(
       return who.isEmpty ? '入场' : '入场 · $who';
   }
 }
+/// 从会话的 `characterName` 取出可读的在场人物名。
+///
+/// 群聊会话存的是 `bookId:姓名` 的逗号串（见
+/// `CharacterChatService.encodeMemberRefs`），直接拿去展示或塞进 prompt
+/// 会露出 `1:` 这种内部编码。
+List<String> onStageNames(String characterName) => characterName
+    .split(RegExp(r'[,，]'))
+    .map((e) {
+      final i = e.indexOf(':');
+      return i >= 0 ? e.substring(i + 1) : e;
+    })
+    .map((e) => e.trim())
+    .where((e) => e.isNotEmpty)
+    .toList();
+
+/// 群聊回复形如「林黛玉：内容」，把说话人和正文拆开。
+///
+/// 只在回复**以在场某个名字开头**时才认；认不出来就返回空 speaker，
+/// 由调用方回退——猜错说话人比不猜更糟，会把台词安到别人头上。
+({String speaker, String text}) splitSpokenLine(
+  String reply,
+  List<String> onStage,
+) {
+  final trimmed = reply.trim();
+  for (final name in onStage) {
+    for (final sep in const [':', '：']) {
+      final prefix = '$name$sep';
+      if (trimmed.startsWith(prefix)) {
+        return (
+          speaker: name,
+          text: trimmed.substring(prefix.length).trim(),
+        );
+      }
+    }
+  }
+  return (speaker: '', text: trimmed);
+}

@@ -364,10 +364,9 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
           bookTitle: book.title,
           titleOverride: isGroup ? mode.name : null,
           opening: scene,
-          // 多角色时暂不叠加玩法规则：GameplayRuntime 目前按单一说话人推进状态机，
-          // 群聊的 characterName 是成员编码串，硬套会出现「说话人是一串名字」。
-          // 让状态机按成员分别跟踪是后续工作。
-          gameplayMode: isGroup ? null : mode,
+          // 群聊也叠加玩法规则：buildDirective 只看玩法与进度，不假设只有一个说话人；
+          // 说话人标签由聊天页从「姓名：内容」里拆（见 _speakerOf）。
+          gameplayMode: mode,
         ),
       ),
     );

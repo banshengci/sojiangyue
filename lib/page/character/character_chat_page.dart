@@ -200,8 +200,14 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     try {
       final secret = await _service.generateGameplaySecret(
         mode: mode,
-        characterName:
-            _session?.characterName ?? widget.characterName ?? '主角',
+          characterName: () {
+            // 群聊的 characterName 是 bookId:姓名 串，塞进提示词会显得莫名其妙
+            final raw = _session?.characterName ??
+                widget.characterName ??
+                '主角';
+            final names = onStageNames(raw);
+            return names.isEmpty ? raw : names.join('、');
+          }(),
         bookTitle: widget.bookTitle,
         scene: widget.opening,
       );
@@ -266,10 +272,11 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     try {
       final text = await _service.greeting(session);
       if (text.isEmpty) return;
+      final spoken = _speakerOf(session, text);
       final id = await _service.saveCharacterMessage(
         session.id!,
-        session.characterName,
-        text,
+        spoken.speaker,
+        spoken.text,
       );
       if (!mounted) return;
       setState(() {
@@ -279,8 +286,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
             id: id,
             sessionId: session.id!,
             role: CharacterChatRole.character,
-            speaker: session.characterName,
-            content: text,
+            speaker: spoken.speaker,
+            content: spoken.text,
             createdAt: DateTime.now(),
           ),
         ];
@@ -344,10 +351,11 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       if (reply.isEmpty) {
         throw StateError('模型没有返回内容');
       }
+      final spoken = _speakerOf(session, reply);
       final id = await _service.saveCharacterMessage(
         session.id!,
-        session.characterName,
-        reply,
+        spoken.speaker,
+        spoken.text,
       );
       await _service.touch(session.id!);
       await _applyGameplayTurn(turn);
@@ -361,8 +369,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
             id: id,
             sessionId: session.id!,
             role: CharacterChatRole.character,
-            speaker: session.characterName,
-            content: reply,
+            speaker: spoken.speaker,
+            content: spoken.text,
             createdAt: DateTime.now(),
           ),
         ];
@@ -470,8 +478,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       final turn = GameplayRuntime.parse(_streamingRaw);
       final reply = turn.displayText;
       if (reply.isEmpty) throw StateError('模型没有返回内容');
+      final spoken = _speakerOf(session, reply);
       final id = await _service.saveCharacterMessage(
-          session.id!, session.characterName, reply);
+          session.id!, spoken.speaker, spoken.text);
       await _service.touch(session.id!);
       await _applyGameplayTurn(turn);
       // 记忆折叠：后台进行，不阻塞本次对话，失败也不影响展示
@@ -484,8 +493,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
             id: id,
             sessionId: session.id!,
             role: CharacterChatRole.character,
-            speaker: session.characterName,
-            content: reply,
+            speaker: spoken.speaker,
+            content: spoken.text,
             createdAt: DateTime.now(),
           ),
         ];
@@ -725,6 +734,26 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     );
     controller.dispose();
     return result;
+  }
+
+  /// 群聊回复形如「姓名：内容」，拆出说话人与正文；单人直接用会话人物名。
+  ///
+  /// 不拆的话，群聊里每条消息的 speaker 都是 `bookId:姓名,...` 整串：
+  /// 界面上显示成一行内部编码，玩法也读不出"这句话是谁说的"。
+  ({String speaker, String text}) _speakerOf(
+    CharacterChatSession session,
+    String reply,
+  ) {
+    final names = onStageNames(session.characterName);
+    final fallback = names.isEmpty ? session.characterName : names.first;
+    if (session.mode != CharacterChatMode.group) {
+      return (speaker: fallback, text: reply);
+    }
+    final spoken = splitSpokenLine(reply, names);
+    return (
+      speaker: spoken.speaker.isEmpty ? fallback : spoken.speaker,
+      text: spoken.text,
+    );
   }
 
   Future<void> _readMind() async {
