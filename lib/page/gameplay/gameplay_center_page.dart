@@ -14,10 +14,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/plugin/declarative_plugin_tool.dart';
 import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/character_dao.dart';
+import 'package:songjiang_reader/dao/character_chat_dao.dart';
+import 'package:songjiang_reader/models/character_chat.dart';
+import 'package:songjiang_reader/service/character/character_chat_service.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
@@ -28,7 +30,6 @@ import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_models.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_service.dart';
 import 'package:songjiang_reader/page/gameplay/gamepack_market_dialog.dart';
-import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 
 class GameplayCenterPage extends ConsumerStatefulWidget {
@@ -59,12 +60,15 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
     'assets/gameplay/daily_challenge.sjgame.zip',
   ];
 
-  /// 随包示例是否已装载过（只自动装一次，用户手动移除后不再塞回来）。
-  static const String _bundledLoadedKey = 'gameplay.bundledSamplesLoaded';
 
   Future<void> _reload() async {
     setState(() => _loading = true);
-    await _ensureBundledSamples();
+    // 不再自动装载随包示例玩法包。
+    //
+    // 之前 `_reload()` 会调 `_ensureBundledSamples()`，在首次进入时把
+    // 「红楼诗词闯关 / 三国名场面卡 / 每日阅读挑战」三个**演示包**静默装进列表，
+    // 用户完全不知道它们从哪来、有什么用——它们演示的是「玩法包」这个机制本身。
+    // 现在改为**只由用户点右上角按钮显式加载**（见 _loadBundledSamples）。
     final packs = await GameplayPackService.instance.listInstalled();
     // 重启后恢复已激活脚本包的工具注入（能力持久化）。
     await GameplayPackService.instance.restoreActivated(packs);
@@ -75,28 +79,6 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
         _activated = activated;
         _loading = false;
       });
-    }
-  }
-
-  /// 首次进入玩法中心时自动装载随包示例。
-  ///
-  /// 否则用户第一次打开只会看到一个空页面，需要自己去点右上角按钮才知道
-  /// 有示例可加载——表现上就是「玩法中心用不了」。
-  Future<void> _ensureBundledSamples() async {
-    final sp = await SharedPreferences.getInstance();
-    if (sp.getBool(_bundledLoadedKey) ?? false) return;
-    // 先落标记：即便加载失败也不反复重试，避免每次进页面都弹一堆提示。
-    await sp.setBool(_bundledLoadedKey, true);
-
-    for (final asset in _bundledSampleAssets) {
-      try {
-        final data = await rootBundle.load(asset);
-        final bytes = data.buffer.asUint8List();
-        final manifest = await GameplayPackService.instance.importPack(bytes);
-        await GameplayPackService.instance.saveInstalled(manifest);
-      } catch (e) {
-        SjLog.warning('Gameplay: 自动装载示例失败 $asset：$e');
-      }
     }
   }
 
@@ -115,13 +97,8 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
 
   /// 加载随包示例玩法包（离线演示：红楼诗词闯关 / 三国名场面 / 每日挑战）。
   Future<void> _loadBundledSamples() async {
-    const samples = [
-      'assets/gameplay/hlm_quiz.sjgame.zip',
-      'assets/gameplay/sanguo_scene.sjgame.zip',
-      'assets/gameplay/daily_challenge.sjgame.zip',
-    ];
     int ok = 0;
-    for (final asset in samples) {
+    for (final asset in _bundledSampleAssets) {
       try {
         final data = await rootBundle.load(asset);
         final bytes = data.buffer.asUint8List();
@@ -345,20 +322,52 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
       SjToast.show('《${book.title}》还没有人物，先做一次人物蒸馏');
       return;
     }
-    final card = await _pickCharacter(cards);
-    if (card == null || !mounted) return;
+    final picked = await _pickCharacters(cards);
+    if (picked == null || picked.isEmpty || !mounted) return;
 
     // 玩法自带场景提示：随机取一条当开局情境
     final scene = mode.randomSceneHint(Random());
+
+    // ① 只选 1 位：进入玩法模式（状态追踪 / 分幕 / 暗牌）
+    if (picked.length == 1) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CharacterChatPage(
+            bookId: book.id,
+            characterName: picked.first.name,
+            bookTitle: book.title,
+            gameplayMode: mode,
+            opening: scene,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // ② 选多位：走造梦主线的「多角色同场」。
+    //
+    // 这里刻意**不**叠加玩法规则：GameplayRuntime 目前把
+    // `session.characterName` 当作唯一说话人推进状态机，而群聊会话里这个字段
+    // 是逗号拼接的成员列表，硬套进去会出现「说话人是一串名字」的错误。
+    // 要支持「多角色 + 玩法」，需要先让状态机按成员分别跟踪 —— 属后续工作。
+    final refs =
+        picked.map((c) => (bookId: book.id, name: c.name)).toList();
+    final id = await characterChatDao.createSession(
+      bookId: book.id,
+      characterName: CharacterChatService.encodeMemberRefs(refs),
+      mode: CharacterChatMode.group,
+      title: '${mode.name} · ${picked.map((c) => c.name).join(' × ')}',
+    );
+    final session = await characterChatDao.getSession(id);
+    if (!mounted || session == null) return;
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CharacterChatPage(
-          bookId: book.id,
-          characterName: card.name,
+          session: session,
           bookTitle: book.title,
-          // 传完整玩法（不只一段提示词）：对局会开启状态追踪、分幕与暗牌
-          gameplayMode: mode,
+          titleOverride: mode.name,
           opening: scene,
         ),
       ),
@@ -387,30 +396,17 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
         ),
       );
 
-  Future<CharacterCard?> _pickCharacter(List<CharacterCard> cards) =>
-      showModalBottomSheet<CharacterCard>(
+  /// 选出场人物（可多选）。
+  ///
+  /// 造梦的主线是「多角色同场」：同一会话里多个角色各自带着性格与关系开口。
+  /// 单选保留 —— 玩法模式的状态机目前按单个说话人推进；
+  /// 多选则以群聊开局（见 _startMode 的两条分支）。
+  Future<List<CharacterCard>?> _pickCharacters(List<CharacterCard> cards) =>
+      showModalBottomSheet<List<CharacterCard>>(
         context: context,
         showDragHandle: true,
-        builder: (ctx) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: Text('选一位出场人物'),
-              ),
-              for (final card in cards.take(80))
-                ListTile(
-                  title: Text(card.name),
-                  subtitle: (card.role != null && card.role!.isNotEmpty)
-                      ? Text(card.role!)
-                      : null,
-                  onTap: () => Navigator.pop(ctx, card),
-                ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
+        isScrollControlled: true,
+        builder: (ctx) => _CharacterPicker(cards: cards.take(120).toList()),
       );
 
   Widget _buildSection(
@@ -827,6 +823,97 @@ class _ScriptRunDialogState extends State<_ScriptRunDialog> {
                 onPressed: _run,
               ),
       ],
+    );
+  }
+}
+
+/// 出场人物多选面板。
+///
+/// 造梦的主线是「多角色同场」，所以这里允许勾选多位；
+/// 勾 1 位走玩法模式，勾多位走群聊（理由见 `_startMode` 的注释）。
+class _CharacterPicker extends StatefulWidget {
+  const _CharacterPicker({required this.cards});
+
+  final List<CharacterCard> cards;
+
+  @override
+  State<_CharacterPicker> createState() => _CharacterPickerState();
+}
+
+class _CharacterPickerState extends State<_CharacterPicker> {
+  final Set<String> _selected = <String>{};
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 2),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('选出场人物（可多选）'),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '选 1 位进入玩法模式；选多位则以群聊开局',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
+          ),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final card in widget.cards)
+                  CheckboxListTile(
+                    value: _selected.contains(card.name),
+                    title: Text(card.name),
+                    subtitle: (card.role != null && card.role!.isNotEmpty)
+                        ? Text(card.role!)
+                        : null,
+                    onChanged: (v) => setState(() {
+                      if (v == true) {
+                        _selected.add(card.name);
+                      } else {
+                        _selected.remove(card.name);
+                      }
+                    }),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '已选 ${_selected.length} 位',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+                FilledButton(
+                  onPressed: _selected.isEmpty
+                      ? null
+                      : () => Navigator.pop(
+                            context,
+                            widget.cards
+                                .where((c) => _selected.contains(c.name))
+                                .toList(),
+                          ),
+                  child: const Text('开始'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
