@@ -125,6 +125,7 @@ class GameplayMode {
     this.setupPrompt,
     this.endingHint,
     this.secretLabel,
+    this.secretScope,
   });
 
   final String id;
@@ -156,6 +157,11 @@ class GameplayMode {
 
   /// 暗牌的展示名（如「本案真相」「汤底」），用于对局结束后的揭晓。
   final String? secretLabel;
+
+  /// 知情范围：谁有资格知道暗牌（一句话描述，如「只有凶手本人与其主使」）。
+  ///
+  /// 没有它，模型会让所有角色都知道真相——剧本杀就废了。
+  final String? secretScope;
 
   /// 结局判定说明（何时算结束、怎么算赢）。
   final String? endingHint;
@@ -202,6 +208,9 @@ class GameplayMode {
       secretLabel: (j['secretLabel'] as String?)?.trim().isEmpty ?? true
           ? null
           : j['secretLabel'] as String?,
+      secretScope: (j['secretScope'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : j['secretScope'] as String?,
       endingHint: (j['endingHint'] as String?)?.trim().isEmpty ?? true
           ? null
           : j['endingHint'] as String?,
@@ -220,6 +229,7 @@ class GameplayMode {
         if (phases.isNotEmpty) 'phases': phases,
         if (setupPrompt != null) 'setupPrompt': setupPrompt,
         if (secretLabel != null) 'secretLabel': secretLabel,
+        if (secretScope != null) 'secretScope': secretScope,
         if (endingHint != null) 'endingHint': endingHint,
       };
 }

@@ -25,6 +25,7 @@ import 'characters_page_strings.dart';
 import 'package:songjiang_reader/plugin/plugin_npc_runner.dart';
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/service/character/chat_autoplay.dart';
+import 'package:songjiang_reader/service/character/dialogue_review.dart';
 import 'package:songjiang_reader/service/character/dialogue_suggestions.dart';
 import 'package:songjiang_reader/service/character/director_action.dart';
 import 'package:songjiang_reader/plugin/plugin_rule_runner.dart';
@@ -690,7 +691,75 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   /// 重新生成：撤掉最后一条角色发言，用同样的历史再要一次。
   ///
   /// 这是「分支」最轻的形态——保留读者说过的话，只换 TA 的回答。
-  Future<void> _regenerate() async {
+  /// 检查这一轮：让审校器点出跑偏的地方，可选择按问题重写。
+  Future<void> _reviewLastTurn() async {
+    final session = _session;
+    if (session == null || _sending) return;
+    if (_messages.isEmpty || _messages.last.role != CharacterChatRole.character) {
+      SjToast.show('没有可检查的角色发言');
+      return;
+    }
+    setState(() => _sending = true);
+    var issues = const <ReviewIssue>[];
+    try {
+      issues = await _service.reviewLastTurn(
+        session: session,
+        history: _messages,
+      );
+    } catch (e) {
+      if (mounted) SjToast.show('检查失败：$e');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+    if (!mounted) return;
+    if (issues.isEmpty) {
+      SjToast.show('这一轮没查出明显问题');
+      return;
+    }
+    final fix = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('查出 ${issues.length} 处问题'),
+              ),
+            ),
+            for (final i in issues)
+              ListTile(
+                leading: Icon(
+                  i.isError ? Icons.error_outline : Icons.warning_amber,
+                  size: 20,
+                ),
+                title: Text(i.codeLabel),
+                subtitle: Text('${i.detail}\n原文：「${i.evidence}」'),
+                isThreeLine: true,
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('按问题重写这一轮'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (fix == true && mounted) {
+      await _regenerate(correction: buildCorrectionInstruction(issues));
+    }
+  }
+
+  Future<void> _regenerate({String? correction}) async {
     final session = _session;
     if (session == null || _sending) return;
 
@@ -739,6 +808,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         history: history,
         input: prompt,
         extraDirective: _extraDirective,
+        rewriteInstruction: correction,
       )) {
         if (!mounted) return;
         _streamingRaw = chunk;
@@ -1259,6 +1329,11 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                 title: const Text('读心（TA 此刻在想什么）'),
                 onTap: () => Navigator.pop(ctx, 'mind'),
               ),
+              ListTile(
+                leading: const Icon(Icons.fact_check_outlined),
+                title: const Text('检查这一轮（有没有跑偏）'),
+                onTap: () => Navigator.pop(ctx, 'review'),
+              ),
             ],
             const SizedBox(height: 8),
           ],
@@ -1276,6 +1351,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         await _regenerate();
       case 'mind':
         await _readMind();
+      case 'review':
+        await _reviewLastTurn();
     }
   }
 

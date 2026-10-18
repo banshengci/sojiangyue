@@ -18,6 +18,7 @@ import 'package:songjiang_reader/models/character_chat.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_persona.dart';
+import 'package:songjiang_reader/service/character/dialogue_review.dart';
 import 'package:songjiang_reader/service/character/dialogue_suggestions.dart';
 import 'package:songjiang_reader/service/character/world_timeline.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
@@ -73,6 +74,57 @@ class CharacterChatService {
     }
     SjLog.info('CharacterChat: 玩法暗牌已生成（${mode.id}，${text.length} 字）');
     return text;
+  }
+
+  /// 一致性审校：检查「最后一条角色发言」有没有跑偏。
+  ///
+  /// 一次额外调用，只在用户主动点「检查这一轮」时发生，不自动跑——
+  /// 自动审校等于每轮对话多花一倍 token，多数时候并不需要。
+  Future<List<ReviewIssue>> reviewLastTurn({
+    required CharacterChatSession session,
+    required List<CharacterChatMessage> history,
+  }) async {
+    final model = resolveCurrentModel();
+    if (model == null) {
+      throw CharacterChatException('尚未配置 AI 服务，无法检查。');
+    }
+    final last = history.isEmpty ? null : history.last;
+    if (last == null || last.role != CharacterChatRole.character) {
+      return const [];
+    }
+    final ctx = await _buildContext(session);
+    final card = ctx.main;
+
+    final persona = <String>[
+      if (card != null) '姓名：${card.name}',
+      if (card?.role != null && card!.role!.isNotEmpty) '身份：${card.role}',
+      if (card?.personality != null && card!.personality!.isNotEmpty)
+        '性格：${card.personality}',
+      if (card?.motivation != null && card!.motivation!.isNotEmpty)
+        '所求：${card.motivation}',
+      if (card?.background != null && card!.background!.isNotEmpty)
+        '背景：${card.background}',
+      if (session.userPersona != null && session.userPersona!.isNotEmpty)
+        '读者的位置：${participationLabel(session.participation, session.userPersona)}',
+    ].join('\n');
+
+    final prompt = buildReviewPrompt(
+      characterName: last.speaker ?? card?.name ?? session.characterName,
+      replies: last.content,
+      personaSummary: persona,
+    );
+
+    final messages = <ChatMessage>[
+      ChatMessage.system('你是中文小说对话的一致性审校器，只输出 JSON。'),
+      ..._historyToMessages(history.take(8).toList()),
+      ChatMessage.humanText(prompt),
+    ];
+
+    final buffer = StringBuffer();
+    await for (final event in model.stream(PromptValue.chat(messages))) {
+      buffer.write(event.output.content);
+    }
+    return parseReviewIssues(buffer.toString());
   }
 
   /// 「帮我写下一句」：代拟几条可以直接发出去的台词。
@@ -255,6 +307,8 @@ class CharacterChatService {
     bool continueScene = false,
     /// 「继续演出」用的舞台指令；为空时用默认的 continueNudge。
     String? continueInstruction,
+    /// 重写指令：附在用户发言之后，用于「按问题重写这一轮」。
+    String? rewriteInstruction,
     String? extraDirective,
   }) async* {
     final model = resolveCurrentModel();
@@ -304,7 +358,11 @@ class CharacterChatService {
       ),
       ..._historyToMessages(history),
       ChatMessage.humanText(
-        continueScene ? (continueInstruction ?? continueNudge) : input,
+        continueScene
+            ? (continueInstruction ?? continueNudge)
+            : [input, if (rewriteInstruction != null) rewriteInstruction]
+                .where((s) => s.trim().isNotEmpty)
+                .join('\\n\\n'),
       ),
     ];
 

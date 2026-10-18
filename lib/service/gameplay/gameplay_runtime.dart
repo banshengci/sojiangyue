@@ -99,6 +99,13 @@ class GameplayRuntime {
       buf.writeln('对方必须靠提问与推理把它问出来。你只能在对话中给线索，'
           '不能主动交底，也不能因为对方反复追问就提前说出来。');
       buf.writeln();
+
+      // 知情范围：没有这条，模型会让所有角色都知道真相（剧本杀就废了）
+      buf.writeln(mode.secretScope == null || mode.secretScope!.trim().isEmpty
+          ? '- 知情范围：默认无人知情，只有你作为叙述者掌握全貌。'
+          : '- 知情范围：${mode.secretScope!.trim()}。'
+              '除此之外的角色一律不知情——不得暗示、不得据此行动、不得表现出知道。');
+      buf.writeln();
     }
 
     if (session.log.isNotEmpty) {

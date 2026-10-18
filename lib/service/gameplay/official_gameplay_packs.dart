@@ -85,6 +85,7 @@ const GameplayMode _jianghu = GameplayMode(
       '3. 三个知情者：各自立场、各自知道哪一部分\n'
       '4. 这份旧怨最坏会以什么方式收场',
   secretLabel: '旧怨真相',
+  secretScope: '当年的当事人与知情者（由你依据暗牌确定具体是谁）',
   endingHint: '当旧怨被当面了断（和解、清算或被清算）时，把这一局收尾。',
 );
 
@@ -139,6 +140,7 @@ const GameplayMode _court = GameplayMode(
       '3. 三方势力各自想要它做什么\n'
       '4. 一旦公开会发生什么',
   secretLabel: '密档',
+  secretScope: '持有密档的人与其主使',
   endingHint: '当密档公诸于世或被彻底压下时，收尾这一局。',
 );
 
@@ -235,6 +237,7 @@ const GameplayMode _xianxia = GameplayMode(
       '3. 它以什么形式反复出现（幻象、旧人、熟悉的地方）\n'
       '4. 化解它的唯一办法（必须是有代价的）',
   secretLabel: '你这一世的执念',
+  secretScope: '只有你自己知道执念的全貌',
   endingHint: '当心魔被化解或彻底吞没玩家时，收尾这一局。',
 );
 
