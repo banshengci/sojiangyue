@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:songjiang_reader/models/character_chat.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/service/character/character_persona.dart';
 import 'package:songjiang_reader/service/character/director_action.dart';
@@ -114,6 +115,46 @@ void main() {
       expect(prompt, contains('不可改写的设定'));
       expect(prompt, contains('荣国府'));
       expect(prompt, contains('不得否认'));
+    });
+  });
+  group('别写成小说（对话体约束）', () {
+    test('单人 prompt 明确禁止「我＋动作」开头的散文腔', () {
+      final p = buildCharacterSystemPrompt(
+        character: CharacterCard(
+          bookId: 1,
+          name: '烈焰',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+        ),
+      );
+      expect(p, contains('别写成小说'));
+      expect(p, contains('我＋动作'));
+      expect(p, contains('不要为写景而写景'));
+      expect(p, contains('不要加「名字：」前缀'));
+    });
+
+    test('群聊 prompt 也有同样的约束', () {
+      final p = buildGroupSystemPrompt(
+        characters: [
+          CharacterCard(
+            bookId: 1,
+            name: '烈焰',
+            createdAt: DateTime(2026),
+            updatedAt: DateTime(2026),
+          ),
+        ],
+      );
+      expect(p, contains('别写成小说'));
+      expect(p, contains('我＋动作'));
+    });
+
+    test('旁观指令要求用对白推进，而不是整段散文', () {
+      final d = buildParticipationDirective(
+        participation: CharacterParticipation.spectator,
+      );
+      expect(d, contains('对白'));
+      expect(d, contains('不要写成整段散文'));
+      expect(d, isNot(contains('做动作、说台词')));
     });
   });
 }

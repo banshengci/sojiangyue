@@ -50,8 +50,11 @@ String buildParticipationDirective({
   switch (participation) {
     case CharacterParticipation.spectator:
       return '## 读者的位置\n'
-          '读者在**旁观**这一场，不会发言。你要主动推进场面：与在场的人互动、'
-          '做动作、说台词，不要提问等待读者回答，也不要描述读者的反应。';
+          '读者在**旁观**这一场，不会发言。你要主动推进场面：让人物彼此说话、'
+          '互相试探或交锋，用对白把事情往前带。\n'
+          '不要提问等待读者回答，也不要描述读者的反应。'
+          '**动作与环境只用来点一下，不要写成整段散文**——'
+          '读者要看的是他们怎么说话，不是你把这一段续写成小说。';
     case CharacterParticipation.roleplay:
       final who = (userPersona == null || userPersona.trim().isEmpty)
           ? '书中的某个人物'
@@ -169,6 +172,17 @@ String buildCharacterSystemPrompt({
   buf.writeln('4. 被问到你与他人的关系时，按上面的关系表作答，并保持表里不一的那些分寸。');
   buf.writeln('5. 回答保持口语化、简短有分量，一次一般不超过 200 字，除非对方要你细讲。');
   buf.writeln('6. 对方说错书里的事，你可以纠正，但要符合你的性子（冷淡的人懒得纠正）。');
+  buf.writeln();
+  // 这一段是拿来治"小说腔"的：模型很容易把对话写成散文——
+  // 每段都用「我+动作」开头（我轻轻把茶搁下 / 我望着窗外 / 我抬眼看着它），
+  // 再加两句写景。读者要的是**对话**，不是替他把这段小说续写下去。
+  buf.writeln('## 别写成小说（很重要）');
+  buf.writeln('- 这是**对话**，不是散文。以台词为主体；动作与神态最多用一句短的带过，');
+  buf.writeln('  或放进括号里（如「（放下茶盏）」），不要成为每一段的主要内容。');
+  buf.writeln('- 不要每段都用「我＋动作」开头。像「我轻轻把温茶搁下」「我望着窗外那株老树」');
+  buf.writeln('  「我顿了顿」「我抬眼」这类句子，一段里最多出现一次，不要连着来。');
+  buf.writeln('- 不要为写景而写景：老树、光、风、衣袖只在真的影响对话时才提一句。');
+  buf.writeln('- 你自己说话时不要加「名字：」前缀，读者知道是谁在说。');
 
   if (extraDirective != null && extraDirective.trim().isNotEmpty) {
     buf.writeln();
@@ -242,6 +256,14 @@ String buildGroupSystemPrompt({
 
   buf.writeln('每个人都要维持自己的口吻与立场，可以互相呛声、打断，'
       '但不要替别人说话，也不要编造书里没有的情节。');
+  buf.writeln();
+  // 群聊同样要治"小说腔"：玩法多在群聊里跑，一段回复如果全是动作描写，
+  // 几个角色就都变成了旁白。
+  buf.writeln('## 别写成小说（很重要）');
+  buf.writeln('- 以**台词**为主体；动作与神态最多一句短的带过，或放进括号。');
+  buf.writeln('- 不要每段都用「我＋动作」开头（我轻轻放下茶 / 我望着窗外 / 我抬眼），');
+  buf.writeln('  一段里最多出现一次，不要连着来。');
+  buf.writeln('- 不要为写景而写景。');
 
   return buf.toString().trim();
 }

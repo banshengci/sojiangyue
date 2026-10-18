@@ -386,6 +386,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     if (!advancing) {
       _inputController.clear();
       _scrollToEnd();
+      // 必须落库：这一行曾经在重构里被误删，表现是「角色的话还在、读者的话没了」
+      // ——界面上有气泡（内存里有），退出重进就查不到了。
+      await _service.saveUserMessage(session.id!, text);
     }
 
     // 生成前：结算 before_generation 规则，指令并进本轮设定
