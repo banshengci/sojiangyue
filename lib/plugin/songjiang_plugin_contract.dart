@@ -15,9 +15,9 @@ import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 /// 插件可声明的运行时权限（能力白名单）。未声明即不可用。
 enum PluginPermission {
   readBookText('read.book.text'), // 读取当前阅读上下文 / 正文书
-  networkHttps('network.https'), // 仅 https 出网（禁私有网段 / localhost）
+  networkHttps('network.https'), // 保留：当前无对应能力
   aiQuery('ai.query'), // 调用已配置的 AI 模型
-  writeNotes('write.notes'), // 写入笔记 / 批注
+  writeNotes('write.notes'), // 保留：当前无对应能力
   storageRead('storage.read'), // 读取本插件的私有数据
   storageWrite('storage.write'); // 写入本插件的私有数据
 
