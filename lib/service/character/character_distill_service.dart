@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/service/character/distill_chunking.dart';
+import 'package:songjiang_reader/service/character/distill_persist.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/distill_prompt.dart';
 import 'package:songjiang_reader/service/character/distill_snapshot.dart';
@@ -240,7 +241,7 @@ class CharacterDistillService {
         List<int> batch) async {
       final results = await Future.wait(batch.map((idx) async {
         try {
-          return (idx, await _extract(model, chunks[idx]));
+          return (idx, await _extract(model, chunks[idx], focusNames: focusNames));
         } catch (e, st) {
           SjLog.warning(
               'CharacterDistill: chunk ${chunks[idx].index} 失败: $e\n$st');
@@ -385,6 +386,7 @@ class CharacterDistillService {
       world: allWorld,
       timeline: allTimeline,
       minImportance: minImportance,
+      focusNames: focusNames,
     );
     await DistillResumeState.clearLegacy(bookId);
 
@@ -395,6 +397,11 @@ class CharacterDistillService {
     ));
 
     final skippedNote = skipped > 0 ? '，跳过 $skipped 段未变内容' : '';
+    // 把「收口」说清楚：用户勾了"只要主要人物"或填了名字，就要能从结果里
+    // 看出它生效了，否则只会怀疑功能没做。
+    final focusNote = focusNames.isEmpty
+        ? ''
+        : '（只收录：${focusNames.join('、')}）';
     final filterNote = minImportance > 0
         ? '（已按重要度 ≥ $minImportance 收录 $savedCount 人）'
         : '';
@@ -406,7 +413,8 @@ class CharacterDistillService {
       skippedChunks: skipped,
       charactersFound: allCharacters.length,
       message: '完成：识别 ${allCharacters.length} 个人物 / '
-          '${allRelations.length} 条关系$filterNote$skippedNote$failedNote',
+          '${allRelations.length} 条关系，收录 $savedCount 人'
+          '$focusNote$filterNote$skippedNote$failedNote',
     );
   }
 
@@ -414,6 +422,10 @@ class CharacterDistillService {
   ///
   /// [minImportance] > 0 时只收录重要度达标的人物，并顺带丢掉指向被过滤者
   /// 的关系——否则关系图里会留下连不上人物的孤立连线。
+  ///
+  /// [focusNames] 非空时**只收录这些人物**。提示词里已经交代过「只抽这几位」，
+  /// 但模型不保证听话（尤其章节里提到大量配角时），所以落库前再收口一次：
+  /// 用户填了名字却看到满屏龙套，等于这个功能没做。
   Future<int> _persist({
     required int bookId,
     required Map<String, CharacterCard> characters,
@@ -421,15 +433,24 @@ class CharacterDistillService {
     required List<WorldSetting> world,
     required List<TimelineEvent> timeline,
     required int minImportance,
+    List<String> focusNames = const [],
   }) async {
     final now = DateTime.now();
     final all = characters.values.map((c) => c.copyWith(updatedAt: now)).toList();
-    final kept = minImportance <= 0
-        ? all
-        : all.where((c) => c.importance >= minImportance).toList();
+
+    // 先按「指定人物」收口，再按重要度过滤：两者可同时生效。
+    final focus = focusNames
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    final kept = scopeCharacters(
+      all,
+      focus: focus,
+      minImportance: minImportance,
+    );
 
     var keptRelations = relations;
-    if (minImportance > 0) {
+    if (focus.isNotEmpty || minImportance > 0) {
       final names = kept.map((c) => c.name).toSet();
       keptRelations = relations
           .where((r) =>
@@ -437,12 +458,36 @@ class CharacterDistillService {
           .toList();
     }
 
+    if (focus.isEmpty && minImportance <= 0) {
+      // 全量：整图替换（原有行为）。
+      await dao.replaceBookGraph(
+        bookId: bookId,
+        characters: kept,
+        relations: keptRelations,
+        settings: world,
+        events: timeline,
+      );
+      return kept.length;
+    }
+
+    // 局部收口：**合并**而不是替换。
+    //
+    // `replaceBookGraph` 是先删全图再写入。如果用户只填了一个名字，
+    // 直接替换会把这本书记录的其他人物一起删掉——那是数据丢失，
+    // 不是「过滤」。所以这里先把旧图读回来，只覆盖这次真正抽取到的人。
+    final existingCharacters = await dao.getCharacters(bookId);
+    final existingRelations = await dao.getRelations(bookId);
+    final existingWorld = await dao.getWorldSettings(bookId);
+    final existingTimeline = await dao.getTimeline(bookId);
+
     await dao.replaceBookGraph(
       bookId: bookId,
-      characters: kept,
-      relations: keptRelations,
-      settings: world,
-      events: timeline,
+      characters: mergeCharacters(existingCharacters, kept),
+      relations: mergeRelations(existingRelations, keptRelations),
+      // 世界观与时间线不是「人物」：收口模式下一律保留原样，
+      // 避免每跑一次就多出一批重复条目。
+      settings: existingWorld.isEmpty ? world : existingWorld,
+      events: existingTimeline.isEmpty ? timeline : existingTimeline,
     );
     return kept.length;
   }
