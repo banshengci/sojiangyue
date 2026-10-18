@@ -21,9 +21,9 @@ import 'package:songjiang_reader/dao/character_chat_dao.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
 import 'package:songjiang_reader/service/character/character_chat_service.dart';
 import 'package:songjiang_reader/models/book.dart';
-import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/page/character/character_chat_page.dart';
+import 'package:songjiang_reader/page/character/session_setup_sheet.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_modes.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
@@ -322,53 +322,51 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
       SjToast.show('《${book.title}》还没有人物，先做一次人物蒸馏');
       return;
     }
-    final picked = await _pickCharacters(cards);
-    if (picked == null || picked.isEmpty || !mounted) return;
+    // 开局三件事一起定：你在这一局的位置、你是谁、谁在场。
+    final setup = await showSessionSetupSheet(
+      context,
+      cards: cards,
+      title: '${mode.name} · 开局',
+    );
+    if (setup == null || !mounted) return;
+
+    final picked = setup.characters;
+    if (picked.isEmpty) return;
 
     // 玩法自带场景提示：随机取一条当开局情境
     final scene = mode.randomSceneHint(Random());
 
-    // ① 只选 1 位：进入玩法模式（状态追踪 / 分幕 / 暗牌）
-    if (picked.length == 1) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CharacterChatPage(
-            bookId: book.id,
-            characterName: picked.first.name,
-            bookTitle: book.title,
-            gameplayMode: mode,
-            opening: scene,
-          ),
-        ),
-      );
-      return;
-    }
-
-    // ② 选多位：走造梦主线的「多角色同场」。
-    //
-    // 这里刻意**不**叠加玩法规则：GameplayRuntime 目前把
-    // `session.characterName` 当作唯一说话人推进状态机，而群聊会话里这个字段
-    // 是逗号拼接的成员列表，硬套进去会出现「说话人是一串名字」的错误。
-    // 要支持「多角色 + 玩法」，需要先让状态机按成员分别跟踪 —— 属后续工作。
-    final refs =
-        picked.map((c) => (bookId: book.id, name: c.name)).toList();
+    final isGroup = picked.length > 1;
     final id = await characterChatDao.createSession(
       bookId: book.id,
-      characterName: CharacterChatService.encodeMemberRefs(refs),
-      mode: CharacterChatMode.group,
-      title: '${mode.name} · ${picked.map((c) => c.name).join(' × ')}',
+      characterName: isGroup
+          ? CharacterChatService.encodeMemberRefs(
+              picked.map((c) => (bookId: book.id, name: c.name)).toList(),
+            )
+          : picked.first.name,
+      mode: isGroup ? CharacterChatMode.group : CharacterChatMode.single,
+      // 姿态与身份写进会话，进页面后由 chat service 拼进 system prompt
+      participation: setup.participation,
+      userPersona: setup.userPersona,
+      title: isGroup
+          ? '${mode.name} · ${picked.map((c) => c.name).join(' × ')}'
+          : null,
     );
     final session = await characterChatDao.getSession(id);
     if (!mounted || session == null) return;
+
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CharacterChatPage(
           session: session,
           bookTitle: book.title,
-          titleOverride: mode.name,
+          titleOverride: isGroup ? mode.name : null,
           opening: scene,
+          // 多角色时暂不叠加玩法规则：GameplayRuntime 目前按单一说话人推进状态机，
+          // 群聊的 characterName 是成员编码串，硬套会出现「说话人是一串名字」。
+          // 让状态机按成员分别跟踪是后续工作。
+          gameplayMode: isGroup ? null : mode,
         ),
       ),
     );
@@ -396,18 +394,6 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
         ),
       );
 
-  /// 选出场人物（可多选）。
-  ///
-  /// 造梦的主线是「多角色同场」：同一会话里多个角色各自带着性格与关系开口。
-  /// 单选保留 —— 玩法模式的状态机目前按单个说话人推进；
-  /// 多选则以群聊开局（见 _startMode 的两条分支）。
-  Future<List<CharacterCard>?> _pickCharacters(List<CharacterCard> cards) =>
-      showModalBottomSheet<List<CharacterCard>>(
-        context: context,
-        showDragHandle: true,
-        isScrollControlled: true,
-        builder: (ctx) => _CharacterPicker(cards: cards.take(120).toList()),
-      );
 
   Widget _buildSection(
     BuildContext context,
@@ -827,93 +813,3 @@ class _ScriptRunDialogState extends State<_ScriptRunDialog> {
   }
 }
 
-/// 出场人物多选面板。
-///
-/// 造梦的主线是「多角色同场」，所以这里允许勾选多位；
-/// 勾 1 位走玩法模式，勾多位走群聊（理由见 `_startMode` 的注释）。
-class _CharacterPicker extends StatefulWidget {
-  const _CharacterPicker({required this.cards});
-
-  final List<CharacterCard> cards;
-
-  @override
-  State<_CharacterPicker> createState() => _CharacterPickerState();
-}
-
-class _CharacterPickerState extends State<_CharacterPicker> {
-  final Set<String> _selected = <String>{};
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 4, 16, 2),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('选出场人物（可多选）'),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '选 1 位进入玩法模式；选多位则以群聊开局',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ),
-          ),
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                for (final card in widget.cards)
-                  CheckboxListTile(
-                    value: _selected.contains(card.name),
-                    title: Text(card.name),
-                    subtitle: (card.role != null && card.role!.isNotEmpty)
-                        ? Text(card.role!)
-                        : null,
-                    onChanged: (v) => setState(() {
-                      if (v == true) {
-                        _selected.add(card.name);
-                      } else {
-                        _selected.remove(card.name);
-                      }
-                    }),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '已选 ${_selected.length} 位',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ),
-                FilledButton(
-                  onPressed: _selected.isEmpty
-                      ? null
-                      : () => Navigator.pop(
-                            context,
-                            widget.cards
-                                .where((c) => _selected.contains(c.name))
-                                .toList(),
-                          ),
-                  child: const Text('开始'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
