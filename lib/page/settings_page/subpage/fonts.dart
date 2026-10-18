@@ -1,5 +1,4 @@
 import 'package:songjiang_reader/config/remote_config.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 import 'package:flutter/material.dart';

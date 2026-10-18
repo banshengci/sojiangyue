@@ -239,7 +239,7 @@ void main() {
         // 用真实 DAO 走一遍落库：第二次应命中已有行
         final a = _book(title: '同书', filePath: f1.path, md5: k1);
         await bookDao.insertBook(a);
-        final hit = await bookDao.getBookByMd5(k1!);
+        final hit = await bookDao.getBookByMd5(k1);
         expect(hit, isNotNull);
         final b = _book(id: hit!.id, title: hit.title, filePath: f2.path, md5: k1);
         await bookDao.insertBook(b);

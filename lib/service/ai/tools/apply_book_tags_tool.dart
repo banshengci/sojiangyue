@@ -17,7 +17,7 @@ final applyBookTagsToolDefinition = AiToolDefinition(
   descriptionBuilder: (L10n l10n) => l10n.aiToolApplyBookTagsDescription,
   build: (context) => ApplyBookTagsTool(
     (context as AiToolContext).tagRepository,
-    (context as AiToolContext).booksRepository,
+    context.booksRepository,
   ).tool,
 );
 

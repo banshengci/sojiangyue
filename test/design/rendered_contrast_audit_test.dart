@@ -9,7 +9,6 @@ import 'package:songjiang_reader/design/songjiang/pages/sj_favorites_page.dart';
 import 'package:songjiang_reader/design/songjiang/pages/sj_mine_page.dart';
 import 'package:songjiang_reader/design/songjiang/pages/sj_search_page.dart';
 import 'package:songjiang_reader/design/songjiang/pages/sj_statistics_page.dart';
-import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 
 /// 渲染后的真实对比度审计。
 ///

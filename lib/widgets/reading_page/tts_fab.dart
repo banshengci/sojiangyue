@@ -1,13 +1,9 @@
-﻿import 'package:songjiang_reader/main.dart';
+import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/service/tts/tts_handler.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:icons_plus/icons_plus.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 class TtsFab extends StatefulWidget {
