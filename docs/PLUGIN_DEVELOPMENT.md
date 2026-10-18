@@ -193,6 +193,57 @@
 
 ---
 
+## 6.5 设置、存储与增强器
+
+### 设置（settings）
+
+在 `plugin.json` 里声明，宿主负责渲染与保存，模板用 `{{config.<key>}}` 读取：
+
+```json
+"settings": [
+  { "key": "tone", "title": "语气", "type": "enum",
+    "default": "克制", "options": ["克制", "温柔", "直白"] },
+  { "key": "max_points", "title": "要点数量", "type": "integer", "default": 3 },
+  { "key": "strict", "title": "严格模式", "type": "boolean", "default": false }
+]
+```
+
+类型：`boolean` / `integer` / `enum` / `text`（`text` 是造梦没有的，
+用来填一个词或一句提示）。
+
+约束：**只能写已声明的键**。插件不能给自己加配置项，
+也不能改自己的启用状态——那是用户的决定。
+
+### 私有存储（storage）
+
+按插件隔离的小容量文本区，用来"记住一点东西"。
+模板用 `{{storage.<key>}}` 读取（需声明 `storage.read` 权限）。
+
+| 上限 | 值 |
+|---|---|
+| 单值 | 8 KB |
+| 键数量 | 32 |
+| 合计 | 64 KB |
+
+键名只能是 `[A-Za-z0-9_.-]`。插件不是数据库——需要存大块内容说明设计错了。
+
+### 生成增强器（enhancers）
+
+```json
+"enhancers": [
+  { "id": "short-lines", "title": "短句模式",
+    "rule": "每名角色每次最多说两句，保留自然停顿。" }
+]
+```
+
+启用后，这条规则会追加到 AI 对话 system prompt 的末尾。
+与钩子的区别：**钩子是"事件 → 跑工具"，增强器是"规则长期生效"**。
+
+用户在「设置 → AI → 插件 → 设置」里逐条开关；禁用插件会立刻失效。
+目前只支持"手动开、长期生效"，没有按回合数或概率触发的规则引擎。
+
+---
+
 ## 7. 与造梦插件规范的对照
 
 造梦的公开规范（Declarative Plugin API 2）与本项目取向不同，不是简单的新旧关系：
@@ -200,12 +251,12 @@
 | 维度 | 造梦 | 松江阅 |
 |---|---|---|
 | 插件进入用户视野的方式 | **聊天输入区的动作菜单**（用户点击触发） | **AI agent 的工具**（模型决定何时调用）+ 事件钩子 |
-| 贡献点 | `chatActions` / `generationEnhancers` / `temporaryNpcGenerators` | `tools`（三种 behavior）+ `hooks`（六种事件） |
+| 贡献点 | `chatActions` / `generationEnhancers` / `temporaryNpcGenerators` | `tools`（三种 behavior）+ `hooks`（六种事件）+ `enhancers` |
 | 操作集 | 9 种（suggest / variants / storage_get / http_get / reply_as_character / mute_character …） | 由 `behavior` + 模板表达；没有具名操作表 |
-| 权限 | 10 项，粒度细（如 `chat.cast.write`、`generation.enhance`） | 4 项，粒度较粗 |
-| 插件设置 | `settings[]`，宿主渲染 boolean / integer / enum | **无** |
-| 插件私有数据区 | `storage.read/write` + `{{storage.x}}` | **无** |
-| 注入主对话规则 | `generationEnhancers` + `execution.rules`（按回合数 / 概率 / 关键词触发） | **无**（钩子是"事件→工具"，不是"注入规则"） |
+| 权限 | 10 项，粒度细（如 `chat.cast.write`、`generation.enhance`） | 6 项（读取正文 / https / 调模型 / 写笔记 / 存储读写） |
+| 插件设置 | `settings[]`，宿主渲染 boolean / integer / enum | 同有（另有 `text` 型） |
+| 插件私有数据区 | `storage.read/write` + `{{storage.x}}` | 同有（单值 8 KB / 32 键 / 合计 64 KB） |
+| 注入主对话规则 | `generationEnhancers` + `execution.rules`（按回合/概率/关键词） | 有增强器（用户逐条开关），**没有**按回合/概率触发的规则引擎 |
 | 临时角色生成 | `temporaryNpcGenerators` | **无** |
 | API 版本协商 | `apiVersion`，宿主兼容 1/2 | 有 `schemaVersion` / `minAppVersion`，但没有版本分支策略 |
 | 包体限制 | ≤10 MiB、≤500 文件、解压 ≤100 MiB、禁路径穿越与符号链接 | 同有（本地安装校验） |
@@ -215,11 +266,11 @@
 
 - **能力取向不同**：造梦把插件当作"给用户加按钮 + 改对话生成"；
   我们把插件当作"给 agent 加工具"。两者都能扩展，但第三方写的插件**不能直接互换**。
-- **确实缺的三块**：插件设置（`settings`）、插件私有存储（`storage`）、
-  生成增强器（`generationEnhancers` / `rules`）。
-  这三块是"让插件参与叙事"的关键，缺了它们，我们的插件只能做"一次性工具调用"。
-- **建议补齐顺序**：`settings` → `storage` → `generationEnhancers`。
-  前两个是后一个的前置（增强器需要开关与状态）。
+- **已经补上的**：插件设置、私有存储、生成增强器、本地 `.plugin.zip` 安装。
+  到此为止，第三方插件可以配置、可以记忆、也可以影响对话的说话方式。
+- **仍然缺的**：按回合数 / 概率 / 关键词触发的规则引擎（造梦的 `execution.rules`），
+  以及临时角色生成（`temporaryNpcGenerators`）。我们现在只有"用户手动开、长期生效"
+  这一种增强方式，做不到"每 5 轮有 30% 概率来个神秘商人"。
 
 ---
 
