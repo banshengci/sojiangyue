@@ -1,9 +1,19 @@
 import 'package:songjiang_reader/constants/note_annotations.dart';
-import 'package:songjiang_reader/theme/songjiang_theme.dart';
+import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 import 'package:songjiang_reader/models/book_note.dart';
 import 'package:songjiang_reader/utils/time_to_human.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:flutter/material.dart';
+
+/// 笔记类型 → 中文标签。
+///
+/// 真实类型只有两种（见 `constants/note_annotations.dart` 的 `notesType`）：
+/// 划线 / 下划线。「有批注」不是类型，而是 `readerNote` 是否非空，单独用徽标表示。
+String noteTypeLabel(String type) => switch (type) {
+      'highlight' => '划线',
+      'underline' => '下划线',
+      _ => '笔记',
+    };
 
 class BookNoteTile extends StatelessWidget {
   const BookNoteTile({
@@ -23,23 +33,20 @@ class BookNoteTile extends StatelessWidget {
   final Color? backgroundColor;
   final EdgeInsetsGeometry margin;
 
-  Icon _buildIcon(Color color) {
+  IconData _typeIcon() {
     final match = notesType.where((option) => option.type == note.type);
-    if (match.isNotEmpty) {
-      return Icon(match.first.icon, color: color);
-    }
-    return Icon(Icons.bookmark, color: color);
+    return match.isNotEmpty ? match.first.icon : Icons.bookmark;
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final brandColor = isDark ? SongJiangColors.pineLight : SongJiangColors.pine;
-    final iconColor = Color(int.tryParse('0xaa${note.color}') ?? 0xaa555555);
-    final infoStyle = TextStyle(
-      fontSize: 14,
-      color: brandColor.withAlpha(165),
-    );
+    final c = SjColors.of(context);
+
+    // 类型色：划线用品牌松绿，下划线用江青文字版（都满足 AA）。
+    final typeColor =
+        note.type == 'underline' ? c.riverText : c.pine;
+    final hasAnnotation =
+        note.readerNote != null && note.readerNote!.isNotEmpty;
 
     return GestureDetector(
       onTap: onTap,
@@ -48,70 +55,76 @@ class BookNoteTile extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: FilledContainer(
         color: backgroundColor,
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(SjSpace.s),
         margin: margin,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 10, right: 10, top: 10),
-              child: _buildIcon(iconColor),
-            ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── 类型标识：色点 + 图标 + 文字（三重编码，不靠颜色单独区分）──
+                  Row(
+                    children: [
+                      _HighlightSwatch(colorHex: note.color, fallback: c.inkSoft),
+                      const SizedBox(width: SjSpace.xs),
+                      Icon(_typeIcon(), size: 14, color: typeColor),
+                      const SizedBox(width: SjSpace.xxs),
+                      Text(
+                        noteTypeLabel(note.type),
+                        style: SjText.caption(typeColor).copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (hasAnnotation) ...[
+                        const SizedBox(width: SjSpace.xs),
+                        _AnnotationBadge(color: c.clayText),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: SjSpace.xxs),
                   Text(
                     note.content,
-                    style: const TextStyle(
-                      fontSize: 16,
-                    ),
+                    style: SjText.body(c.ink),
                   ),
-                  if (note.readerNote != null && note.readerNote!.isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(height: 4),
-                        IntrinsicHeight(
-                          child: Row(
-                            children: [
-                              VerticalDivider(
-                                thickness: 3,
-                                color: brandColor.withAlpha(160),
+                  if (hasAnnotation)
+                    Padding(
+                      padding: const EdgeInsets.only(top: SjSpace.xxs),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          children: [
+                            VerticalDivider(
+                              thickness: 3,
+                              color: c.clay.withAlpha(160),
+                            ),
+                            const SizedBox(width: SjSpace.xs),
+                            Expanded(
+                              child: Text(
+                                note.readerNote!,
+                                style: SjText.meta(c.inkSoft),
                               ),
-                              Expanded(
-                                child: Text(
-                                  note.readerNote!,
-                                  style: infoStyle.copyWith(
-                                    color: brandColor.withAlpha(200),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                      ],
+                      ),
                     ),
-                  Divider(
-                    indent: 4,
-                    height: 3,
-                    color: brandColor.withAlpha(90),
-                  ),
+                  const SizedBox(height: SjSpace.xs),
+                  Divider(height: 1, color: c.divider),
+                  const SizedBox(height: SjSpace.xs),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
                           note.chapter,
-                          style: infoStyle,
+                          style: SjText.caption(c.inkSoft),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
                         timeToHuman(note.createTime),
-                        style: infoStyle,
+                        style: SjText.caption(c.inkSoft),
                       ),
                     ],
                   ),
@@ -121,6 +134,56 @@ class BookNoteTile extends StatelessWidget {
             if (trailing != null) trailing!,
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 「有批注」徽标。
+class _AnnotationBadge extends StatelessWidget {  const _AnnotationBadge({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withAlpha(26),
+        borderRadius: BorderRadius.circular(SjSizes.radiusPill),
+      ),
+      child: Text(
+        '批注',
+        style: SjText.caption(color).copyWith(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// 高亮色点：保留用户为该条笔记选的颜色。
+///
+/// 颜色本身**不再单独承载语义**（类型靠图标+文字），只作为「这是我选的黄/蓝」的辅助记忆。
+class _HighlightSwatch extends StatelessWidget {
+  const _HighlightSwatch({required this.colorHex, required this.fallback});
+
+  final String colorHex;
+  final Color fallback;
+
+  Color get _color {
+    final v = int.tryParse(colorHex, radix: 16);
+    if (v == null) return fallback;
+    return Color(0xFF000000 | v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: _color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Theme.of(context).dividerColor, width: 0.5),
       ),
     );
   }

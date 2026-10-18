@@ -44,10 +44,14 @@ class SjTapTarget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget body = SizedBox(
-      width: size,
-      height: size,
-      child: Center(child: child),
+    // 用 ConstrainedBox 设**下限**而不是 SizedBox 固定尺寸：
+    //  - 小图标（18×18）会被撑到 44×44 并居中；
+    //  - 宽内容（如「文字 + ›」）可以自然撑开，不会被 44 截断。
+    // 早期版本用 SizedBox 固定 44，导致 SjTapTarget 包「文字+图标」时
+    // Row 溢出 44 的约束（由 mine_page_test 抓到）。
+    Widget body = ConstrainedBox(
+      constraints: BoxConstraints(minWidth: size, minHeight: size),
+      child: Center(widthFactor: 1, heightFactor: 1, child: child),
     );
 
     if (onTap != null) {

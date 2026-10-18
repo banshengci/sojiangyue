@@ -25,6 +25,7 @@ import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/bookshelf/book_bottom_sheet.dart';
 import 'package:songjiang_reader/widgets/bookshelf/book_folder.dart';
+import 'package:songjiang_reader/widgets/bookshelf/continue_reading_card.dart';
 import 'package:songjiang_reader/widgets/bookshelf/sync_button.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/common/tag_chip.dart';
@@ -486,8 +487,13 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                     ],
                     builder: (children) {
                       return LayoutBuilder(builder: (context, constraints) {
+                        // v3：书架首屏先给一张「继续阅读」大卡，
+                        // 把「最近在读的那一本」提上来，一步回到上次位置。
+                        final recent = ContinueReadingCard.pick(books);
                         return Column(
                           children: [
+                            if (recent != null)
+                              ContinueReadingCard(book: recent),
                             HintBanner(
                                 icon: const Icon(Icons.copy),
                                 hintKey: HintKey.dragAndDropToCreateFolder,
