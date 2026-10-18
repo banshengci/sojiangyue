@@ -28,6 +28,7 @@ import 'knowledge_page.dart';
 import 'relationship_graph_page.dart';
 import 'story_recap_page.dart';
 import 'world_timeline_page.dart';
+import 'package:songjiang_reader/page/character/scroll_library_page.dart';
 
 /// 一本书的人物速查页：列表 + 一键蒸馏 + 关系图入口。
 class CharacterListPage extends StatefulWidget {
@@ -343,6 +344,19 @@ class _CharacterListPageState extends State<CharacterListPage> {
       appBar: AppBar(
         title: Text(widget.bookTitle ?? CharactersPageText.charactersTitle),
         actions: [
+          IconButton(
+            tooltip: '书卷库',
+            icon: const Icon(Icons.library_books_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ScrollLibraryPage(
+                  bookId: widget.bookId,
+                  bookTitle: widget.bookTitle,
+                ),
+              ),
+            ),
+          ),
           if (hasData)
             IconButton(
               tooltip: CharactersPageText.viewGraph,
