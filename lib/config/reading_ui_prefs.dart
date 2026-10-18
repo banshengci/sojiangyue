@@ -27,6 +27,8 @@ class ReadingUiPrefs {
   static const String autoCleanWebNovelKey = 'autoCleanWebNovel';
   /// 每日阅读目标（分钟，0=关闭）。
   static const String dailyGoalMinutesKey = 'dailyGoalMinutes';
+  /// 阅读页亮度遮罩（0.15–1，1 为不遮罩）。
+  static const String readerBrightnessKey = 'readerBrightness';
   static const String hintPrefix = 'hint_';
 
   static SharedPreferences? _sp;
@@ -178,6 +180,14 @@ class ReadingUiPrefs {
 
   static set dailyGoalMinutes(int minutes) {
     _require.setInt(dailyGoalMinutesKey, minutes.clamp(0, 240));
+  }
+
+  /// 阅读页亮度（0.15–1.0），通过半透明黑罩实现，不调用系统亮度。
+  static double get readerBrightness =>
+      (_require.getDouble(readerBrightnessKey) ?? 1.0).clamp(0.15, 1.0);
+
+  static set readerBrightness(double value) {
+    _require.setDouble(readerBrightnessKey, value.clamp(0.15, 1.0));
   }
 
   // ---- hints ----

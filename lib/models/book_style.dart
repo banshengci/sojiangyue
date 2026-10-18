@@ -27,7 +27,7 @@ class BookStyle {
     this.sideMargin = 6.0,
     this.topMargin = 16.0,
     this.bottomMargin = 12.0,
-    this.indent = 0,
+    this.indent = 2,
     this.maxColumnCount = 0,
     this.headingFontSize = 1.0,
     this.columnThreshold = 720.0,

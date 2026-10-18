@@ -14,7 +14,6 @@ import 'package:songjiang_reader/enums/sync_direction.dart';
 import 'package:songjiang_reader/enums/sync_trigger.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
-import 'package:songjiang_reader/theme/songjiang_theme.dart';
 import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/models/ai_quick_prompt_chip.dart';
 import 'package:songjiang_reader/models/book.dart';
@@ -29,13 +28,15 @@ import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/utils/ui/status_bar.dart';
 import 'package:songjiang_reader/widgets/ai/ai_chat_stream.dart';
 import 'package:songjiang_reader/widgets/ai/ai_stream.dart';
-import 'package:songjiang_reader/widgets/reading_page/notes_widget.dart';
 import 'package:songjiang_reader/models/reading_time.dart';
-import 'package:songjiang_reader/widgets/reading_page/progress_widget.dart';
+import 'package:songjiang_reader/widgets/reading_page/sj_reading_sheets.dart';
 import 'package:songjiang_reader/widgets/reading_page/tts_fab.dart';
 import 'package:songjiang_reader/widgets/reading_page/tts_widget.dart';
 import 'package:songjiang_reader/widgets/reading_page/style_widget.dart';
-import 'package:songjiang_reader/widgets/reading_page/toc_widget.dart';
+import 'package:songjiang_reader/widgets/reading_page/widgets/bgimg_selector.dart';
+import 'package:songjiang_reader/design/songjiang/reader/sj_reader_chrome.dart';
+import 'package:songjiang_reader/design/songjiang/reader/sj_reader_controls.dart';
+import 'package:songjiang_reader/design/songjiang/reader/sj_reader_tokens.dart';
 import 'package:songjiang_reader/widgets/common/axis_flex.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -74,7 +75,18 @@ class ReadingPageState extends ConsumerState<ReadingPage>
   static const empty = SizedBox.shrink();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late Book _book;
-  late Widget _currentPage = empty;
+
+  /// 当前展开的阅读工具位（目录 / 笔记 / 进度 / 亮度 / 字体）。
+  ///
+  /// 微信读书的底栏只有五个图标位，展开哪个就高亮哪个；
+  /// 面板内容按工具位在 [build] 里现算，主题切换后能立刻刷新。
+  SjReaderTool? _activeTool;
+
+  /// 面板内的二级页面（主题编辑、背景图选择等）临时覆盖当前工具位。
+  Widget? _overridePage;
+
+  /// 阅读页亮度遮罩，1 为不遮罩。
+  late double _brightness = ReadingUiPrefs.readerBrightness;
   final Stopwatch _readTimeWatch = Stopwatch();
   DateTime? _sessionStart;
   Timer? _awakeTimer;
@@ -332,7 +344,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
 
   void hideBottomBar() {
     setState(() {
-      _currentPage = empty;
+      _activeTool = null;
+      _overridePage = null;
       bottomBarOffstage = true;
       if (ReadingUiPrefs.hideStatusBar) {
         hideStatusBar();
@@ -349,35 +362,71 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     }
   }
 
-  Future<void> tocHandler() async {
-    hideBottomBar();
-    _scaffoldKey.currentState?.openDrawer();
-  }
-
-  void noteHandler() {
-    setState(() {
-      _currentPage = ReadingNotes(book: _book);
-    });
-  }
-
-  void progressHandler() {
-    setState(() {
-      _currentPage = ProgressWidget(
-        epubPlayerKey: epubPlayerKey,
-        showOrHideAppBarAndBottomBar: showOrHideAppBarAndBottomBar,
+  /// 阅读页调色板：由当前阅读主题的底色 / 字色派生，
+  /// 工具栏、面板、分隔线都跟着纸张走，不会出现「米黄纸张 + 白底面板」。
+  SjReaderPalette get _palette => SjReaderPalette.fromTheme(
+        Color(int.parse('0x${AppMiscPrefs.readTheme.backgroundColor}')),
+        Color(int.parse('0x${AppMiscPrefs.readTheme.textColor}')),
       );
+
+  /// 打开某个工具位；再次点击同一个图标收起面板。
+  void _openTool(SjReaderTool tool) {
+    if (!bottomBarOffstage && _activeTool == tool && _overridePage == null) {
+      showOrHideAppBarAndBottomBar(false);
+      return;
+    }
+    showBottomBar();
+    setState(() {
+      _activeTool = tool;
+      _overridePage = null;
     });
   }
 
-  Future<void> styleHandler(StateSetter modalSetState) async {
-    List<ReadTheme> themes = await themeDao.selectThemes();
+  void tocHandler() => _openTool(SjReaderTool.toc);
+
+  void noteHandler() => _openTool(SjReaderTool.notes);
+
+  void progressHandler() => _openTool(SjReaderTool.progress);
+
+  void appearanceHandler() => _openTool(SjReaderTool.appearance);
+
+  void typographyHandler() => _openTool(SjReaderTool.typography);
+
+  /// 复制本章内容（沿用原顶栏的「分享」位）。
+  Future<void> _copyChapter() async {
+    try {
+      final content = await epubPlayerKey.currentState?.theChapterContent();
+      final length = content?.length ?? 0;
+      if (length > 0) {
+        await Clipboard.setData(ClipboardData(text: content!));
+      }
+      SjToast.show(L10n.of(context).readingPageCopiedCharacters(length));
+    } catch (e) {
+      SjToast.show(L10n.of(context).readingPageErrorCopyingContent);
+    }
+  }
+
+  void _openBookDetail() {
+    Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (context) => BookDetail(book: widget.book),
+      ),
+    );
+  }
+
+  /// 打开完整的排版设置（既有 StyleWidget，含字体、页边距、翻页方式、自定义 CSS）。
+  Future<void> styleHandler() async {
+    final themes = await themeDao.selectThemes();
+    if (!mounted) return;
+    showBottomBar();
     setState(() {
-      _currentPage = StyleWidget(
+      _overridePage = StyleWidget(
         themes: themes,
         epubPlayerKey: epubPlayerKey,
         setCurrentPage: (Widget page) {
-          modalSetState(() {
-            _currentPage = page;
+          setState(() {
+            _overridePage = page;
           });
         },
         hideAppBarAndBottomBar: showOrHideAppBarAndBottomBar,
@@ -385,9 +434,11 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     });
   }
 
-  Future<void> ttsHandler() async {
+  void ttsHandler() {
+    showBottomBar();
     setState(() {
-      _currentPage = TtsWidget(
+      _activeTool = null;
+      _overridePage = TtsWidget(
         epubPlayerKey: epubPlayerKey,
       );
     });
@@ -655,46 +706,197 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     }
   }
 
+  /// 右下角「A↑ / 听」是否显示。
+  ///
+  /// 微信读书在目录、笔记这两个大面板里会收起它们，只留底栏。
+  bool get _showsFloatActions {
+    if (_overridePage != null) return false;
+    switch (_activeTool) {
+      case null:
+      case SjReaderTool.progress:
+      case SjReaderTool.appearance:
+      case SjReaderTool.typography:
+        return true;
+      case SjReaderTool.toc:
+      case SjReaderTool.notes:
+        return false;
+    }
+  }
+
+  /// 高面板（目录 / 笔记）的高度。
+  ///
+  /// 顶栏 + 底栏 + 浮动按钮都在同一列里，短屏（640 高）上直接用 86% 会顶出屏幕，
+  /// 所以按「屏幕高 - 顶栏 - 底栏 - 状态栏」再夹一次。
+  double _panelHeight(double fraction) {
+    final media = MediaQuery.of(context);
+    final available = media.size.height -
+        SjReaderSize.topBar -
+        SjReaderSize.bottomBar -
+        media.padding.top -
+        20;
+    return math.min(media.size.height * fraction, available);
+  }
+
+  /// 按当前工具位现算面板内容（主题改动后面板颜色能立刻跟上）。
+  Widget? _buildReaderPanel(SjReaderPalette palette) {
+    if (_overridePage != null) {
+      return SizedBox(
+        height: _panelHeight(0.62),
+        child: SjReaderSheet(
+          palette: palette,
+          expand: true,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: _overridePage!,
+        ),
+      );
+    }
+
+    switch (_activeTool) {
+      case SjReaderTool.toc:
+        return SizedBox(
+          height: _panelHeight(0.86),
+          child: SjTocSheet(
+            palette: palette,
+            book: _book,
+            epubPlayerKey: epubPlayerKey,
+            onClose: () => showOrHideAppBarAndBottomBar(false),
+          ),
+        );
+      case SjReaderTool.notes:
+        return SizedBox(
+          height: _panelHeight(0.80),
+          child: SjNotesSheet(
+            palette: palette,
+            book: _book,
+            epubPlayerKey: epubPlayerKey,
+            onClose: () => showOrHideAppBarAndBottomBar(false),
+            onBookDetail: _openBookDetail,
+          ),
+        );
+      case SjReaderTool.progress:
+        return SjProgressSheet(
+          palette: palette,
+          book: _book,
+          epubPlayerKey: epubPlayerKey,
+          onBookDetail: _openBookDetail,
+        );
+      case SjReaderTool.appearance:
+        return SjAppearanceSheet(
+          palette: palette,
+          epubPlayerKey: epubPlayerKey,
+          onBrightnessChanged: (double value) {
+            setState(() => _brightness = value);
+          },
+          onThemeChanged: () => setState(() {}),
+          onOpenBgImage: () {
+            setState(() {
+              _activeTool = SjReaderTool.appearance;
+              _overridePage = const BgimgSelector();
+            });
+          },
+        );
+      case SjReaderTool.typography:
+        return SjTypographySheet(
+          palette: palette,
+          epubPlayerKey: epubPlayerKey,
+          onOpenMoreSettings: styleHandler,
+        );
+      case null:
+        return null;
+    }
+  }
+
+  /// 打开 AI 助手（沿用原来的分屏 / 弹窗判定）。
+  void _openAiChat() {
+    final displayMode = AiPrefs.aiChatDisplayMode;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final shouldShowAsSplit = switch (displayMode) {
+      AiChatDisplayMode.adaptive => screenWidth >= 600,
+      AiChatDisplayMode.split => true,
+      AiChatDisplayMode.popup => false,
+    };
+    if (shouldShowAsSplit && _aiChat != null) {
+      setState(() => _aiChat = null);
+      return;
+    }
+    showOrHideAppBarAndBottomBar(false);
+    showAiChat();
+  }
+
+  /// 顶栏「更多」：AI 助手 / 书签 / 书籍详情 / 完整排版设置。
+  Future<void> _showReaderMoreMenu() async {
+    final palette = _palette;
+    final screen = MediaQuery.of(context).size;
+    final selected = await showMenu<String>(
+      context: context,
+      color: palette.surface,
+      position: RelativeRect.fromLTRB(screen.width - 52, 96, 8, 0),
+      items: <PopupMenuEntry<String>>[
+        if (EnvVar.enableAIFeature)
+          _readerMenuItem('ai', Icons.auto_awesome_rounded, 'AI 助手', palette),
+        _readerMenuItem(
+          'bookmark',
+          bookmarkExists ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+          bookmarkExists ? L10n.of(context).readingPageBookmark : '添加书签',
+          palette,
+        ),
+        _readerMenuItem('copy', Icons.copy_rounded, '复制本章', palette),
+        _readerMenuItem('detail', Icons.info_outline_rounded, '书籍详情', palette),
+        _readerMenuItem('settings', Icons.tune_rounded, '完整排版设置', palette),
+      ],
+    );
+
+    switch (selected) {
+      case 'ai':
+        _openAiChat();
+      case 'bookmark':
+        if (bookmarkExists) {
+          epubPlayerKey.currentState!.removeAnnotation(
+            epubPlayerKey.currentState!.bookmarkCfi,
+          );
+        } else {
+          epubPlayerKey.currentState!.addBookmarkHere();
+        }
+        updateState();
+      case 'copy':
+        await _copyChapter();
+      case 'detail':
+        _openBookDetail();
+      case 'settings':
+        await styleHandler();
+    }
+  }
+
+  PopupMenuItem<String> _readerMenuItem(
+    String value,
+    IconData icon,
+    String label,
+    SjReaderPalette palette,
+  ) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 42,
+      child: Row(
+        children: <Widget>[
+          Icon(icon, size: 18, color: palette.subForeground),
+          const SizedBox(width: 10),
+          Text(label, style: TextStyle(fontSize: 14, color: palette.foreground)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    var aiButton = IconButton(
-      tooltip: L10n.of(context).aiChat,
-      color: SongJiangColors.pollen,
-      icon: const Icon(Icons.auto_awesome),
-      onPressed: () async {
-        // Determine if should show as split based on display mode
-        final displayMode = AiPrefs.aiChatDisplayMode;
-        final screenWidth = MediaQuery.of(context).size.width;
+    final palette = _palette;
+    final panel = _buildReaderPanel(palette);
 
-        bool shouldShowAsSplit = false;
-        switch (displayMode) {
-          case AiChatDisplayMode.adaptive:
-            shouldShowAsSplit = screenWidth >= 600;
-            break;
-          case AiChatDisplayMode.split:
-            shouldShowAsSplit = true;
-            break;
-          case AiChatDisplayMode.popup:
-            shouldShowAsSplit = false;
-            break;
-        }
-
-        if (shouldShowAsSplit && _aiChat != null) {
-          setState(() {
-            _aiChat = null;
-          });
-          return;
-        }
-
-        showOrHideAppBarAndBottomBar(false);
-        showAiChat();
-      },
-    );
     Offstage controller = Offstage(
       offstage: bottomBarOffstage,
       child: PointerInterceptor(
         child: Stack(
           children: [
+            // 微信读书的工具栏浮在正文上，不压暗纸张，只有一层可点击的透明层
             Positioned.fill(
               child: GestureDetector(
                   onTap: () {
@@ -703,161 +905,61 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                   behavior: HitTestBehavior.opaque,
                   onVerticalDragUpdate: (details) {},
                   onVerticalDragEnd: (details) {},
-                  child: Container(
-                    color: Colors.black.withAlpha(30),
-                  )),
+                  child: const SizedBox.expand()),
             ),
             Column(
               children: [
-                AppBar(
-                  backgroundColor: SongJiangColors.pine,
-                  foregroundColor: Colors.white,
-                  title: Text(_book.title, overflow: TextOverflow.ellipsis),
-                  leading: IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () {
-                      // close reading page
-                      Navigator.pop(context);
-                    },
+                // 状态栏区域也用纸色铺满，避免文字从顶栏上方透出来
+                ColoredBox(
+                  color: palette.background,
+                  child: SafeArea(
+                    bottom: false,
+                    child: SjReaderTopBar(
+                      palette: palette,
+                      onBack: () => Navigator.pop(context),
+                      onToc: tocHandler,
+                      onShare: _copyChapter,
+                      onMore: _showReaderMoreMenu,
+                    ),
                   ),
-                  actions: [
-                    if (EnvVar.enableAIFeature) aiButton,
-                    IconButton(
-                      icon: const Icon(Icons.copy),
-                      tooltip: L10n.of(context).readingPageCopyChapterContent,
-                      onPressed: () async {
-                        try {
-                          var content = await epubPlayerKey.currentState
-                              ?.theChapterContent();
-                          var len = content?.length ?? 0;
-                          if (len > 0) {
-                            await Clipboard.setData(
-                                ClipboardData(text: content!));
-                          }
-                          SjToast.show(L10n.of(context)
-                              .readingPageCopiedCharacters(len));
-                        } catch (e) {
-                          SjToast.show(
-                              L10n.of(context).readingPageErrorCopyingContent);
-                        }
-                      },
-                    ),
-                    IconButton(
-                        tooltip: L10n.of(context).readingPageBookmark,
-                        onPressed: () {
-                          if (bookmarkExists) {
-                            epubPlayerKey.currentState!.removeAnnotation(
-                              epubPlayerKey.currentState!.bookmarkCfi,
-                            );
-                          } else {
-                            epubPlayerKey.currentState!.addBookmarkHere();
-                          }
-                        },
-                        icon: bookmarkExists
-                            ? const Icon(Icons.bookmark)
-                            : const Icon(Icons.bookmark_border)),
-                    IconButton(
-                      tooltip: L10n.of(context).readingPageBookDetails,
-                      icon: const Icon(SongJiangIcons.moreVertical),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          CupertinoPageRoute(
-                            builder: (context) => BookDetail(book: widget.book),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
                 ),
                 const Spacer(),
-                BottomSheet(
-                  onClosing: () {},
-                  enableDrag: false,
-                  builder: (context) => SafeArea(
-                    top: false,
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 600),
-                      child: StatefulBuilder(
-                        builder: (BuildContext context, StateSetter setState) {
-                          final hasContent = !identical(_currentPage, empty);
-                          final isDark =
-                              Theme.of(context).brightness == Brightness.dark;
-                          final toolbarIconColor = isDark
-                              ? SongJiangColors.pineLight
-                              : SongJiangColors.pine;
-                          return IntrinsicHeight(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (hasContent)
-                                  Expanded(
-                                    child: _currentPage,
-                                  ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerLow
-                                        .withAlpha(isDark ? 220 : 245),
-                                    border: Border(
-                                      top: BorderSide(
-                                        color: SongJiangColors.pine
-                                            .withAlpha(isDark ? 90 : 70),
-                                        width: 0.8,
-                                      ),
-                                    ),
-                                  ),
-                                  child: IconTheme(
-                                    data: IconThemeData(color: toolbarIconColor),
-                                    child: SafeArea(
-                                      top: false,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 2),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceAround,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.toc),
-                                              onPressed: tocHandler,
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.edit),
-                                              onPressed: noteHandler,
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.activity),
-                                              onPressed: progressHandler,
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.palette),
-                                              onPressed: () {
-                                                styleHandler(setState);
-                                              },
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  SongJiangIcons.tts),
-                                              onPressed: ttsHandler,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // A↑ / 听 浮在面板之上（微信读书把它们压在工具栏上方）
+                      if (_showsFloatActions)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 16, bottom: 10),
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: SjReaderFloatActions(
+                              palette: palette,
+                              onTypography: typographyHandler,
+                              onListen: ttsHandler,
                             ),
-                          );
-                        },
+                          ),
+                        ),
+                      if (panel != null) panel,
+                      Container(
+                        decoration: BoxDecoration(
+                          color: palette.surface,
+                          border: Border(
+                            top: BorderSide(color: palette.divider, width: 0.8),
+                          ),
+                        ),
+                        child: SafeArea(
+                          top: false,
+                          child: SjReaderBottomBar(
+                            palette: palette,
+                            active: _activeTool,
+                            onSelected: _openTool,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -884,23 +986,6 @@ class ReadingPageState extends ConsumerState<ReadingPage>
               resizeToAvoidBottomInset: false,
               // 与外层 Scaffold 同底色，消除安全区与内容区的割裂感
               backgroundColor: Color(int.parse('0x${AppMiscPrefs.readTheme.backgroundColor}')),
-              drawer: PointerInterceptor(
-                child: Drawer(
-                  width: math.min(
-                    MediaQuery.of(context).size.width * 0.8,
-                    420,
-                  ),
-                  child: SafeArea(
-                    child: TocWidget(
-                      epubPlayerKey: epubPlayerKey,
-                      hideAppBarAndBottomBar: showOrHideAppBarAndBottomBar,
-                      closeDrawer: () {
-                        _scaffoldKey.currentState?.closeDrawer();
-                      },
-                    ),
-                  ),
-                ),
-              ),
               body: Stack(
                 children: [
                   AxisFlex(
@@ -1041,6 +1126,17 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                         )
                     ],
                   ),
+                  // 亮度遮罩：只压正文，不压工具栏（微信读书同款）
+                  if (_brightness < 0.99)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Container(
+                          color: Colors.black.withValues(
+                            alpha: (1 - _brightness).clamp(0.0, 0.85),
+                          ),
+                        ),
+                      ),
+                    ),
                   controller,
                   // TTS floating action button: always in the tree when toolbar
                   // is hidden; TtsFab handles its own show/hide internally so

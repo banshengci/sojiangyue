@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/design/songjiang/reader/sj_reader_tokens.dart';
 import 'package:songjiang_reader/models/search_result_model.dart';
 import 'package:songjiang_reader/models/toc_item.dart';
 import 'package:songjiang_reader/page/book_player/epub_player.dart';
@@ -15,11 +16,15 @@ class BookToc extends ConsumerStatefulWidget {
     required this.epubPlayerKey,
     required this.hideAppBarAndBottomBar,
     required this.closeDrawer,
+    this.palette,
   });
 
   final GlobalKey<EpubPlayerState> epubPlayerKey;
   final Function hideAppBarAndBottomBar;
   final VoidCallback closeDrawer;
+
+  /// 阅读页调色板；为空时回退到 Material 主题色。
+  final SjReaderPalette? palette;
 
   @override
   ConsumerState<BookToc> createState() => _BookTocState();
@@ -38,6 +43,14 @@ class _BookTocState extends ConsumerState<BookToc> {
   String? _pendingScrollKey;
   bool _pendingScrollAnimated = false;
   bool _hasRestoredScrollPosition = false;
+
+  /// 阅读页调色板（纸张 + 字色派生），面板内所有控件共用。
+  SjReaderPalette get _palette =>
+      widget.palette ??
+      SjReaderPalette.fromTheme(
+        Theme.of(context).colorScheme.surface,
+        Theme.of(context).colorScheme.onSurface,
+      );
 
   @override
   void initState() {
@@ -307,40 +320,66 @@ class _BookTocState extends ConsumerState<BookToc> {
         : '${currentState.chapterCurrentPage} / ${currentState.chapterTotalPages}';
 
     var locatingButton = IconButton(
-      icon: const Icon(Icons.my_location),
+      tooltip: '回到当前章节',
+      icon: Icon(
+        Icons.my_location_rounded,
+        size: 19,
+        color: _palette.subForeground,
+      ),
       onPressed: () {
         _scrollToCurrent(animated: true);
       },
     );
 
-    var searchBox = SizedBox(
-      height: 35,
-      child: SearchBar(
-        controller: searchBarController,
-        shadowColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
-        padding: const WidgetStatePropertyAll<EdgeInsets>(
-            EdgeInsets.symmetric(horizontal: 16.0)),
-        leading: const Icon(Icons.search),
-        trailing: [
-          isSearchActive
-              ? IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () {
-                    searchBarController.clear();
-                    widget.epubPlayerKey.currentState?.clearSearch();
-                  },
-                )
-              : const SizedBox(),
+    // 微信读书是「胶囊搜索框 + 定位按钮」，不再用 Material SearchBar
+    final palette = _palette;
+    var searchBox = Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: palette.chip,
+        borderRadius: BorderRadius.circular(SjReaderSize.pillRadius),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.search_rounded, size: 17, color: palette.faint),
+          const SizedBox(width: 6),
+          Expanded(
+            child: TextField(
+              controller: searchBarController,
+              cursorColor: palette.accent,
+              style: TextStyle(fontSize: 13, color: palette.foreground),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                hintText: '搜本书',
+                hintStyle: TextStyle(fontSize: 13, color: palette.faint),
+              ),
+              onSubmitted: (value) {
+                final trimmed = value.trim();
+                if (trimmed.isEmpty) {
+                  searchBarController.clear();
+                  widget.epubPlayerKey.currentState?.clearSearch();
+                } else {
+                  widget.epubPlayerKey.currentState?.search(trimmed);
+                }
+              },
+            ),
+          ),
+          if (isSearchActive)
+            GestureDetector(
+              onTap: () {
+                searchBarController.clear();
+                widget.epubPlayerKey.currentState?.clearSearch();
+              },
+              child: Icon(
+                Icons.close_rounded,
+                size: 16,
+                color: palette.subForeground,
+              ),
+            ),
         ],
-        onSubmitted: (value) {
-          final trimmed = value.trim();
-          if (trimmed.isEmpty) {
-            searchBarController.clear();
-            widget.epubPlayerKey.currentState?.clearSearch();
-          } else {
-            widget.epubPlayerKey.currentState?.search(trimmed);
-          }
-        },
       ),
     );
     var searchResult = Expanded(
@@ -405,6 +444,7 @@ class _BookTocState extends ConsumerState<BookToc> {
                     isSelected: isSelected,
                     showProgress: isCurrentLeaf,
                     progressText: currentProgress,
+                    palette: _palette,
                     onToggle: tocItem.subitems.isEmpty
                         ? null
                         : () => _toggleExpanded(tocItem),
@@ -540,6 +580,7 @@ class TocItemWidget extends StatelessWidget {
     required this.progressText,
     required this.onToggle,
     required this.onTap,
+    this.palette,
   });
 
   final TocItem tocItem;
@@ -551,115 +592,97 @@ class TocItemWidget extends StatelessWidget {
   final VoidCallback? onToggle;
   final VoidCallback onTap;
 
-  TextStyle _baseStyle(BuildContext context) => TextStyle(
-        fontSize: 15,
-        color: Theme.of(context).colorScheme.onSurface,
-      );
-
-  TextStyle _selectedStyle(BuildContext context) => TextStyle(
-        fontSize: 16,
-        color: Theme.of(context).colorScheme.primary,
-        fontWeight: FontWeight.bold,
-      );
+  /// 阅读页调色板；为空时回退到 Material 主题色。
+  final SjReaderPalette? palette;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final labelStyle =
-        isSelected ? _selectedStyle(context) : _baseStyle(context);
-    final percentageStyle =
-        (isSelected ? _selectedStyle(context) : _baseStyle(context))
-            .copyWith(fontSize: 14, fontWeight: FontWeight.w300);
+    final scheme = Theme.of(context).colorScheme;
+    final p = palette ??
+        SjReaderPalette.fromTheme(scheme.surface, scheme.onSurface);
 
-    return Container(
-      // 当前章节原来只靠"文字变色 + 加粗"标识，长目录里一滚就找不到位置；
-      // 补一条松绿指示条和淡色底，扫一眼就能定位
-      decoration: BoxDecoration(
-        color: isSelected
-            ? SongJiangColors.pine.withAlpha(isDark ? 34 : 26)
-            : Colors.transparent,
-        border: Border(
-          left: BorderSide(
-            color: isSelected ? SongJiangColors.pine : Colors.transparent,
-            width: 3,
-          ),
+    final labelStyle = TextStyle(
+      fontFamily: SjReaderText.serif,
+      fontSize: 15,
+      height: 1.35,
+      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+      color: isSelected ? p.accent : p.foreground,
+    );
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        constraints: BoxConstraints(minHeight: showProgress ? 62 : 46),
+        padding: EdgeInsets.only(
+          left: depth == 0 ? 2 : 2 + depth * 18.0,
+          right: 2,
+          top: 12,
+          bottom: 12,
         ),
-      ),
-      child: Column(
-        children: [
-          ConstrainedBox(
-            constraints: BoxConstraints(minHeight: showProgress ? 60 : 40),
-            child: Padding(
-              // 原缩进 40px，三级目录就要吃掉 80px 横向空间，标题几乎没地方显示；
-              // 收到 26px，配合左侧指示条仍能看出层级
-              padding: EdgeInsets.only(left: depth == 0 ? 0 : depth * 26.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  if (tocItem.subitems.isNotEmpty)
-                    IconButton(
-                      padding: const EdgeInsets.all(0),
-                      icon: Icon(
-                        isExpanded ? Icons.expand_less : Icons.expand_more,
-                        size: 32,
-                      ),
-                      onPressed: onToggle,
-                    ),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: onTap,
-                      style: const ButtonStyle(
-                        alignment: Alignment.centerLeft,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  tocItem.label.trim(),
-                                  style: labelStyle,
-                                ),
-                                if (showProgress)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10.0),
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                            Icons.keyboard_arrow_right_rounded),
-                                        const SizedBox(width: 10),
-                                        Text(progressText),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            tocItem.percentage,
-                            style: percentageStyle,
-                          ),
-                        ],
-                      ),
-                    ),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: p.divider)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            if (tocItem.subitems.isNotEmpty)
+              GestureDetector(
+                onTap: onToggle,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.keyboard_arrow_right_rounded,
+                    size: 18,
+                    color: p.faint,
                   ),
+                ),
+              ),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    tocItem.label.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: labelStyle,
+                  ),
+                  if (isSelected && showProgress) ...<Widget>[
+                    const SizedBox(height: 5),
+                    Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.menu_book_rounded,
+                          size: 12,
+                          color: p.accent,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '当前读到',
+                          style: TextStyle(fontSize: 11, color: p.accent),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          progressText,
+                          style: TextStyle(fontSize: 11, color: p.faint),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-          ),
-          Divider(
-            indent: 10,
-            endIndent: 20,
-            thickness: 1,
-            color: SongJiangColors.pine.withAlpha(isDark ? 40 : 55),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Text(
+              tocItem.percentage,
+              style: TextStyle(fontSize: 12, color: p.faint),
+            ),
+          ],
+        ),
       ),
     );
   }
