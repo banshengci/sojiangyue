@@ -38,5 +38,26 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+
+    # 统一抬高 pod 的 macOS 部署目标到 10.15。
+    #
+    # 起因：flutter_inappwebview_macos 的 podspec 写的是 platform :osx, '10.14'，
+    # 但它的 WebAuthenticationSession.presentationAnchor(for:) 标了
+    # @available(macOS 10.15, *)。在 Xcode 26 的 SDK 下，系统协议
+    # ASWebAuthenticationPresentationContextProviding 要求该方法在 10.14
+    # 就可用，于是「部署目标 10.14 + 方法限定 10.15」被判为不满足协议一致性：
+    #
+    #   error: protocol 'ASWebAuthenticationPresentationContextProviding'
+    #   requires 'presentationAnchor(for:)' to be available in macOS 10.14 and newer
+    #
+    # 把该 pod 的部署目标提到 10.15 后，方法成为无条件可用，一致性成立。
+    # 只抬到 10.15（与本项目 Podfile 的 platform 一致），不动更高版本，
+    # 避免抬高最低支持系统。
+    target.build_configurations.each do |config|
+      current = config.build_settings['MACOSX_DEPLOYMENT_TARGET']
+      if current.nil? || current.to_f < 10.15
+        config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.15'
+      end
+    end
   end
 end
