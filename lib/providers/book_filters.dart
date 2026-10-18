@@ -17,6 +17,14 @@ class ReadingStatusFilterNotifier extends _$ReadingStatusFilterNotifier {
     }
   }
 
+  /// 直接选中（不再二次切换）。
+  ///
+  /// 分段控件（SjSegmented）需要「点已选项不取消」的语义，
+  /// 而 [toggle] 会把它取消掉。[select] 与它并存，互不影响。
+  void select(ReadingStatusFilter status) {
+    state = status;
+  }
+
   void clear() {
     state = ReadingStatusFilter.none;
   }

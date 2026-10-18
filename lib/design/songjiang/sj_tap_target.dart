@@ -26,6 +26,7 @@ class SjTapTarget extends StatelessWidget {
     this.semanticLabel,
     this.size = SjSizes.minTouchTarget,
     this.behavior = HitTestBehavior.opaque,
+    this.enabled = true,
   });
 
   /// 视觉内容（可以比 [size] 小，会被居中）。
@@ -42,6 +43,9 @@ class SjTapTarget extends StatelessWidget {
 
   final HitTestBehavior behavior;
 
+  /// 禁用态：降低不透明度、不响应点击，但**保留 44×44 占位**（避免布局跳动）。
+  final bool enabled;
+
   @override
   Widget build(BuildContext context) {
     // 用 ConstrainedBox 设**下限**而不是 SizedBox 固定尺寸：
@@ -54,7 +58,8 @@ class SjTapTarget extends StatelessWidget {
       child: Center(widthFactor: 1, heightFactor: 1, child: child),
     );
 
-    if (onTap != null) {
+    final clickable = enabled && onTap != null;
+    if (clickable) {
       body = GestureDetector(
         behavior: behavior,
         onTap: onTap,
@@ -62,10 +67,15 @@ class SjTapTarget extends StatelessWidget {
       );
     }
 
+    if (!enabled) {
+      body = Opacity(opacity: 0.4, child: body);
+    }
+
     if (semanticLabel != null) {
       body = Semantics(
         label: semanticLabel,
-        button: onTap != null,
+        button: clickable,
+        enabled: enabled,
         child: body,
       );
     }

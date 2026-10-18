@@ -1,4 +1,6 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:songjiang_reader/providers/book_filters.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/widgets/book_notes/book_note_tile.dart';
 import 'package:songjiang_reader/widgets/bookshelf/continue_reading_card.dart';
@@ -82,4 +84,54 @@ void main() {
       }
     });
   });
-}
+
+  group('ReadingStatusFilterNotifier', () {
+    ProviderContainer make() {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    test('select：再点已选项不会取消（分段控件语义）', () {
+      final c = make();
+      final n = c.read(readingStatusFilterNotifierProvider.notifier);
+
+      n.select(ReadingStatusFilter.reading);
+      expect(c.read(readingStatusFilterNotifierProvider),
+          ReadingStatusFilter.reading);
+
+      n.select(ReadingStatusFilter.reading);
+      expect(c.read(readingStatusFilterNotifierProvider),
+          ReadingStatusFilter.reading);
+    });
+
+    test('select(none) 用于「全部」', () {
+      final c = make();
+      final n = c.read(readingStatusFilterNotifierProvider.notifier);
+      n.select(ReadingStatusFilter.finished);
+      n.select(ReadingStatusFilter.none);
+      expect(c.read(readingStatusFilterNotifierProvider),
+          ReadingStatusFilter.none);
+    });
+
+    test('toggle：旧语义保留（再点取消）', () {
+      final c = make();
+      final n = c.read(readingStatusFilterNotifierProvider.notifier);
+      n.toggle(ReadingStatusFilter.finished);
+      expect(c.read(readingStatusFilterNotifierProvider),
+          ReadingStatusFilter.finished);
+      n.toggle(ReadingStatusFilter.finished);
+      expect(c.read(readingStatusFilterNotifierProvider),
+          ReadingStatusFilter.none);
+    });
+
+    test('同一时刻只有一个状态（单选，不是集合）', () {
+      final c = make();
+      final n = c.read(readingStatusFilterNotifierProvider.notifier);
+      n.select(ReadingStatusFilter.reading);
+      n.select(ReadingStatusFilter.finished);
+      n.select(ReadingStatusFilter.notStarted);
+      expect(c.read(readingStatusFilterNotifierProvider),
+          ReadingStatusFilter.notStarted);
+    });
+  });}

@@ -207,6 +207,14 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
                     ),
                   )
                 else ...[
+                  // v3 信息层级：2 主（阅读剧本 / 名场面卡）+ 2 压缩
+                  // （玩法模式在上方已是紧凑行，读书挑战在此折叠）。
+                  _buildSection(
+                    context,
+                    '阅读剧本 / 闯关',
+                    Icons.theater_comedy_outlined,
+                    byType[GameplayPackType.readingScript] ?? [],
+                  ),
                   _buildSection(
                     context,
                     '名场面卡',
@@ -218,12 +226,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
                     '读书挑战',
                     Icons.flag_outlined,
                     byType[GameplayPackType.readingChallenge] ?? [],
-                  ),
-                  _buildSection(
-                    context,
-                    '阅读剧本 / 闯关',
-                    Icons.theater_comedy_outlined,
-                    byType[GameplayPackType.readingScript] ?? [],
+                    compact: true,
                   ),
                 ],
               ],
@@ -414,8 +417,9 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
     BuildContext context,
     String title,
     IconData icon,
-    List<GameplayPackManifest> packs,
-  ) {
+    List<GameplayPackManifest> packs, {
+    bool compact = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -438,13 +442,17 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
             child: Text('（空）', style: TextStyle(color: Colors.grey)),
           )
         else
-          ...packs.map((p) => _buildPackCard(context, p)),
+          ...packs.map((p) => _buildPackCard(context, p, compact: compact)),
         const SizedBox(height: 12),
       ],
     );
   }
 
-  Widget _buildPackCard(BuildContext context, GameplayPackManifest pack) {
+  Widget _buildPackCard(
+    BuildContext context,
+    GameplayPackManifest pack, {
+    bool compact = false,
+  }) {
     return Card(
       margin: const EdgeInsets.only(left: 26, bottom: 10, right: 4),
       child: Padding(
@@ -487,8 +495,21 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
             const SizedBox(height: 8),
             if (pack.packType == GameplayPackType.sceneCard)
               ...pack.sceneCards.map((c) => _buildSceneCard(context, c)),
-            if (pack.packType == GameplayPackType.readingChallenge)
-              ...pack.challenges.map((c) => _buildChallenge(context, c)),
+            if (pack.packType == GameplayPackType.readingChallenge) ...[
+              // 压缩模式只展开第一条挑战，其余用「共 N 项」汇总。
+              // 注意：导出 / 移除按钮仍在上方，功能没丢，只是列表折叠。
+              ...pack.challenges
+                  .take(compact ? 1 : pack.challenges.length)
+                  .map((c) => _buildChallenge(context, c)),
+              if (compact && pack.challenges.length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(left: 24, bottom: 6),
+                  child: Text(
+                    '共 ${pack.challenges.length} 项挑战',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+            ],
             if (pack.packType == GameplayPackType.readingScript)
               _buildScriptPack(context, pack),
           ],

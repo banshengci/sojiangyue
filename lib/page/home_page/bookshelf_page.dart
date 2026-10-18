@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
+import 'package:songjiang_reader/design/songjiang/sj_segmented.dart';
 import 'package:songjiang_reader/widgets/common/sj_icon_button.dart';
 import 'package:songjiang_reader/config/bookshelf_prefs.dart';
 import 'package:songjiang_reader/config/theme_prefs.dart';
@@ -160,38 +161,11 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
     final tagsAsync = ref.watch(tagListProvider);
 
     Widget buildFilterBar() {
-      final statusChips = [
-        _StatusChip(
-          label: L10n.of(context).bookshelfFilterFinished,
-          selected: statusFilter == ReadingStatusFilter.finished,
-          onTap: () {
-            ref
-                .read(readingStatusFilterNotifierProvider.notifier)
-                .toggle(ReadingStatusFilter.finished);
-            ref.read(bookListProvider.notifier).refresh();
-          },
-        ),
-        _StatusChip(
-          label: L10n.of(context).bookshelfFilterReading,
-          selected: statusFilter == ReadingStatusFilter.reading,
-          onTap: () {
-            ref
-                .read(readingStatusFilterNotifierProvider.notifier)
-                .toggle(ReadingStatusFilter.reading);
-            ref.read(bookListProvider.notifier).refresh();
-          },
-        ),
-        _StatusChip(
-          label: L10n.of(context).bookshelfFilterNotStarted,
-          selected: statusFilter == ReadingStatusFilter.notStarted,
-          onTap: () {
-            ref
-                .read(readingStatusFilterNotifierProvider.notifier)
-                .toggle(ReadingStatusFilter.notStarted);
-            ref.read(bookListProvider.notifier).refresh();
-          },
-        ),
-      ];
+      // v3：状态筛选从「一排 chip」改为「分段控件」。
+      // 底层本来就是单选（`toggle` 里是 `state = status`，不是集合），
+      // 所以这是纯视觉改动：同样一次点击、同样一个状态，但选中态更明确、
+      // 且不会再出现「四个 chip 看起来都像可选项」的歧义。
+      final hasTagFilter = selectedTags.isNotEmpty;
 
       Future<void> showTagEditDialog(Tag tag) async {
         await TagChip.showEditDialog(
@@ -390,32 +364,64 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
         error: (_, __) => const SizedBox.shrink(),
       );
 
-      return Container(
-        height: 40,
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 5),
-        child: Row(
-          children: [
-            const SizedBox(width: 8),
-            Expanded(
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 第一行：状态分段（固定，不随标签滚动）+ 标签菜单按钮
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SjSegmented(
+                    labels: [
+                      '全部',
+                      L10n.of(context).bookshelfFilterReading,
+                      L10n.of(context).bookshelfFilterFinished,
+                      L10n.of(context).bookshelfFilterNotStarted,
+                    ],
+                    selectedIndex: switch (statusFilter) {
+                      ReadingStatusFilter.none => 0,
+                      ReadingStatusFilter.reading => 1,
+                      ReadingStatusFilter.finished => 2,
+                      ReadingStatusFilter.notStarted => 3,
+                    },
+                    onChanged: (int index) {
+                      final target = switch (index) {
+                        1 => ReadingStatusFilter.reading,
+                        2 => ReadingStatusFilter.finished,
+                        3 => ReadingStatusFilter.notStarted,
+                        _ => ReadingStatusFilter.none,
+                      };
+                      ref
+                          .read(readingStatusFilterNotifierProvider.notifier)
+                          .select(target);
+                      ref.read(bookListProvider.notifier).refresh();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SjIconButton(
+                  key: _tagButtonKey,
+                  icon: SjIconName.markColor,
+                  size: 22,
+                  tooltip: L10n.of(context).bookshelfFilterTagsTooltip,
+                  onPressed: showTagMenu,
+                ),
+              ],
+            ),
+          ),
+          // 第二行：已选标签（横向滚动，仅在有标签筛选时出现）
+          if (hasTagFilter)
+            SizedBox(
+              height: 34,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    ...statusChips,
-                    selectedTagWidgets,
-                  ],
-                ),
+                padding: const EdgeInsets.only(left: 12, right: 12, bottom: 4),
+                child: selectedTagWidgets,
               ),
             ),
-            SjIconButton(
-              key: _tagButtonKey,
-              icon: SjIconName.markColor,
-              size: 22,
-              tooltip: L10n.of(context).bookshelfFilterTagsTooltip,
-              onPressed: showTagMenu,
-            ),
-          ],
-        ),
+        ],
       );
     }
 
@@ -729,33 +735,5 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
           appBar: appBar,
           body: body,
         ));
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        labelPadding: const EdgeInsets.all(0),
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onTap(),
-        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-        checkmarkColor: Theme.of(context).colorScheme.primary,
-      ),
-    );
   }
 }
