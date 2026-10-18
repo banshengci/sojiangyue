@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/plugin/plugin_package.dart';
+import 'package:songjiang_reader/page/plugin/plugin_settings_page.dart';
 
 class AISettings extends ConsumerStatefulWidget {
   const AISettings({super.key});
@@ -317,6 +318,19 @@ class _AISettingsState extends ConsumerState<AISettings> {
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              if (plugin.settings.isNotEmpty ||
+                                  plugin.enhancers.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.tune, size: 20),
+                                  tooltip: '设置',
+                                  onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          PluginSettingsPage(plugin: plugin),
+                                    ),
+                                  ),
+                                ),
                               Switch(
                                 value: PluginRegistry.instance.isEnabled(plugin.id),
                                 onChanged: (v) {

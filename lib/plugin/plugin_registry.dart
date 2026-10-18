@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
+import 'package:songjiang_reader/plugin/plugin_settings.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
@@ -56,6 +57,12 @@ class DeclarativePlugin implements SongjiangPlugin {
   List<AiToolDefinition> get tools => definitions;
   @override
   List<PluginHook> get hooks => manifest.hooks;
+
+  @override
+  List<PluginEnhancer> get enhancers => manifest.enhancers;
+
+  @override
+  List<PluginSettingDef> get settings => manifest.settings;
 }
 
 class PluginRegistry {
@@ -77,6 +84,7 @@ class PluginRegistry {
   final List<SongjiangPlugin> _builtin = [];
   final List<SongjiangPlugin> _dynamic = [];
   final Set<String> _disabledPluginIds = {};
+  final Set<String> _enabledEnhancerIds = {};
   bool _initialized = false;
 
   /// 全部已注册插件（内置 + 动态）。
@@ -124,6 +132,77 @@ class PluginRegistry {
 
   /// 加载第三方 plugin.json 清单：校验 → 编译工具 → 注册。
   /// 返回新注册的插件（已合并进 allToolDefinitions）。
+  // ---- 生成增强器 ----
+
+  /// 全部可用增强器（只取已启用插件的）。
+  List<({String pluginId, PluginEnhancer enhancer})> get availableEnhancers {
+    final out = <({String pluginId, PluginEnhancer enhancer})>[];
+    for (final p in _dynamic) {
+      if (!isEnabled(p.id)) continue;
+      for (final e in p.enhancers) {
+        out.add((pluginId: p.id, enhancer: e));
+      }
+    }
+    return out;
+  }
+
+  static String enhancerKey(String pluginId, String enhancerId) =>
+      '$pluginId#$enhancerId';
+
+  bool isEnhancerEnabled(String pluginId, String enhancerId) =>
+      _enabledEnhancerIds.contains(enhancerKey(pluginId, enhancerId));
+
+  void setEnhancerEnabled(
+    String pluginId,
+    String enhancerId,
+    bool enabled,
+  ) {
+    final key = enhancerKey(pluginId, enhancerId);
+    if (enabled) {
+      _enabledEnhancerIds.add(key);
+    } else {
+      _enabledEnhancerIds.remove(key);
+    }
+    unawaited(_saveEnhancers());
+  }
+
+  /// 当前生效的增强规则文本（供主对话 system prompt 拼接）。
+  ///
+  /// 只返回**插件已启用 + 增强器已开启**的规则：
+  /// 禁用插件时必须立刻失效，不能等重启。
+  List<String> get enabledEnhancerRules {
+    final rules = <String>[];
+    for (final entry in availableEnhancers) {
+      if (!isEnhancerEnabled(entry.pluginId, entry.enhancer.id)) continue;
+      final rule = entry.enhancer.rule.trim();
+      if (rule.isNotEmpty) rules.add(rule);
+    }
+    return rules;
+  }
+
+  static const String _enabledEnhancersKey = 'plugin.enabledEnhancers';
+
+  Future<void> _loadEnhancers() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      _enabledEnhancerIds.addAll(sp.getStringList(_enabledEnhancersKey) ?? []);
+    } catch (e) {
+      SjLog.warning('Plugin: 读取增强器状态失败: $e');
+    }
+  }
+
+  Future<void> _saveEnhancers() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setStringList(
+        _enabledEnhancersKey,
+        _enabledEnhancerIds.toList(),
+      );
+    } catch (e) {
+      SjLog.warning('Plugin: 保存增强器状态失败: $e');
+    }
+  }
+
   SongjiangPlugin loadManifest(PluginManifest manifest) {
     // 同 id 已存在则替换（支持重装 / 升级）。
     _dynamic.removeWhere((p) => p.id == manifest.id);
@@ -194,6 +273,7 @@ class PluginRegistry {
     if (_initialized) return;
     _initialized = true;
     await _loadDisabled();
+    await _loadEnhancers();
     await _loadBundled();
     await _loadInstalled();
   }

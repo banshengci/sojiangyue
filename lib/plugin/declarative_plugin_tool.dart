@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'package:langchain_core/prompts.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
+import 'package:songjiang_reader/plugin/plugin_settings.dart';
+import 'package:songjiang_reader/plugin/plugin_storage.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 
 /// AI 未配置时的统一提示（新 provider 体系与旧 aiConfig 体系都取不到时）。
@@ -23,6 +25,33 @@ String _renderTemplate(String template, Map<String, dynamic> vars) {
   }
   return out;
 }
+
+/// 收集插件级别的模板变量：`config.*`（设置）与 `storage.*`（私有数据）。
+///
+/// 只有声明了 `storage.read` 权限的插件才读得到自己的数据区；
+/// 没声明就当作没有数据，模板里对应的占位符会渲染成空串——
+/// 让失败是"读不到"，而不是"报错中断"。
+Future<Map<String, String>> _pluginVars(PluginManifest m) async {
+  final out = <String, String>{};
+  if (m.settings.isNotEmpty) {
+    final values = await PluginSettingsStore.resolve(m.id, m.settings);
+    out.addAll(PluginSettingsStore.toTemplateVars(values));
+  }
+  if (m.permissions.contains(PluginPermission.storageRead)) {
+    out.addAll(PluginStorage.toTemplateVars(await PluginStorage.all(m.id)));
+  }
+  return out;
+}
+
+/// 把插件变量与工具入参合并成渲染用的变量表。
+///
+/// **入参优先**：模型传进来的值不应该被插件设置覆盖，
+/// 否则「用户填的默认语气」会盖掉「这一轮明确要求的语气」。
+Map<String, dynamic> mergeTemplateVars(
+  Map<String, String> pluginVars,
+  Map<String, dynamic> input,
+) =>
+    {...pluginVars, ...input};
 
 /// 把 ai_prompt 型配方编译成一个 RepositoryTool。
 class DeclarativePluginTool
@@ -51,7 +80,8 @@ class DeclarativePluginTool
     if (model == null) {
       return jsonEncode({'status': 'error', 'message': _notConfiguredMessage});
     }
-    final prompt = _renderTemplate(spec.prompt ?? '', input);
+    final vars = mergeTemplateVars(await _pluginVars(manifest), input);
+    final prompt = _renderTemplate(spec.prompt ?? '', vars);
     final res = await model.invoke(PromptValue.string(prompt));
     final text = _extractText(res);
     return jsonEncode({
@@ -94,7 +124,7 @@ class DeclarativeChainTool
     if (model == null) {
       return jsonEncode({'status': 'error', 'message': _notConfiguredMessage});
     }
-    final vars = <String, dynamic>{...input};
+    final vars = mergeTemplateVars(await _pluginVars(manifest), input);
     final stepsOut = <String, String>{};
     var last = '';
     for (final step in spec.steps) {

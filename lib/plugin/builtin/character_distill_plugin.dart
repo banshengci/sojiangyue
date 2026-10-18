@@ -5,6 +5,7 @@
 
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/character_distill_tool.dart';
+import 'package:songjiang_reader/plugin/plugin_settings.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 
 class CharacterDistillPlugin implements SongjiangPlugin {
@@ -42,4 +43,10 @@ class CharacterDistillPlugin implements SongjiangPlugin {
           toolId: 'distill_characters',
         ),
       ];
+
+  @override
+  List<PluginEnhancer> get enhancers => const [];
+
+  @override
+  List<PluginSettingDef> get settings => const [];
 }

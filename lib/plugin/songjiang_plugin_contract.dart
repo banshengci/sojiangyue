@@ -8,6 +8,7 @@
 
 import 'dart:convert';
 
+import 'package:songjiang_reader/plugin/plugin_settings.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
 /// 插件可声明的运行时权限（能力白名单）。未声明即不可用。
@@ -15,7 +16,9 @@ enum PluginPermission {
   readBookText('read.book.text'), // 读取当前阅读上下文 / 正文书
   networkHttps('network.https'), // 仅 https 出网（禁私有网段 / localhost）
   aiQuery('ai.query'), // 调用已配置的 AI 模型
-  writeNotes('write.notes'); // 写入笔记 / 批注
+  writeNotes('write.notes'), // 写入笔记 / 批注
+  storageRead('storage.read'), // 读取本插件的私有数据
+  storageWrite('storage.write'); // 写入本插件的私有数据
 
   const PluginPermission(this.value);
   final String value;
@@ -123,6 +126,37 @@ class PluginToolSpec {
       );
 }
 
+/// 生成增强器：把一段规则注入主对话的生成过程。
+///
+/// 与 [PluginHook] 的区别：
+/// * 钩子是「某个事件发生 → 跑一个工具」
+/// * 增强器是「这段规则长期生效 → 每轮生成都带上」
+///
+/// 让插件能改变"怎么说话"，而不只是"多做一件事"。
+class PluginEnhancer {
+  const PluginEnhancer({
+    required this.id,
+    required this.title,
+    required this.rule,
+    this.description,
+  });
+
+  final String id;
+  final String title;
+
+  /// 注入到 system prompt 的规则正文。
+  final String rule;
+
+  final String? description;
+
+  factory PluginEnhancer.fromJson(Map<String, dynamic> j) => PluginEnhancer(
+        id: (j['id'] ?? '').toString(),
+        title: (j['title'] ?? j['id'] ?? '').toString(),
+        rule: (j['rule'] ?? '').toString(),
+        description: j['description']?.toString(),
+      );
+}
+
 /// 第三方插件清单（plugin.json 解析结果）。
 class PluginManifest {
   PluginManifest({
@@ -135,6 +169,8 @@ class PluginManifest {
     required this.permissions,
     required this.hooks,
     required this.tools,
+    this.settings = const [],
+    this.enhancers = const [],
     this.minAppVersion,
   });
 
@@ -147,6 +183,12 @@ class PluginManifest {
   final List<PluginPermission> permissions;
   final List<PluginHook> hooks;
   final List<PluginToolSpec> tools;
+
+  /// 宿主渲染的设置项。
+  final List<PluginSettingDef> settings;
+
+  /// 生成增强器：启用后其规则会注入主对话。
+  final List<PluginEnhancer> enhancers;
   final String? minAppVersion;
 
   factory PluginManifest.fromJson(Map<String, dynamic> j) => PluginManifest(
@@ -166,6 +208,16 @@ class PluginManifest {
             .toList(),
         tools: (j['tools'] as List? ?? [])
             .map((e) => PluginToolSpec.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        settings: (j['settings'] as List? ?? [])
+            .whereType<Map>()
+            .map((e) => PluginSettingDef.fromJson(e.cast<String, dynamic>()))
+            .where((d) => d.key.isNotEmpty)
+            .toList(),
+        enhancers: (j['enhancers'] as List? ?? [])
+            .whereType<Map>()
+            .map((e) => PluginEnhancer.fromJson(e.cast<String, dynamic>()))
+            .where((e) => e.id.isNotEmpty && e.rule.trim().isNotEmpty)
             .toList(),
         minAppVersion: j['minAppVersion'] as String?,
       );
@@ -194,4 +246,10 @@ abstract class SongjiangPlugin {
 
   /// 事件钩子（P0c 起用于 on_book_import 触发蒸馏等）。
   List<PluginHook> get hooks => const [];
+
+  /// 生成增强器：启用后其规则注入主对话。
+  List<PluginEnhancer> get enhancers => const [];
+
+  /// 宿主渲染的设置项（可空）。
+  List<PluginSettingDef> get settings => const [];
 }

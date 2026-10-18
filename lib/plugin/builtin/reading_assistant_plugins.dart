@@ -10,6 +10,7 @@
 // 为什么选这三个：读书场景里高频、不依赖额外数据源、失败也无害。
 
 import 'package:songjiang_reader/plugin/declarative_plugin_tool.dart';
+import 'package:songjiang_reader/plugin/plugin_settings.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
@@ -27,6 +28,15 @@ class QuoteCardPlugin implements SongjiangPlugin {
     description: '为选中的书摘生成几句话，适合抄进笔记或分享。',
     author: 'songjiang',
     permissions: const [PluginPermission.aiQuery],
+    settings: const [
+      PluginSettingDef(
+        key: 'tone',
+        title: '语气',
+        type: PluginSettingType.enum_,
+        defaultValue: '克制',
+        options: ['克制', '温柔', '直白'],
+      ),
+    ],
     hooks: const [PluginHook(event: PluginEventType.onSelectText, toolId: 'make_quote_card')],
     tools: const [],
   );
@@ -47,6 +57,7 @@ class QuoteCardPlugin implements SongjiangPlugin {
     prompt: '你在帮读者把一段书摘做成可以抄下来、发给朋友的短句。\n'
         '原文：{{text}}\n'
         '书名：{{book_title}}\n'
+        '语气：{{config.tone}}\\n'
         '\n'
         '输出 3 条候选，每条不超过 28 个字。\n'
         '要求：保留原句里的具体意象（物件、动作、天气这类），'
@@ -71,6 +82,12 @@ class QuoteCardPlugin implements SongjiangPlugin {
   List<PluginHook> get hooks => _manifest.hooks;
   @override
   List<AiToolDefinition> get tools => [toDefinition(_manifest, _spec)];
+
+  @override
+  List<PluginEnhancer> get enhancers => const [];
+
+  @override
+  List<PluginSettingDef> get settings => _manifest.settings;
 }
 
 /// 章节回顾：读完一章，用几句话收束。
@@ -130,6 +147,12 @@ class ChapterRecapPlugin implements SongjiangPlugin {
   List<PluginHook> get hooks => _manifest.hooks;
   @override
   List<AiToolDefinition> get tools => [toDefinition(_manifest, _spec)];
+
+  @override
+  List<PluginEnhancer> get enhancers => const [];
+
+  @override
+  List<PluginSettingDef> get settings => _manifest.settings;
 }
 
 /// 共读提问：给一章出几个能聊起来的问题。
@@ -189,4 +212,10 @@ class DiscussionQuestionsPlugin implements SongjiangPlugin {
   List<PluginHook> get hooks => _manifest.hooks;
   @override
   List<AiToolDefinition> get tools => [toDefinition(_manifest, _spec)];
+
+  @override
+  List<PluginEnhancer> get enhancers => const [];
+
+  @override
+  List<PluginSettingDef> get settings => _manifest.settings;
 }

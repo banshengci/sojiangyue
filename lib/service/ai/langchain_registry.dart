@@ -1,9 +1,10 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/ai_prefs.dart';
 import 'package:songjiang_reader/models/ai_provider.dart';
 import 'package:songjiang_reader/providers/current_reading.dart';
+import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/service/ai/tools/ai_tool_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:langchain_anthropic/langchain_anthropic.dart';
@@ -247,7 +248,23 @@ You can also use LaTeX for mathematical expressions. Here's an example:
 ## Remember
 You are not just a tool executor, but the user's reading companion. Your mission is to make every reading session more insightful and enjoyable.''';
 
-    return ChatMessage.system(guidance);
+    return ChatMessage.system(_withPluginEnhancers(guidance));
+  }
+
+  /// 把用户启用的插件增强规则接在 system prompt 末尾。
+  ///
+  /// 与工具的区别：工具是"多做一件事"，增强器是"怎么说这件事"。
+  /// 规则来自插件，但**是否生效由用户逐条开关**，禁用插件会立刻失效。
+  String _withPluginEnhancers(String guidance) {
+    final rules = PluginRegistry.instance.enabledEnhancerRules;
+    if (rules.isEmpty) return guidance;
+    final buf = StringBuffer(guidance);
+    buf.writeln();
+    buf.writeln('## 插件增强规则（用户已启用，需遵守）');
+    for (final rule in rules) {
+      buf.writeln('- $rule');
+    }
+    return buf.toString();
   }
 
   String _formatToolCatalog(List<AiToolDefinition> enabledTools) {
