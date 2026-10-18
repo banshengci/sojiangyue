@@ -132,14 +132,34 @@ String buildCharacterSystemPrompt({
   }
 
   if (world.isNotEmpty) {
-    buf.writeln('## 你所处的世界');
-    for (final w in world.take(10)) {
-      final d = (w.description == null || w.description!.isEmpty)
-          ? ''
-          : '：${w.description}';
-      buf.writeln('- ${w.category}·${w.name}$d');
+    // 锁定事实单独成段并放在最前：这些是作者钉死的设定，
+    // 角色可以不知道，但不能否认、不能改口、不能被剧情推翻。
+    final locked = world.where((w) => w.pinned).toList();
+    final floating = world.where((w) => !w.pinned).toList();
+
+    if (locked.isNotEmpty) {
+      buf.writeln('## 不可改写的设定（必须遵守）');
+      buf.writeln('以下设定是这本书记载的事实，**不得否认、不得改写、不得与之矛盾**。'
+          '角色可以不知道它们，但一旦涉及就必须说对。');
+      for (final w in locked.take(10)) {
+        final d = (w.description == null || w.description!.isEmpty)
+            ? ''
+            : '：${w.description}';
+        buf.writeln('- ${w.category}·${w.name}$d');
+      }
+      buf.writeln();
     }
-    buf.writeln();
+
+    if (floating.isNotEmpty) {
+      buf.writeln('## 你所处的世界');
+      for (final w in floating.take(10)) {
+        final d = (w.description == null || w.description!.isEmpty)
+            ? ''
+            : '：${w.description}';
+        buf.writeln('- ${w.category}·${w.name}$d');
+      }
+      buf.writeln();
+    }
   }
 
   buf.writeln('## 说话的规矩');
@@ -166,6 +186,7 @@ String buildGroupSystemPrompt({
   String? userPersona,
   List<CharacterRelation> relations = const [],
   String? bookTitle,
+  List<WorldSetting> world = const [],
 }) {
   final buf = StringBuffer();
   final book = (bookTitle == null || bookTitle.isEmpty) ? '这本书' : '《$bookTitle》';
@@ -201,6 +222,20 @@ String buildGroupSystemPrompt({
     buf.writeln('### 他们之间');
     for (final r in relations.take(12)) {
       buf.writeln(_describeRelation(r, '\u0000')); // 群聊里不做主视角区分
+    }
+    buf.writeln();
+  }
+
+  // 锁定事实：群聊里更需要，否则几个角色会互相把设定说岔
+  final locked = world.where((w) => w.pinned).toList();
+  if (locked.isNotEmpty) {
+    buf.writeln('### 不可改写的设定（必须遵守）');
+    buf.writeln('以下设定是这本书记载的事实，**不得否认、不得改写、不得与之矛盾**。');
+    for (final w in locked.take(10)) {
+      final d = (w.description == null || w.description!.isEmpty)
+          ? ''
+          : '：${w.description}';
+      buf.writeln('- ${w.category}·${w.name}$d');
     }
     buf.writeln();
   }

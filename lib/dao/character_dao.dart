@@ -188,6 +188,17 @@ class CharacterDao extends BaseDao {
         orderBy: 'category ASC, name ASC',
       );
 
+  /// 只切换某条世界观的「锁定」状态。
+  ///
+  /// 单独开一个方法而不是整条 upsert：锁定时不该改动它的 name/description，
+  /// 否则界面上只是点了个开关，却可能把别处并发编辑的内容覆盖掉。
+  Future<void> setWorldSettingPinned(int id, bool pinned) => update(
+        tableWorld,
+        {'pinned': pinned ? 1 : 0, 'updated_at': DateTime.now().toIso8601String()},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
   // ---- timeline ----
 
   Future<void> batchSaveTimeline(List<TimelineEvent> events) async {

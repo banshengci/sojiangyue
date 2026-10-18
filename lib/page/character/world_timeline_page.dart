@@ -1,3 +1,4 @@
+import 'package:songjiang_reader/utils/toast/common.dart';
 // lib/page/character/world_timeline_page.dart
 //
 // 世界观设定 + 世界时间线展示页。
@@ -215,6 +216,19 @@ class _WorldTimelinePageState extends State<WorldTimelinePage> {
     );
   }
 
+  /// 切换锁定状态并就地刷新。失败时提示，不静默吞掉。
+  Future<void> _togglePinned(WorldSetting s) async {
+    try {
+      await characterDao.setWorldSettingPinned(s.id!, !s.pinned);
+      await _reload();
+      if (!mounted) return;
+      SjToast.show(!s.pinned ? '已锁定：这条设定不会再被改写' : '已解锁');
+    } catch (e) {
+      if (!mounted) return;
+      SjToast.show('操作失败：$e');
+    }
+  }
+
   Widget _buildSettingCard(SjColors c, WorldSetting s) {
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
@@ -223,7 +237,22 @@ class _WorldTimelinePageState extends State<WorldTimelinePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(s.name, style: SjText.cardTitle(c.ink)),
+            Row(
+              children: [
+                Expanded(child: Text(s.name, style: SjText.cardTitle(c.ink))),
+                // 锁定 = 注入 prompt 时进「不可改写」段，防止角色越聊越飘
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: s.pinned ? '已锁定（点击解锁）' : '锁定为不可改写的设定',
+                  icon: Icon(
+                    s.pinned ? Icons.lock : Icons.lock_open,
+                    size: 18,
+                    color: s.pinned ? c.pine : c.inkSoft,
+                  ),
+                  onPressed: s.id == null ? null : () => _togglePinned(s),
+                ),
+              ],
+            ),
             if (s.description != null && s.description!.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(

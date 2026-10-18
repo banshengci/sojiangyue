@@ -241,6 +241,7 @@ class WorldSetting {
     required this.category,
     required this.name,
     this.description,
+    this.pinned = false,
     this.source = 'ai_distill',
     required this.createdAt,
     required this.updatedAt,
@@ -251,6 +252,9 @@ class WorldSetting {
   final String category;
   final String name;
   final String? description;
+
+  /// 锁定事实：注入 prompt 时单列一段「不可改写」，防止角色越聊越飘。
+  final bool pinned;
   final String source;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -262,6 +266,7 @@ class WorldSetting {
         name: map['name'] as String,
         description: map['description'] as String?,
         source: (map['source'] as String?) ?? 'ai_distill',
+        pinned: (map['pinned'] as int? ?? 0) != 0,
         createdAt: DateTime.tryParse(map['created_at'] as String? ?? '') ??
             DateTime.now(),
         updatedAt: DateTime.tryParse(map['updated_at'] as String? ?? '') ??
@@ -274,6 +279,7 @@ class WorldSetting {
         'name': name,
         'description': description,
         'source': source,
+        'pinned': pinned ? 1 : 0,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };
@@ -299,6 +305,7 @@ class TimelineEvent {
   final String title;
   final String? description;
   final String? timeNote;
+
   final String source;
   final DateTime createdAt;
   final DateTime updatedAt;

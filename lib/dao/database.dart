@@ -801,6 +801,9 @@ Future<void> ensureSchemaIntegrity(Database db) async {
     // 其他表的历史新增列
     await _ensureColumn(db, 'tb_notes', 'reader_note', 'TEXT');
     await _ensureColumn(db, 'tb_themes', 'name', 'TEXT');
+    // 锁定事实：世界观可被标记为「不可改写」，注入时单列一段。
+    await _ensureColumn(
+      db, 'tb_world_settings', 'pinned', 'INTEGER NOT NULL DEFAULT 0');
     // 造梦开局姿态：老库的会话表没有这两列，打开时补上。
     // 用自检补列而不是顶数据库版本号，是为了不牵动 DatabaseSyncManager 的版本比较。
     await _ensureColumn(

@@ -25,6 +25,7 @@ import 'characters_page_strings.dart';
 import 'package:songjiang_reader/plugin/plugin_npc_runner.dart';
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/service/character/chat_autoplay.dart';
+import 'package:songjiang_reader/service/character/director_action.dart';
 import 'package:songjiang_reader/plugin/plugin_rule_runner.dart';
 
 /// 与角色对话。
@@ -82,6 +83,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
   /// 旁观模式的「继续演出」：置位后复用 _send 的流程，但不发用户消息。
   bool _advanceRequested = false;
+
+  /// 本轮「继续演出」使用的导演指令（推进/放缓/冲突/视角/破第四面墙）。
+  String? _advanceInstruction;
 
   /// 自动连播：开启后每轮结束自动再推进一幕，到上限或被打断即停。
   bool _autoPlay = false;
@@ -404,6 +408,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         history: history,
         input: text,
         continueScene: advancing,
+        continueInstruction: _advanceInstruction,
         extraDirective: _extraDirective,
       )) {
         if (!mounted) return;
@@ -484,13 +489,95 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   /// 与 [_send] 的区别只有一点——没有用户发言。规则结算、流式接收、
   /// 落库、玩法结算全部复用同一条路径，靠 [_advanceRequested] 告诉
   /// [_send] 走「无发言」分支；另写一份迟早会两边走偏。
-  Future<void> _advance() async {
+  IconData _directorIcon(DirectorAction a) => switch (a) {
+        DirectorAction.advance => Icons.skip_next,
+        DirectorAction.slowEmotion => Icons.self_improvement,
+        DirectorAction.conflict => Icons.flash_on,
+        DirectorAction.viewpoint => Icons.swap_horiz,
+        DirectorAction.fourthWall => Icons.theater_comedy,
+      };
+
+  /// 导演面板：选一个意图，可附一句目标。
+  ///
+  /// 与「继续演出」的区别：继续只是往前推，导演能指定往哪个方向推
+  /// （放缓 / 冲突 / 换视角 / 破第四面墙）。
+  Future<void> _openDirectorSheet() async {
     if (_session == null || _sending) return;
+    var action = DirectorAction.advance;
+    final goalCtrl = TextEditingController();
+    final picked = await showModalBottomSheet<(DirectorAction, String?)>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('这一幕往哪走？'),
+                  ),
+                ),
+                for (final a in DirectorAction.values)
+                  ListTile(
+                    leading: Icon(_directorIcon(a), size: 20),
+                    title: Text(a.label),
+                    subtitle: Text(a.hint),
+                    trailing: action == a ? const Icon(Icons.check) : null,
+                    onTap: () => setLocal(() => action = a),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: TextField(
+                    controller: goalCtrl,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: '这次想达成什么（可空）',
+                      hintText: '例如：让宝玉先开口道歉',
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () =>
+                          Navigator.pop(ctx, (action, goalCtrl.text.trim())),
+                      child: const Text('开演'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    goalCtrl.dispose();
+    if (picked == null) return;
+    await _advance(action: picked.$1, goal: picked.$2);
+  }
+
+  Future<void> _advance({
+    DirectorAction action = DirectorAction.advance,
+    String? goal,
+  }) async {
+    if (_session == null || _sending) return;
+    _advanceInstruction = buildDirectorDirective(action, goal: goal);
     _advanceRequested = true;
     try {
       await _send();
     } finally {
       _advanceRequested = false;
+      _advanceInstruction = null;
     }
   }
 
@@ -1459,7 +1546,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                 if (_isSpectator) ...[
                   const SizedBox(width: 6),
                   IconButton(
-                    onPressed: _sending ? null : _advance,
+                    onPressed: _sending ? null : _openDirectorSheet,
                     icon: const Icon(Icons.skip_next),
                     tooltip: '继续演出',
                   ),

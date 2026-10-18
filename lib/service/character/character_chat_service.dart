@@ -198,6 +198,8 @@ class CharacterChatService {
     required List<CharacterChatMessage> history,
     required String input,
     bool continueScene = false,
+    /// 「继续演出」用的舞台指令；为空时用默认的 continueNudge。
+    String? continueInstruction,
     String? extraDirective,
   }) async* {
     final model = resolveCurrentModel();
@@ -217,6 +219,8 @@ class CharacterChatService {
         ? buildGroupSystemPrompt(
             characters: ctx.onStage,
             relations: ctx.relations,
+            // 群聊也要吃世界观，否则「锁定事实」只在单人对话里生效
+            world: ctx.world,
             // 读者姿态（旁观/扮演/入场）决定模型怎么对待读者的发言
             participation: session.participation,
             userPersona: session.userPersona,
@@ -244,7 +248,9 @@ class CharacterChatService {
         ].where((s) => s.trim().isNotEmpty).join('\n'),
       ),
       ..._historyToMessages(history),
-      ChatMessage.humanText(continueScene ? continueNudge : input),
+      ChatMessage.humanText(
+        continueScene ? (continueInstruction ?? continueNudge) : input,
+      ),
     ];
 
     final buffer = StringBuffer();
