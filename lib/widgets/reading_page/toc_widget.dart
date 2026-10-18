@@ -1,3 +1,5 @@
+import 'package:songjiang_reader/design/songjiang/reader/sj_reader_controls.dart';
+import 'package:songjiang_reader/design/songjiang/reader/sj_reader_tokens.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/page/book_player/epub_player.dart';
 import 'package:songjiang_reader/widgets/reading_page/widgets/book_toc.dart';
@@ -10,11 +12,19 @@ class TocWidget extends StatefulWidget {
     required this.epubPlayerKey,
     required this.hideAppBarAndBottomBar,
     required this.closeDrawer,
+    this.bookTitle,
+    this.palette,
   });
 
   final GlobalKey<EpubPlayerState> epubPlayerKey;
   final Function hideAppBarAndBottomBar;
   final VoidCallback closeDrawer;
+
+  /// 面板顶部显示的书名（微信读书目录会把书名放在列表上方）。
+  final String? bookTitle;
+
+  /// 阅读页调色板；为空时回退到 Material 主题色。
+  final SjReaderPalette? palette;
 
   @override
   State<TocWidget> createState() => _TocWidgetState();
@@ -28,35 +38,67 @@ class _TocWidgetState extends State<TocWidget>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) setState(() {});
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final palette = widget.palette ??
+        SjReaderPalette.fromTheme(
+          Theme.of(context).colorScheme.surface,
+          Theme.of(context).colorScheme.onSurface,
+        );
+
     return Column(
-      children: [
-        TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: L10n.of(context).readingContents),
-            Tab(text: L10n.of(context).readingBookmark),
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                widget.bookTitle ?? L10n.of(context).readingContents,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SjReaderText.chapterTitle(palette.foreground)
+                    .copyWith(fontSize: 20),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 132,
+              child: SjSegmented(
+                palette: palette,
+                labels: <String>[
+                  L10n.of(context).readingContents,
+                  L10n.of(context).readingBookmark,
+                ],
+                index: _tabController.index,
+                onChanged: (int index) {
+                  _tabController.animateTo(index);
+                  setState(() {});
+                },
+              ),
+            ),
           ],
         ),
+        const SizedBox(height: 6),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                buildBookToc(),
-                buildBookmarkList(),
-              ],
-            ),
+          child: TabBarView(
+            controller: _tabController,
+            children: <Widget>[
+              buildBookToc(),
+              buildBookmarkList(),
+            ],
           ),
         ),
       ],
@@ -78,6 +120,7 @@ class _TocWidgetState extends State<TocWidget>
       epubPlayerKey: widget.epubPlayerKey,
       hideAppBarAndBottomBar: widget.hideAppBarAndBottomBar,
       closeDrawer: widget.closeDrawer,
+      palette: widget.palette,
     );
   }
 }
