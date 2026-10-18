@@ -7,6 +7,8 @@
 
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/plugin/plugin_rules.dart';
+import 'package:songjiang_reader/plugin/plugin_storage.dart';
+import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
 /// 规则运行器。
@@ -39,6 +41,12 @@ class PluginRuleRunner {
         // beforeGeneration 也可能带 increment_state，这里一并落盘
         if (eval.stateDelta.isNotEmpty) {
           await _mergeSave(group.pluginId, sessionId, state, eval);
+          await _applyStorageWrites(
+            group.pluginId,
+            eval,
+            turn: turn,
+            state: {...state.state, ...eval.stateDelta},
+          );
         }
       } catch (e) {
         SjLog.warning('PluginRule: 求值失败 ${group.pluginId}: $e');
@@ -70,24 +78,53 @@ class PluginRuleRunner {
         );
         if (eval.isEmpty && eval.appliedKeys.isEmpty) continue;
         await _mergeSave(group.pluginId, sessionId, state, eval);
+        await _applyStorageWrites(
+          group.pluginId,
+          eval,
+          turn: turn,
+          state: {...state.state, ...eval.stateDelta},
+        );
       } catch (e) {
         SjLog.warning('PluginRule: 结算失败 ${group.pluginId}: $e');
       }
     }
   }
 
-  /// 会话内规则的当前状态（供调试或将来展示）。
-  static Future<Map<String, int>> stateOf(
-    int sessionId,
-  ) async {
-    final merged = <String, int>{};
-    for (final group in _byPlugin(PluginRegistry.instance.activeRules)) {
-      final state = await PluginRuleStateStore.load(group.pluginId, sessionId);
-      merged.addAll(state.state);
-    }
-    return merged;
-  }
 
+  /// 规则要求写入插件存储时，先查权限再写。
+  ///
+  /// 没有 storage.write 权限就整条丢弃并记一条 warning——
+  /// 不静默成功，否则插件作者会以为写进去了。
+  static Future<void> _applyStorageWrites(
+    String pluginId,
+    RuleEvaluation eval, {
+    required int turn,
+    required Map<String, int> state,
+  }) async {
+    if (eval.storageWrites.isEmpty) return;
+    final plugin = PluginRegistry.instance.plugins
+        .where((p) => p.id == pluginId)
+        .firstOrNull;
+    final allowed = plugin?.permissions.contains(
+          PluginPermission.storageWrite,
+        ) ??
+        false;
+    if (!allowed) {
+      SjLog.warning('PluginRule: $pluginId 未声明 storage.write，忽略写入');
+      return;
+    }
+    for (final e in eval.storageWrites.entries) {
+      try {
+        await PluginStorage.write(
+          pluginId,
+          e.key,
+          renderRuleValue(e.value, turn: turn, state: state),
+        );
+      } catch (err) {
+        SjLog.warning('PluginRule: 写入存储失败 ${e.key}: $err');
+      }
+    }
+  }
   static Future<void> _mergeSave(
     String pluginId,
     int sessionId,

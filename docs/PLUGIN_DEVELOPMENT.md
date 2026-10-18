@@ -158,6 +158,8 @@
 | `network.https` | 允许 https 出网（禁明文、禁私有网段） |
 | `ai.query` | 调用用户已配置的模型 |
 | `write.notes` | 写入笔记 / 批注 |
+| `storage.read` | 读取本插件的私有数据（`{{storage.x}}`） |
+| `storage.write` | 写入本插件的私有数据（单值 8 KB / 32 键 / 合计 64 KB） |
 
 **未声明即不可用。** 不要为"以后可能用到"多申请——
 用户在安装时必须看到并确认这些权限。
@@ -227,6 +229,10 @@
 
 键名只能是 `[A-Za-z0-9_.-]`。插件不是数据库——需要存大块内容说明设计错了。
 
+**读**：模板 `{{storage.x}}`，需 `storage.read`。
+**写**：目前只有规则动作 `set_storage` 会写（需 `storage.write`）；
+工具本身没有写入入口——避免插件在用户不知情时反复累积数据。
+
 ### 生成增强器（enhancers）
 
 ```json
@@ -265,7 +271,25 @@
 
 * `event`：`before_generation`（可注入指令）/ `after_turn`（可累计状态）
 * `match`：`everyTurns` / `chancePercent` / `keywords`，**多个条件取交集**
-* `actions`：`add_instruction` / `increment_state`
+* `actions`：`add_instruction` / `increment_state` / `set_storage`
+
+`set_storage` 用来把结果记进插件私有存储（需 `storage.write` 权限），
+支持 `{{turn}}` 与 `{{state.key}}` 占位：
+
+```json
+{
+  "id": "remember-refusal",
+  "event": "after_turn",
+  "match": { "keywords": ["拒绝"] },
+  "actions": [
+    { "type": "increment_state", "key": "refusals" },
+    { "type": "set_storage", "key": "last_note",
+      "value": "第 {{turn}} 轮，已被拒绝 {{state.refusals}} 次" }
+  ]
+}
+```
+
+之后别的工具就能用 `{{storage.last_note}}` 读到它。
 
 状态按「插件 × 会话」隔离；**同一回合重试不会重复累计**，
 但指令每次都会重新注入（重新生成时仍然需要它）。

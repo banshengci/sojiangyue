@@ -18,6 +18,8 @@ import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 
 import 'character_chat_page.dart';
 import 'characters_page_strings.dart';
+import 'package:songjiang_reader/plugin/plugin_registry.dart';
+import 'package:songjiang_reader/plugin/plugin_rules.dart';
 
 /// 某本书的全部角色对话会话。
 class CharacterChatSessionsPage extends StatefulWidget {
@@ -99,7 +101,16 @@ class _CharacterChatSessionsPageState
       ),
     );
     if (ok != true) return;
-    await characterChatDao.deleteSessions(_selected.toList());
+    final ids = _selected.toList();
+    await characterChatDao.deleteSessions(ids);
+    // 会话删了，它自己的插件状态也要跟着走，否则下次新建会话
+    // 可能拿着同一个 id 段把旧状态读出来（规则计数、增强器开关）。
+    for (final id in ids) {
+      for (final p in PluginRegistry.instance.plugins) {
+        await PluginRuleStateStore.clear(p.id, id);
+      }
+      PluginRegistry.instance.clearSessionEnhancers(id);
+    }
     if (!mounted) return;
     setState(() {
       _selected.clear();

@@ -308,4 +308,110 @@ void main() {
       expect(s.appliedKeys, isEmpty);
     });
   });
+  group('写入插件存储（set_storage）', () {
+    test('解析出 key 与 value', () {
+      final r = PluginRule.fromJson({
+        'id': 'x',
+        'event': 'after_turn',
+        'actions': [
+          {'type': 'set_storage', 'key': 'record', 'value': '第 {{turn}} 轮'},
+        ],
+      });
+      expect(r, isNotNull);
+      expect(r!.actions.single.key, 'record');
+      expect(r.actions.single.value, '第 {{turn}} 轮');
+    });
+
+    test('缺 key 或 value 的动作被丢弃', () {
+      expect(
+        PluginRule.fromJson({
+          'id': 'x',
+          'event': 'after_turn',
+          'actions': [
+            {'type': 'set_storage', 'key': 'k'},
+          ],
+        }),
+        isNull,
+      );
+      expect(
+        PluginRule.fromJson({
+          'id': 'x',
+          'event': 'after_turn',
+          'actions': [
+            {'type': 'set_storage', 'value': 'v'},
+          ],
+        }),
+        isNull,
+      );
+    });
+
+    test('求值产出 storageWrites', () {
+      final eval = evaluateRules(
+        rules: rulesOf([
+          rule(
+            actions: const [
+              RuleAction(
+                type: RuleActionType.setStorage,
+                key: 'record',
+                value: '第 {{turn}} 轮',
+              ),
+            ],
+          ),
+        ]),
+        event: RuleEvent.afterTurn,
+        turn: 3,
+        userInput: '',
+      );
+      expect(eval.storageWrites['record'], '第 {{turn}} 轮');
+    });
+
+    test('同回合重试不会重复写入', () {
+      final r = rule(
+        actions: const [
+          RuleAction(type: RuleActionType.setStorage, key: 'k', value: 'v'),
+        ],
+      );
+      final first = evaluateRules(
+        rules: rulesOf([r]),
+        event: RuleEvent.afterTurn,
+        turn: 2,
+        userInput: '',
+      );
+      final second = evaluateRules(
+        rules: rulesOf([r]),
+        event: RuleEvent.afterTurn,
+        turn: 2,
+        userInput: '',
+        appliedKeys: first.appliedKeys,
+      );
+      expect(first.storageWrites, isNotEmpty);
+      expect(second.storageWrites, isEmpty);
+    });
+  });
+
+  group('renderRuleValue', () {
+    test('替换 {{turn}}', () {
+      expect(renderRuleValue('第 {{turn}} 轮', turn: 5), '第 5 轮');
+    });
+
+    test('替换 {{state.key}}', () {
+      expect(
+        renderRuleValue('拒绝 {{state.refusals}} 次', turn: 1, state: {'refusals': 3}),
+        '拒绝 3 次',
+      );
+    });
+
+    test('未知占位保留原样，不静默变空', () {
+      expect(renderRuleValue('{{unknown}}', turn: 1), '{{unknown}}');
+      expect(renderRuleValue('{{state.nope}}', turn: 1), '{{state.nope}}');
+    });
+
+    test('混合占位', () {
+      expect(
+        renderRuleValue('t{{turn}}-n{{state.n}}', turn: 2, state: {'n': 9}),
+        't2-n9',
+      );
+    });
+  });
+
 }

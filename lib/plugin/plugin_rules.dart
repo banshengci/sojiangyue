@@ -86,7 +86,10 @@ enum RuleActionType {
   addInstruction('add_instruction'),
 
   /// 给会话内的规则状态累计一个数值。
-  incrementState('increment_state');
+  incrementState('increment_state'),
+
+  /// 把一段文本写进插件私有存储（需要 storage.write 权限）。
+  setStorage('set_storage');
 
   const RuleActionType(this.code);
   final String code;
@@ -107,12 +110,16 @@ class RuleAction {
     this.instruction,
     this.key,
     this.amount = 1,
+    this.value,
   });
 
   final RuleActionType type;
   final String? instruction;
   final String? key;
   final int amount;
+
+  /// set_storage 写入的内容（支持 {{turn}} 与 {{state.key}} 占位）。
+  final String? value;
 
   static RuleAction? fromJson(Map<String, dynamic> j) {
     final type = RuleActionType.parse(j['type'] as String?);
@@ -127,6 +134,11 @@ class RuleAction {
         if (key.isEmpty) return null;
         final amount = (j['amount'] as num?)?.toInt() ?? 1;
         return RuleAction(type: type, key: key, amount: amount);
+      case RuleActionType.setStorage:
+        final key = (j['key'] ?? '').toString().trim();
+        final value = (j['value'] ?? '').toString().trim();
+        if (key.isEmpty || value.isEmpty) return null;
+        return RuleAction(type: type, key: key, value: value);
     }
   }
 }
@@ -173,6 +185,7 @@ class RuleEvaluation {
     this.instructions = const [],
     this.stateDelta = const {},
     this.appliedKeys = const {},
+    this.storageWrites = const {},
   });
 
   /// 本轮要追加到设定里的指令。
@@ -182,9 +195,13 @@ class RuleEvaluation {
   final Map<String, int> stateDelta;
 
   /// 本次被「消费」的去重键（调用方应并入已应用集合）。
+
+  /// 要写进插件私有存储的键值（值为原始模板，由调用方渲染）。
+  final Map<String, String> storageWrites;
   final Set<String> appliedKeys;
 
-  bool get isEmpty => instructions.isEmpty && stateDelta.isEmpty;
+  bool get isEmpty =>
+      instructions.isEmpty && stateDelta.isEmpty && storageWrites.isEmpty;
 }
 
 /// 去重键：同一条规则在同一个回合只结算一次（重试不重复累计）。
@@ -210,6 +227,7 @@ RuleEvaluation evaluateRules({
   final rng = random ?? Random();
   final instructions = <String>[];
   final delta = <String, int>{};
+  final storageWrites = <String, String>{};
   final applied = <String>{};
 
   for (final entry in rules) {
@@ -229,6 +247,13 @@ RuleEvaluation evaluateRules({
           if (appliedKeys.contains(turnKey)) continue;
           delta[key] = (delta[key] ?? 0) + action.amount;
           applied.add(turnKey);
+        case RuleActionType.setStorage:
+          final storageKey = action.key!;
+          final turnKey =
+              ruleTurnKey(entry.pluginId, rule.id, event, turn);
+          if (appliedKeys.contains(turnKey)) continue;
+          storageWrites[storageKey] = action.value!;
+          applied.add(turnKey);
       }
     }
   }
@@ -237,6 +262,7 @@ RuleEvaluation evaluateRules({
     instructions: instructions,
     stateDelta: delta,
     appliedKeys: applied,
+    storageWrites: storageWrites,
   );
 }
 
@@ -343,3 +369,24 @@ String describeRuleMatch(RuleMatch m) {
 /// 把事件说成人话。
 String describeRuleEvent(RuleEvent e) =>
     e == RuleEvent.beforeGeneration ? '生成前' : '回合后';
+/// 渲染 `set_storage` 的写入内容。
+///
+/// 支持的占位：`{{turn}}`（当前回合）与 `{{state.key}}`（规则状态）。
+/// 认不出的占位保留原样——宁可让插件作者看见 `{{foo}}`，
+/// 也不要静默替换成空串让人查不到原因。
+String renderRuleValue(
+  String template, {
+  required int turn,
+  Map<String, int> state = const {},
+}) {
+  var out = template.replaceAll('{{turn}}', '$turn');
+  out = out.replaceAllMapped(
+    RegExp(r'\{\{state\.([A-Za-z0-9_.-]+)\}\}'),
+    (m) {
+      final key = m[1]!;
+      final v = state[key];
+      return v == null ? m[0]! : '$v';
+    },
+  );
+  return out;
+}
