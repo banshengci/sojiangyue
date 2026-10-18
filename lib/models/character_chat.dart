@@ -257,3 +257,21 @@ class CharacterChatMessage {
         'created_at': createdAt.toIso8601String(),
       };
 }
+/// 姿态的展示文案（会话页标题下方那一行）。
+///
+/// 扮演/入场要带上身份，否则用户只看到"扮演"两个字，
+/// 想不起来自己这局演的是谁。
+String participationLabel(
+  CharacterParticipation participation,
+  String? userPersona,
+) {
+  final who = userPersona?.trim() ?? '';
+  switch (participation) {
+    case CharacterParticipation.spectator:
+      return '旁观';
+    case CharacterParticipation.roleplay:
+      return who.isEmpty ? '扮演' : '扮演 · $who';
+    case CharacterParticipation.join:
+      return who.isEmpty ? '入场' : '入场 · $who';
+  }
+}

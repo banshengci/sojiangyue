@@ -126,4 +126,37 @@ void main() {
           CharacterParticipation.spectator);
     });
   });
-}
+
+  group('participationLabel（会话页显示用）', () {
+    test('旁观不带身份', () {
+      expect(
+        participationLabel(CharacterParticipation.spectator, null),
+        '旁观',
+      );
+      // 即便历史数据里残留了身份，旁观也不该显示它
+      expect(
+        participationLabel(CharacterParticipation.spectator, '林黛玉'),
+        '旁观',
+      );
+    });
+
+    test('扮演 / 入场带身份', () {
+      expect(
+        participationLabel(CharacterParticipation.roleplay, '林黛玉'),
+        '扮演 · 林黛玉',
+      );
+      expect(
+        participationLabel(CharacterParticipation.join, '阿舟'),
+        '入场 · 阿舟',
+      );
+    });
+
+    test('有姿态但缺身份时不出现悬空的间隔点', () {
+      expect(participationLabel(CharacterParticipation.roleplay, null), '扮演');
+      expect(participationLabel(CharacterParticipation.join, '   '), '入场');
+      expect(
+        participationLabel(CharacterParticipation.join, null),
+        isNot(contains('·')),
+      );
+    });
+  });}

@@ -632,6 +632,101 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     );
   }
 
+  /// 中途改姿态：这一局你是旁观、扮演谁、还是以自己的身份入场。
+  ///
+  /// 姿态原先只能在开局时定，改主意就得重开一局。它本质上是"我在场上的位置"，
+  /// 不是"这个人物是谁"，所以中途改是合理的。
+  Future<void> _changeParticipation() async {
+    final session = _session;
+    if (session == null || session.id == null) return;
+    // 下面会在闭包里用到这些值，先取出来：闭包捕获会让类型提升失效
+    final sessionId = session.id!;
+    final currentParticipation = session.participation;
+    final currentPersona = session.userPersona;
+
+    final picked = await showModalBottomSheet<CharacterParticipation>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final p in CharacterParticipation.values)
+              ListTile(
+                leading: Icon(
+                  switch (p) {
+                    CharacterParticipation.spectator =>
+                      Icons.visibility_outlined,
+                    CharacterParticipation.roleplay =>
+                      Icons.theater_comedy_outlined,
+                    CharacterParticipation.join => Icons.login_outlined,
+                  },
+                ),
+                title: Text(p.label),
+                trailing: currentParticipation == p
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.pop(ctx, p),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || picked == null) return;
+
+    String? persona;
+    if (picked != CharacterParticipation.spectator) {
+      persona = await _askPersona(
+        title: picked == CharacterParticipation.roleplay ? '你扮演谁' : '你叫什么',
+        initial: currentPersona,
+      );
+      if (persona == null || persona.trim().isEmpty) return;
+      persona = persona.trim();
+    }
+
+    try {
+      await characterChatDao.updateParticipation(
+        sessionId,
+        participation: picked,
+        userPersona: persona,
+      );
+      final fresh = await characterChatDao.getSession(sessionId);
+      if (!mounted) return;
+      setState(() => _session = fresh ?? session);
+      SjToast.show('已改为「${participationLabel(picked, persona)}」');
+    } catch (e) {
+      SjToast.show('修改失败：$e');
+    }
+  }
+
+  Future<String?> _askPersona({required String title, String? initial}) async {
+    final controller = TextEditingController(text: initial ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: '例如：林黛玉'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
   Future<void> _readMind() async {
     final session = _session;
     if (session == null || _sending) return;
@@ -777,6 +872,24 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
               Text(
                 widget.bookTitle!,
                 style: SjText.meta(c.inkSoft),
+              ),
+            if (_session != null)
+              GestureDetector(
+                onTap: _changeParticipation,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      participationLabel(
+                        _session!.participation,
+                        _session!.userPersona,
+                      ),
+                      style: SjText.meta(c.inkSoft),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.edit_outlined, size: 12, color: c.inkSoft),
+                  ],
+                ),
               ),
           ],
         ),

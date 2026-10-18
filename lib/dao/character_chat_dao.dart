@@ -259,6 +259,23 @@ class CharacterChatDao extends BaseDao {
     return newSessionId;
   }
 
+  /// 改姿态与身份（会话中途也能换"我在这一局的位置"）。
+  Future<void> updateParticipation(
+    int sessionId, {
+    required CharacterParticipation participation,
+    String? userPersona,
+  }) =>
+      update(
+        tableSession,
+        {
+          'participation': participation.code,
+          'user_persona': userPersona,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [sessionId],
+      );
+
   /// 从 [parentId] 分出去的会话（含多层分叉的直接子代）。
   Future<List<CharacterChatSession>> listBranches(int parentId) => queryList(
         tableSession,
