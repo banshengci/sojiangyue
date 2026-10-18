@@ -81,6 +81,7 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
   }
 
   @override
+  @override
   void dispose() {
     _joinName.dispose();
     super.dispose();
@@ -146,6 +147,87 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
       if (!mounted) return;
       setState(() => _scene = drafted);
     }
+  }
+
+  /// 管理场景卡：改名、改情境、删除。
+  Future<void> _manageScenes() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          return AlertDialog(
+            title: const Text('管理场景'),
+            content: SizedBox(
+              width: 360,
+              child: _scenes.isEmpty
+                  ? const Text('还没有场景卡。')
+                  : SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final s in _scenes)
+                            ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(s.name),
+                              subtitle: Text(
+                                s.premise,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: '编辑',
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 20),
+                                    onPressed: () async {
+                                      final edited =
+                                          await showDialog<SceneCard>(
+                                        context: ctx,
+                                        builder: (_) =>
+                                            _SceneEditorDialog(initial: s),
+                                      );
+                                      if (edited == null || s.id == null) return;
+                                      await sceneCardDao.updateScene(
+                                        edited.copyWith(id: s.id),
+                                      );
+                                      await _loadScenes();
+                                      if (mounted) setLocal(() {});
+                                    },
+                                  ),
+                                  IconButton(
+                                    tooltip: '删除',
+                                    icon: const Icon(Icons.delete_outline,
+                                        size: 20),
+                                    onPressed: () async {
+                                      if (s.id == null) return;
+                                      await sceneCardDao.deleteScene(s.id!);
+                                      if (_scene?.id == s.id) {
+                                        setState(() => _scene = null);
+                                      }
+                                      await _loadScenes();
+                                      if (mounted) setLocal(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('关闭'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -236,6 +318,10 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
                       const Text('场景（可跳过）',
                           style: TextStyle(fontSize: 13, color: Colors.grey)),
                       const Spacer(),
+                      TextButton(
+                        onPressed: _manageScenes,
+                        child: const Text('管理'),
+                      ),
                       TextButton(
                         onPressed: _createScene,
                         child: const Text('新建'),
@@ -339,7 +425,8 @@ class _SessionSetupSheetState extends State<_SessionSetupSheet> {
 
 /// 新建场景卡：名字 + 情境。
 class _SceneEditorDialog extends StatefulWidget {
-  const _SceneEditorDialog();
+  const _SceneEditorDialog({this.initial});
+  final SceneCard? initial;
 
   @override
   State<_SceneEditorDialog> createState() => _SceneEditorDialogState();
@@ -348,6 +435,16 @@ class _SceneEditorDialog extends StatefulWidget {
 class _SceneEditorDialogState extends State<_SceneEditorDialog> {
   final TextEditingController _name = TextEditingController();
   final TextEditingController _premise = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final init = widget.initial;
+    if (init != null) {
+      _name.text = init.name;
+      _premise.text = init.premise;
+    }
+  }
 
   @override
   void dispose() {
@@ -362,7 +459,7 @@ class _SceneEditorDialogState extends State<_SceneEditorDialog> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     return AlertDialog(
-      title: const Text('新建场景'),
+      title: Text(widget.initial == null ? '新建场景' : '编辑场景'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -46,6 +46,18 @@ class SceneCardDao extends BaseDao {
     );
   }
 
+  /// 更新场景卡（改名字或情境）。
+  Future<void> updateScene(SceneCard card) =>
+      update(
+        table,
+        {
+          'name': card.name,
+          'premise': card.premise,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [card.id],
+      );
   /// 删除一张场景卡。
   ///
   /// 不叫 `delete`：`BaseDao.delete(table, {where, whereArgs})` 已占用该名字，

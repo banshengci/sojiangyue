@@ -179,4 +179,19 @@ void main() {
       tester.widget<FilledButton>(find.widgetWithText(FilledButton, '保存')).onPressed,
       isNotNull,
     );
+  });
+  testWidgets('管理场景：没有场景卡时给出空态而不是白屏', (tester) async {
+    await tester.pumpWidget(host());
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('管理'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('管理场景'), findsOneWidget);
+    expect(find.text('还没有场景卡。'), findsOneWidget);
+
+    await tester.tap(find.text('关闭'));
+    await tester.pumpAndSettle();
+    expect(find.text('管理场景'), findsNothing);
   });}
