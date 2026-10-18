@@ -307,13 +307,32 @@ class _CharacterChatSessionsPageState
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         itemCount: _sessions.length,
-                        separatorBuilder: (_, __) =>
-                            const Divider(height: 1),
+                        separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, i) {
                           final s = _sessions[i];
                           final last = _lastMessages[s.id!];
                           final checked = _selected.contains(s.id);
+                          // 分支层级：沿父指针往上数，最多 8 层（防御成环）。
+                          // 列表按最近更新排序，层级只用来缩进，不改变顺序。
+                          final byId = <int, CharacterChatSession>{
+                            for (final e in _sessions)
+                              if (e.id != null) e.id!: e,
+                          };
+                          var depth = 0;
+                          var cur = s;
+                          for (var d = 0; d < 8; d++) {
+                            final pid = cur.parentSessionId;
+                            if (pid == null) break;
+                            depth++;
+                            final parent = byId[pid];
+                            if (parent == null) break;
+                            cur = parent;
+                          }
                           return ListTile(
+                            contentPadding: EdgeInsets.only(
+                              left: 16.0 + depth * 20,
+                              right: 16,
+                            ),
                             leading: _selecting
                                 ? Checkbox(
                                     value: checked,
@@ -341,7 +360,7 @@ class _CharacterChatSessionsPageState
                               overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Text(
-                              last?.content ?? s.characterName,
+                              '${s.parentSessionId != null ? '分支 · ' : ''}${last?.content ?? s.characterName}',
                               style: SjText.meta(c.inkSoft),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
