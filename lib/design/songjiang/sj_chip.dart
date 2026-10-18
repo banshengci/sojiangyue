@@ -23,19 +23,26 @@ class SjChip extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(SjSizes.radiusPill),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? c.pine : c.card,
-          borderRadius: BorderRadius.circular(SjSizes.radiusPill),
-          border: Border.all(
-            color: selected ? Colors.transparent : c.cardBorder,
+      // 视觉高度由内边距决定（约 38），但热区必须撑到 44。
+      // 不这样做时筹码只有 38 高，低于 WCAG 2.5.5 / Material 的触控下限
+      // （由 tap_target_audit_test 量出来）。
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: SjSizes.minTouchTarget),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? c.pine : c.card,
+            borderRadius: BorderRadius.circular(SjSizes.radiusPill),
+            border: Border.all(
+              color: selected ? Colors.transparent : c.cardBorder,
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: SjText.chip(selected ? c.onPine : c.ink, selected: selected),
+          child: Text(
+            label,
+            style: SjText.chip(selected ? c.onPine : c.ink, selected: selected),
+          ),
         ),
       ),
     );
@@ -55,13 +62,18 @@ class SjTagChip extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(SjSizes.radiusPill),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: c.frost.withAlpha(64),
-          borderRadius: BorderRadius.circular(SjSizes.radiusPill),
+      // 同上：视觉约 34 高，热区撑到 44。
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: SjSizes.minTouchTarget),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: c.frost.withAlpha(64),
+            borderRadius: BorderRadius.circular(SjSizes.radiusPill),
+          ),
+          child: Text(label, style: SjText.chip(c.ink)),
         ),
-        child: Text(label, style: SjText.chip(c.ink)),
       ),
     );
   }
