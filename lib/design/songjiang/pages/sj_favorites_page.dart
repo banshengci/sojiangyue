@@ -66,12 +66,11 @@ class SjFavoritesPage extends StatelessWidget {
   }
 
   /// 由书名稳定推导封面配色（0–3 → 松绿 / 松墨 / 江青 / 砂朱）。
-  Color _coverColor(SjColors c, int seed) => switch (seed) {
-        0 => c.pine,
-        1 => c.ink,
-        2 => c.river,
-        _ => c.clay,
-      };
+  // 封面色不再取 SjColors（那会随明暗模式在深/浅之间跳）。
+  // 深浅变化会让浅色模式下的「深底浅字」在深色模式下变成「浅底浅字」，
+  // 实测只有 2.19–2.44:1（由 rendered_contrast_audit_test 抓到）。
+  // 书封统一用 SjCoverColors 的深色调 + 固定浅字，两种模式都是 5.56:1 以上。
+  Color _coverColor(SjColors c, int seed) => SjCoverColors.bySeed(seed);
 
   Widget _card(SjColors c, SjFavoriteBook book) {
     return SjBookCoverCard(

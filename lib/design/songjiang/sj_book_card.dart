@@ -23,8 +23,16 @@ class SjBookCoverCard extends StatelessWidget {
   final double coverHeight;
   final VoidCallback? onTap;
 
-  /// 封面上的前景色（纸白）。
-  static const Color _onCover = Color(0xFFF5F0E8);
+  /// 封面上的前景色。
+  ///
+  /// 按底色亮度动态选深/浅，避免「浅底浅字」。
+  /// 但注意：**动态选择救不了中间调**——相对亮度落在 0.15–0.23 的底色上，
+  /// 白字与深字都到不了 4.5:1（L=0.19 时两者都是 3.86）。
+  /// 所以调用方应传深色调（见 [SjCoverColors]），这里只是兜底。
+  Color get _onCover =>
+      coverColor.computeLuminance() > 0.179
+          ? const Color(0xFF10211B)
+          : SjCoverColors.onCover;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +72,9 @@ class SjBookCoverCard extends StatelessWidget {
                       author,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: SjText.coverSubtitle(_onCover.withAlpha(210)),
+                      // 不再 withAlpha(210)：半透明会把 13px 的副标题压到 4.5 以下。
+                      // 层级差异交给字号（13 vs 25）去表达，不靠降低不透明度。
+                      style: SjText.coverSubtitle(_onCover),
                     ),
                   ],
                 ),

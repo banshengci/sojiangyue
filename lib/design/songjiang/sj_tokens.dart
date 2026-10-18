@@ -132,6 +132,36 @@ class SjColors {
       Theme.of(context).brightness == Brightness.dark ? dark : light;
 }
 
+/// 书封底色。
+///
+/// **约束：必须始终是深色调，配 [onCover] 浅字使用。**
+///
+/// 原因（实测，不是拍脑袋）：中灰调上无论白字还是深字都到不了 4.5:1。
+/// 以本书封色 `river #3D8C7D`（相对亮度 L=0.212）为例：
+/// 白字 3.53、深字 4.18，怎么选都不过；
+/// 而 L=0.19 时两者恰好都是 3.86 —— 这是数学上的死角，不存在「更好的选择」。
+///
+/// 因此封面色板只用深色调，文字固定浅色：
+///   pine 5.56:1 · ink 10.88:1 · river 6.95:1 · clay 7.19:1
+class SjCoverColors {
+  const SjCoverColors._();
+
+  static const Color pine = Color(0xFF2E6B4F); // 5.56:1
+  static const Color ink = Color(0xFF173B2E); // 10.88:1
+  static const Color river = Color(0xFF275A50); // 6.95:1
+  static const Color clay = Color(0xFF853728); // 7.19:1
+
+  /// 书封上的文字色。
+  static const Color onCover = Color(0xFFF5F0E8);
+
+  /// 按种子取色（确定性，同一种子恒得同一色）。
+  static Color bySeed(int seed) => switch (seed % 4) {
+        0 => pine,
+        1 => ink,
+        2 => river,
+        _ => clay,
+      };
+}
 /// 状态色（每组 bg / fg / border 三件套）。
 ///
 /// fg 对 bg 的对比度：success 5.57 · warning 4.92 · error 5.75 · info 6.11。

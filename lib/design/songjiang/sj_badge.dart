@@ -26,12 +26,26 @@ class SjAchievementBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = SjColors.of(context);
-    final Color bg = unlocked ? c.pine : c.frost.withAlpha(90);
-    final Color fg = unlocked ? c.onPine : c.frost;
+
+    // 未解锁态原本是 `bg = frost.withAlpha(90)` + `fg = frost`
+    // —— 前景和背景同色系，实测浅色 1.70:1、深色 2.22:1，完全读不出。
+    // 而未解锁的成就恰恰是用户最想看的（我还能拿什么）。
+    //
+    // 改为：
+    //  - 底色用 c.card，靠描边（cardBorder）表达「未点亮」
+    //  - 名称用 inkSoft（4.92:1）；字形 34px 属大字，用 inkFaint（≥3:1）
+    //  - 再加一行「未解锁」，不只靠颜色区分状态
+    final Color bg = unlocked ? c.pine : c.card;
+    final Color fgGlyph = unlocked ? c.onPine : c.inkFaint;
+    final Color fgLabel = unlocked ? c.onPine : c.inkSoft;
+    final Color border = unlocked ? Colors.transparent : c.cardBorder;
 
     final Widget badge = Material(
       color: bg,
-      borderRadius: BorderRadius.circular(28),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: border),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(28),
@@ -47,7 +61,7 @@ class SjAchievementBadge extends StatelessWidget {
                   fontSize: 34,
                   height: 1.1,
                   fontWeight: FontWeight.w700,
-                  color: fg,
+                  color: fgGlyph,
                 ),
               ),
               const SizedBox(height: 10),
@@ -59,9 +73,13 @@ class SjAchievementBadge extends StatelessWidget {
                   fontSize: 14,
                   height: 1.2,
                   fontWeight: FontWeight.w500,
-                  color: fg,
+                  color: fgLabel,
                 ),
               ),
+              if (!unlocked) ...[
+                const SizedBox(height: 4),
+                Text('未解锁', style: SjText.caption(c.inkFaint)),
+              ],
             ],
           ),
         ),
