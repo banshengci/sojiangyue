@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 
 import 'package:songjiang_reader/dao/base_dao.dart';
 import 'package:songjiang_reader/models/character_card.dart';
+import 'package:songjiang_reader/models/character_relation_merge.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
 /// 角色卡 / 关系 / 世界观 / 时间线 的持久化访问层，对齐既有 BookDao / BaseDao 写法。
@@ -142,32 +143,44 @@ class CharacterDao extends BaseDao {
   // ---- relations ----
 
   Future<void> batchSaveRelations(List<CharacterRelation> relations) async {
+    // 写入前先按方向去重，避免历史问题继续累积
+    final deduped = dedupeRelations(relations);
     await transaction((txn) async {
-      for (final r in relations) {
+      for (final r in deduped) {
         await txn.insert(tableRelation, r.toMap(),
             conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
   }
 
-  Future<List<CharacterRelation>> getRelations(int bookId) => queryList(
-        tableRelation,
-        mapper: CharacterRelation.fromMap,
-        where: 'book_id = ?',
-        whereArgs: [bookId],
-        orderBy: 'abs(trust) + abs(affection) DESC',
-      );
+  /// 老库里的关系可能已经重复（历史版本逐段 addAll 留下的）。
+  ///
+  /// 读取时合并一次：不靠用户重跑蒸馏，马上就能看到干净的关系表。
+  /// 合并只改内存里的返回结果，不写库——写库留给下一次蒸馏，
+  /// 免得每次开页都产生写事务。
+  Future<List<CharacterRelation>> getRelations(int bookId) async {
+    final rows = await queryList(
+      tableRelation,
+      mapper: CharacterRelation.fromMap,
+      where: 'book_id = ?',
+      whereArgs: [bookId],
+      orderBy: 'abs(trust) + abs(affection) DESC',
+    );
+    return dedupeRelations(rows);
+  }
 
   Future<List<CharacterRelation>> getRelationsForCharacter(
     int bookId,
     String name,
-  ) =>
-      queryList(
-        tableRelation,
-        mapper: CharacterRelation.fromMap,
-        where: 'book_id = ? AND (source_name = ? OR target_name = ?)',
-        whereArgs: [bookId, name, name],
-      );
+  ) async {
+    final rows = await queryList(
+      tableRelation,
+      mapper: CharacterRelation.fromMap,
+      where: 'book_id = ? AND (source_name = ? OR target_name = ?)',
+      whereArgs: [bookId, name, name],
+    );
+    return dedupeRelations(rows);
+  }
 
   // ---- world settings ----
 

@@ -569,7 +569,11 @@ class CharacterDistillService {
       final prev = characters[c.name];
       characters[c.name] = prev == null ? c : _mergeCard(prev, c);
     }
-    relations.addAll(parsed.relations);
+    // 逐段合并时就按方向去重：同一个人不会出现十几条重复关系
+    final mergedRelations = dedupeRelations([...relations, ...parsed.relations]);
+    relations
+      ..clear()
+      ..addAll(mergedRelations);
     world.addAll(parsed.world);
     timeline.addAll(parsed.timeline);
   }

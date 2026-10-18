@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:songjiang_reader/config/runtime_config.dart';
 import 'package:songjiang_reader/models/character_card.dart';
+import 'package:songjiang_reader/service/character/distill_persist.dart';
 
 /// 蒸馏提示词与输出 JSON 契约 + 鲁棒解析。
 ///
@@ -37,6 +38,12 @@ String buildDistillSystemPrompt() {
    - hiddenAttitude 隐藏的真实态度（若文本暗示表里不一）
 5. relationType 用简短中文标签：夫妻 / 恋人 / 师徒 / 父子 / 母女 / 兄弟 / 君臣 / 上下级 / 主仆 / 朋友 / 知己 / 敌对 / 盟友 / 同门 / 仇人 等；不确定可省略。
 6. world 的 category 用：势力 / 地点 / 组织 / 概念 / 物品 / 功法 等。
+13. **关系去重**：同一对 source→target 只输出一条。A→B 与 B→A 是两种立场
+    （A 单恋 B、B 只当朋友），可以各留一条，但同方向不要重复输出。
+14. relationType 只用上面给的固定词表，选最贴切的一个；不要自造近义词
+    （「盟友 / 同伴 / 战友 / 朋友」不要对同一对关系轮流用）。
+15. 关系总数控制在 40 条以内；优先保留与主要人物相关、羁绊或冲突最深的，
+    次要配角之间的寒暄关系可以省略。
 
 # 长度与写法（很重要）
 7. 普通字段不超过 80 个汉字；列表字段最多 6 项；aliases 最多 6 个。
@@ -221,11 +228,19 @@ List<String>? _strList(Object? v) {
 }
 
 CharacterCard _toCard(Map<String, dynamic> m, int bookId, DateTime now) {
-  final name = _str(m['name']) ?? _str(m['title']) ?? '未知人物';
+  final rawName = _str(m['name']) ?? _str(m['title']) ?? '未知人物';
+  // 「烈焰（陈思璇）」拆成 name=烈焰 + alias=陈思璇：
+  // 不拆的话，同一个人会在关系表里以两种名字各存一份。
+  final name = canonicalPersonName(rawName);
+  final parenAlias = parentheticalAlias(rawName);
+  final aliases = <String>{
+    ...(_strList(m['aliases'] ?? m['alias']) ?? const <String>[]),
+    if (parenAlias != null) parenAlias,
+  }.toList();
   return CharacterCard(
     bookId: bookId,
     name: name,
-    aliases: _strList(m['aliases'] ?? m['alias']),
+    aliases: aliases,
     gender: _str(m['gender']),
     role: _str(m['role']),
     importance: _toInt(m['importance']).clamp(0, 100),
@@ -244,8 +259,10 @@ CharacterRelation _toRelation(
     Map<String, dynamic> m, int bookId, DateTime now) {
   return CharacterRelation(
     bookId: bookId,
-    sourceName: _str(m['source'] ?? m['sourceName'] ?? m['from']) ?? '',
-    targetName: _str(m['target'] ?? m['targetName'] ?? m['to']) ?? '',
+    sourceName: canonicalPersonName(
+        _str(m['source'] ?? m['sourceName'] ?? m['from']) ?? ''),
+    targetName: canonicalPersonName(
+        _str(m['target'] ?? m['targetName'] ?? m['to']) ?? ''),
     relationType: _str(m['relationType'] ?? m['type']),
     trust: _toInt(m['trust']).clamp(-100, 100),
     affection: _toInt(m['affection']).clamp(-100, 100),
