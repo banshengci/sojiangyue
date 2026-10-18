@@ -18,6 +18,7 @@ import 'package:songjiang_reader/models/character_chat.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_persona.dart';
+import 'package:songjiang_reader/service/character/dialogue_suggestions.dart';
 import 'package:songjiang_reader/service/character/world_timeline.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -74,6 +75,49 @@ class CharacterChatService {
     return text;
   }
 
+  /// 「帮我写下一句」：代拟几条可以直接发出去的台词。
+  ///
+  /// 与 [readMind] 相反——读心是角色心里的话，这里是**读者**要说的话。
+  /// 一次调用拿 3 条，失败返回空列表（UI 侧提示"没写出来"，不阻塞对话）。
+  Future<List<ChatSuggestion>> suggestNextLine({
+    required CharacterChatSession session,
+    required List<CharacterChatMessage> history,
+    int count = 3,
+  }) async {
+    final model = resolveCurrentModel();
+    if (model == null) {
+      throw CharacterChatException('尚未配置 AI 服务，无法代笔。');
+    }
+    final latest = history.isEmpty ? '' : history.last.content.trim();
+    if (latest.isEmpty) return const [];
+
+    final speaker = onStageNames(session.characterName).join('、');
+    final prompt = buildSuggestionPrompt(
+      characterName: speaker.isEmpty ? session.characterName : speaker,
+      latestReply: latest,
+      userPersona: session.userPersona,
+      participationCode: session.participation.code,
+      count: count,
+    );
+
+    final messages = <ChatMessage>[
+      ChatMessage.system(
+        [
+          '你在为一款中文互动小说代笔，读者要发出去的下一句话由你拟。',
+          buildMemorySection(session.memorySummary),
+        ].where((s) => s.trim().isNotEmpty).join('\n'),
+      ),
+      ..._historyToMessages(history.take(8).toList()),
+      ChatMessage.humanText(prompt),
+    ];
+
+    final buffer = StringBuffer();
+    await for (final event in model.stream(PromptValue.chat(messages))) {
+      buffer.write(event.output.content);
+    }
+    return parseSuggestions(buffer.toString(), max: count);
+  }
+
   /// 读心：让角色把「没说出口的念头」写出来。
   ///
   /// 与正常回复共用同一份人物设定，但指令要求它写内心活动而非台词，
@@ -111,9 +155,15 @@ class CharacterChatService {
       ),
       ..._historyToMessages(history),
       ChatMessage.humanText(
-        '（现在不要说出口：写下你此刻心里真正翻腾的念头。'
-        '可以是没说出口的判断、顾虑、算计或情绪，口气跟平时一样不加修饰。'
-        '只写心里想的，80 字以内。）',
+        '（现在不要说出口：写下你此刻心里真正翻腾的念头。）\n'
+        '只写你心里的话，用第一人称，说话的味道和你平时一样，不修饰、不端着。\n'
+        '必须是「你刚才那番话」里没有说出来的新东西——'
+        '真实的判断、欲望、戒备、害怕、嫉妒、犹豫，或者瞒着对方的打算。\n'
+        '不要写：环境与天气、动作与神态、物件与光线；'
+        '不要用第三人称分析自己；不要复述或改写你刚说过的话；'
+        '不要用括号或星号演动作。\n'
+        '如果此刻心里确实没有什么值得说的，就只回四个字「（无）」，不要用景物描写凑数。\n'
+        '80 字以内。',
       ),
     ];
 
@@ -124,6 +174,11 @@ class CharacterChatService {
     final text = buffer.toString().trim();
     if (text.isEmpty) {
       throw CharacterChatException('模型没有返回内容，请检查 AI 服务配置。');
+    }
+    // 模型按指令回「（无）」时给一句人话，而不是把括号原样显示出来
+    if (text.replaceAll(RegExp(r'[（）()\s]'), '').isEmpty ||
+        text.replaceAll(RegExp(r'[（）()\s]'), '') == '无') {
+      throw CharacterChatException('TA 此刻没有特别在想什么。');
     }
     return text;
   }

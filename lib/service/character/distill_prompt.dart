@@ -38,6 +38,18 @@ String buildDistillSystemPrompt() {
 5. relationType 用简短中文标签：夫妻 / 恋人 / 师徒 / 父子 / 母女 / 兄弟 / 君臣 / 上下级 / 主仆 / 朋友 / 知己 / 敌对 / 盟友 / 同门 / 仇人 等；不确定可省略。
 6. world 的 category 用：势力 / 地点 / 组织 / 概念 / 物品 / 功法 等。
 
+# 长度与写法（很重要）
+7. 普通字段不超过 80 个汉字；列表字段最多 6 项；aliases 最多 6 个。
+8. **没有证据就留空**：字段值直接省略，或在字符串里留空。
+   禁止写「证据不足」「未知」「不详」「待补充」这类占位词，也禁止用省略号应付。
+9. personality 不要只写抽象词（如"温柔""冷静"）。尽量落到**说话的手感**上：
+   口头禅、常见起句、句尾习惯、语气词、以及 1~3 句**原样摘录**的代表台词（放在 description 里，
+   形如「代表句：……」），不要改写成旁白总结。
+10. 外貌与习惯只写**可重复观察到**的外显特征；不要把只出现一次的桥段动作当成长期人设。
+11. 性别与年龄阶段只在文本里有稳定称谓、身份关系或明确描写时才写；拿不准就省略。
+12. 如果同一个人物在前后期明显变化，不要强行揉成一个静态人格：
+    在 description 里写明「前期…；后期…」，并说清转折由什么引起。
+
 # 输出
 仅输出一个 JSON 对象（可被 json.loads 解析），不要任何解释或 Markdown 代码围栏。
 字段缺失时直接省略该键。若本章没有可抽取内容，返回 {"characters":[]}。
@@ -49,10 +61,16 @@ String buildDistillSystemPrompt() {
 /// [focusNames] 非空时只抽这几个人物（以及他们之间的关系）：
 /// 整本自动找会把几百个龙套一起抽出来，既贵又难校对；
 /// 先锁定 2~4 位主要人物，跑完再增量补人，是更省的做法。
+///
+/// [chunkIndex] / [chunkTotal] 用来告诉模型这一段在全书里的位置：
+/// 前段更适合判断出身与早期立场，中段适合判断稳定的互动模式，
+/// 后段才适合判断人物弧线怎么收。不分位置的话，模型会把"后期才变"的人写成一开始就这样。
 String buildDistillUserPrompt(
   String chapterTitle,
   String text, {
   List<String> focusNames = const [],
+  int? chunkIndex,
+  int? chunkTotal,
 }) {
   final focus = focusNames
       .map((e) => e.trim())
@@ -66,14 +84,30 @@ ${focus.join('、')}
 只抽取上述人物（以及他们彼此之间的关系）；其他人即使出现也忽略。
 若某人在这段文本里没有出现，就不要输出他。
 ''';
+  final stageBlock = _stageHint(chunkIndex, chunkTotal);
   return '''
 【章节】$chapterTitle
-
+${stageBlock.isEmpty ? '' : '\n$stageBlock\n'}
 【正文】
 $text
 $focusBlock
 请按系统指令输出 JSON。
 ''';
+}
+
+/// 这一段在全书里的位置提示。
+String _stageHint(int? index, int? total) {
+  if (index == null || total == null || total <= 1) return '';
+  final ratio = (index + 1) / total;
+  final stage = ratio <= 0.34
+      ? '这是全书的**前段**。更适合判断人物的出身底色、早期立场与初始性情；'
+          '不要据此断言他/她的最终态度。'
+      : ratio <= 0.67
+          ? '这是全书的**中段**。更适合判断人物之间稳定的互动模式、冲突如何升级、'
+              '关系往哪个方向走。'
+          : '这是全书的**后段**。更适合判断人物弧线如何收束、信念是否松动、'
+              '边界是否被打破；写人物时要注意与前段的差异。';
+  return '【位置】第 ${index + 1} / $total 段。$stage';
 }
 
 /// 解析模型原始输出为结构化结果。对 ```json 围栏、前后缀散文、字段类型错位都做容错。

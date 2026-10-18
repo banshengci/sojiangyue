@@ -241,7 +241,13 @@ class CharacterDistillService {
         List<int> batch) async {
       final results = await Future.wait(batch.map((idx) async {
         try {
-          return (idx, await _extract(model, chunks[idx], focusNames: focusNames));
+          final text = await _extract(
+            model,
+            chunks[idx],
+            focusNames: focusNames,
+            chunkTotal: chunks.length,
+          );
+          return (idx, text);
         } catch (e, st) {
           SjLog.warning(
               'CharacterDistill: chunk ${chunks[idx].index} 失败: $e\n$st');
@@ -496,10 +502,17 @@ class CharacterDistillService {
     BaseChatModel model,
     DistillChunk chunk, {
     List<String> focusNames = const [],
+    int? chunkTotal,
   }) async {
     final system = ChatMessage.system(buildDistillSystemPrompt());
     final user = ChatMessage.humanText(
-      buildDistillUserPrompt(chunk.title, chunk.text, focusNames: focusNames),
+      buildDistillUserPrompt(
+        chunk.title,
+        chunk.text,
+        focusNames: focusNames,
+        chunkIndex: chunk.index,
+        chunkTotal: chunkTotal,
+      ),
     );
     final prompt = PromptValue.chat([system, user]);
     final buffer = StringBuffer();

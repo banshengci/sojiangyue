@@ -25,6 +25,7 @@ import 'characters_page_strings.dart';
 import 'package:songjiang_reader/plugin/plugin_npc_runner.dart';
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/service/character/chat_autoplay.dart';
+import 'package:songjiang_reader/service/character/dialogue_suggestions.dart';
 import 'package:songjiang_reader/service/character/director_action.dart';
 import 'package:songjiang_reader/plugin/plugin_rule_runner.dart';
 
@@ -489,6 +490,64 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   /// 与 [_send] 的区别只有一点——没有用户发言。规则结算、流式接收、
   /// 落库、玩法结算全部复用同一条路径，靠 [_advanceRequested] 告诉
   /// [_send] 走「无发言」分支；另写一份迟早会两边走偏。
+  /// 「帮我写下一句」：让模型代拟几条可以发出去的话。
+  Future<void> _openSuggestions() async {
+    final session = _session;
+    if (session == null || _sending) return;
+    if (_messages.isEmpty) {
+      SjToast.show('先聊两句再让 TA 帮你想');
+      return;
+    }
+    setState(() => _sending = true);
+    try {
+      final list = await _service.suggestNextLine(
+        session: session,
+        history: _messages,
+      );
+      if (!mounted) return;
+      if (list.isEmpty) {
+        SjToast.show('这次没写出来，再试一次');
+        return;
+      }
+      final picked = await showModalBottomSheet<ChatSuggestion>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('挑一句，可以直接改'),
+                ),
+              ),
+              for (final s in list)
+                ListTile(
+                  title: Text(s.text),
+                  subtitle: s.label.isEmpty ? null : Text(s.label),
+                  onTap: () => Navigator.pop(ctx, s),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      );
+      if (picked == null || !mounted) return;
+      _inputController.text = picked.text;
+      _inputController.selection = TextSelection.collapsed(
+        offset: picked.text.length,
+      );
+      _stopAutoPlayOnType();
+    } catch (e) {
+      if (!mounted) return;
+      SjToast.show('代笔失败：$e');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
   IconData _directorIcon(DirectorAction a) => switch (a) {
         DirectorAction.advance => Icons.skip_next,
         DirectorAction.slowEmotion => Icons.self_improvement,
@@ -1542,6 +1601,12 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                     onChanged: (_) => _stopAutoPlayOnType(),
                     onSubmitted: (_) => _send(),
                   ),
+                ),
+                const SizedBox(width: 6),
+                IconButton(
+                  onPressed: _sending ? null : _openSuggestions,
+                  icon: const Icon(Icons.auto_fix_high, size: 20),
+                  tooltip: '帮我写下一句',
                 ),
                 if (_isSpectator) ...[
                   const SizedBox(width: 6),
