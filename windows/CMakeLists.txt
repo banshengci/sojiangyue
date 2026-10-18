@@ -56,6 +56,15 @@ add_subdirectory("runner")
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
+# --- VS 18 / MSVC 14.51 兼容 ---
+# VS 18 把 <experimental/coroutine> 的弃用从警告升级成了**硬错误**（STL1011），
+# 而 flutter_inappwebview_windows 与 permission_handler_windows 两个插件仍在用它，
+# 导致 windows 构建在插件 .vcxproj 上失败。
+# 按 MSVC 报错里给出的提示定义该宏以暂时静音。
+# 这是**临时措施**：上游插件迁移到 C++20 <coroutine> 后应删掉本段。
+# 必须放在 generated_plugins 之前，才能作用到插件 target。
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 include(flutter/generated_plugins.cmake)
 
 
