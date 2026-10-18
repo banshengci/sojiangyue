@@ -18,6 +18,7 @@ import 'package:songjiang_reader/models/character_chat.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_persona.dart';
+import 'package:songjiang_reader/service/character/world_timeline.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
@@ -123,15 +124,18 @@ class CharacterChatService {
       relations: ctx.relations,
       world: ctx.world,
     );
+    final timelineSection = await _timelineSection(session.bookId);
+
     final messages = <ChatMessage>[
       // 更早对话的折叠记忆接在 system 末尾：
       // 历史窗口只有 maxHistoryMessages 条，超出会被静默丢弃，
       // 不补这段的话长对话里角色会"忘事"。
       ChatMessage.system(
-        () {
-          final memory = buildMemorySection(session.memorySummary);
-          return memory.isEmpty ? system : '$system\n$memory';
-        }(),
+        [
+          system,
+          buildMemorySection(session.memorySummary),
+          timelineSection,
+        ].where((s) => s.trim().isNotEmpty).join('\n'),
       ),
       ..._historyToMessages(history),
       ChatMessage.humanText(
@@ -253,15 +257,18 @@ class CharacterChatService {
             userPersona: session.userPersona,
           );
 
+    final timelineSection = await _timelineSection(session.bookId);
+
     final messages = <ChatMessage>[
       // 更早对话的折叠记忆接在 system 末尾：
       // 历史窗口只有 maxHistoryMessages 条，超出会被静默丢弃，
       // 不补这段的话长对话里角色会"忘事"。
       ChatMessage.system(
-        () {
-          final memory = buildMemorySection(session.memorySummary);
-          return memory.isEmpty ? system : '$system\n$memory';
-        }(),
+        [
+          system,
+          buildMemorySection(session.memorySummary),
+          timelineSection,
+        ].where((s) => s.trim().isNotEmpty).join('\n'),
       ),
       ..._historyToMessages(history),
       ChatMessage.humanText(input),
@@ -316,6 +323,15 @@ class CharacterChatService {
     return buffer.toString().trim();
   }
 
+  /// 取本书的时间线段落。失败时返回空串——时间线缺失不该让对话报错。
+  Future<String> _timelineSection(int bookId) async {
+    try {
+      final events = await _cardDao.getTimeline(bookId);
+      return buildTimelineSection(events);
+    } catch (_) {
+      return '';
+    }
+  }
   /// 待折叠消息达到这个数量才触发一次压缩（避免每轮都多烧一次调用）。
   static const int memoryTriggerMessages = 40;
 
