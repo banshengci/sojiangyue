@@ -3,8 +3,7 @@ import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/character_distill_service.dart';
-
-import 'base_tool.dart';
+import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
 class DistillCharactersInput {
   DistillCharactersInput({required this.bookId, this.chapterCharBudget});

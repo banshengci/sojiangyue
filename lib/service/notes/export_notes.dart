@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/book_note.dart';
@@ -6,11 +6,24 @@ import 'package:songjiang_reader/utils/convert_string_to_uint8list.dart';
 import 'package:songjiang_reader/utils/save_file_to_download.dart';
 import 'package:csv/csv.dart';
 import 'package:fast_gbk/fast_gbk.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 
 enum ExportType { copy, md, txt, csv }
+
+/// 导出完成后的提示。
+///
+/// 导出链路中间有多个 await（剪贴板、写文件、GBK 编码），期间用户可能已经离开
+/// 触发导出的页面；此时 `navigatorKey.currentContext` 可能为 null，直接 `!`
+/// 会抛异常，而用陈旧 context 取 L10n 也有风险。
+/// 所以这里在使用点重新取 context，并显式判断可用性。
+void _showExportedTo(String filePath) {
+  final context = navigatorKey.currentContext;
+  if (context == null || !context.mounted) {
+    return;
+  }
+  SjToast.show('${L10n.of(context).notesPageExportedTo} $filePath');
+}
 
 Future<void> exportNotes(
   Book book,
@@ -18,7 +31,6 @@ Future<void> exportNotes(
   ExportType exportType, {
   bool mergeChapterHeadings = false,
 }) async {
-  BuildContext context = navigatorKey.currentContext!;
   if (notesList.isEmpty) {
     return;
   }
@@ -31,7 +43,10 @@ Future<void> exportNotes(
       notes += groups.map(_formatPlainGroup).join('\n\n');
 
       await Clipboard.setData(ClipboardData(text: notes));
-      SjToast.show(L10n.of(context).notesPageCopied);
+      final copyContext = navigatorKey.currentContext;
+      if (copyContext != null && copyContext.mounted) {
+        SjToast.show(L10n.of(copyContext).notesPageCopied);
+      }
       break;
 
     case ExportType.md:
@@ -44,7 +59,7 @@ Future<void> exportNotes(
           mimeType: 'text/markdown');
 
       if (filePath != null) {
-        SjToast.show('${L10n.of(context).notesPageExportedTo} $filePath');
+        _showExportedTo(filePath);
       }
       break;
 
@@ -55,7 +70,7 @@ Future<void> exportNotes(
           fileName: '${book.title}.txt',
           mimeType: 'text/plain');
       if (filePath != null) {
-        SjToast.show('${L10n.of(context).notesPageExportedTo} $filePath');
+        _showExportedTo(filePath);
       }
       break;
 
@@ -94,7 +109,7 @@ Future<void> exportNotes(
           fileName: '${book.title}.csv',
           mimeType: 'text/csv');
       if (filePath != null) {
-        SjToast.show('${L10n.of(context).notesPageExportedTo} $filePath');
+        _showExportedTo(filePath);
       }
       break;
   }

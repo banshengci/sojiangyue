@@ -86,7 +86,7 @@ void main() {
       final bg = backgroundOf(element);
       if (bg == null) continue;
 
-      final bold = (style?.fontWeight?.index ?? 400) >= 700;
+      final bold = (style?.fontWeight?.value ?? 400) >= 700;
       final isLarge = fontSize >= 24 || (bold && fontSize >= 18.66);
       final need = isLarge ? 3.0 : 4.5;
 

@@ -7,6 +7,8 @@
 /// 其余使用方（epub_player.dart 等）无需改动。
 /// 行为无变化：枚举值、顺序与 `getLabel` 实现逐字保持（仅补上本文件所需的
 /// `L10n` / `material` import，与 `lib/enums/reading_info.dart` 等既有枚举文件同款）。
+library;
+
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:flutter/material.dart';
 

@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
@@ -596,7 +596,8 @@ class _ThemeChangeWidgetState extends State<ThemeChangeWidget> {
             TextButton(
               child: const Text('OK'),
               onPressed: () {
-                Navigator.of(context).pop(pickedColor.value.toRadixString(16));
+                Navigator.of(context)
+                    .pop(pickedColor.toARGB32().toRadixString(16));
               },
             ),
           ],
@@ -604,6 +605,6 @@ class _ThemeChangeWidgetState extends State<ThemeChangeWidget> {
       },
     );
 
-    return pickedColor.value.toRadixString(16);
+    return pickedColor.toARGB32().toRadixString(16);
   }
 }

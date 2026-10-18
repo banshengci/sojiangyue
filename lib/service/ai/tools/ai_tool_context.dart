@@ -1,17 +1,3 @@
-/// AI 工具的依赖注入上下文。
-///
-/// 从 `lib/service/ai/tools/ai_tool_registry.dart` 下沉到本文件。
-/// 动机：15 个内置工具都需要 `(context as AiToolContext)` 做类型转换，而它们原先
-/// 只能从 registry 拿到这个类型 —— registry 又 import 全部工具来构建定义表，
-/// 于是形成 15 组「工具 <-> registry」互相依赖的 2-环。
-/// 本文件不依赖任何 `*_tool.dart`，工具改为依赖它即可断开该环。
-///
-/// 与 `base_tool.dart` 的分工：base_tool 只放工具基类与定义类型（叶子层，零项目内依赖）；
-/// 本文件承载"运行时依赖装配"，因此会依赖 repository/ 与 providers/。
-/// 行为无变化：字段、初始化顺序、`isReading` 实现逐字保持。
-/// 下面 7 条 import 是从原 `ai_tool_registry.dart` 一并搬来的 ——
-/// 本文件引用的 `WidgetRef` / 6 个 Repository / `currentReadingProvider`
-/// 必须在本文件可见（export 不会把名字引入自身作用域）。
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:songjiang_reader/providers/current_reading.dart';
 import 'package:songjiang_reader/service/ai/tools/repository/book_content_search_repository.dart';
@@ -22,6 +8,15 @@ import 'package:songjiang_reader/service/ai/tools/repository/reading_history_rep
 import 'package:songjiang_reader/service/ai/tools/repository/tag_repository.dart';
 
 /// Context object shared by AI tools so builders don't need long constructors.
+///
+/// 单独成文件的目的：打破 `ai_tool_registry.dart` ↔ `*_tool.dart` 的 import 环。
+/// 注册表要 import 每个工具，工具若反过来 import 注册表取本类，就形成循环；
+/// 循环会让分析器把 `context as AiToolContext` 误判为「多余的 cast」
+/// （同时给 base_tool 的导入报 unnecessary_import）。
+/// 把本类下沉为叶子节点后，两侧都只依赖它，环消失。
+///
+/// 注意：`AiToolDefinition.build` 的形参类型是 `Object`（见 base_tool.dart），
+/// 所以工具内部仍需要显式 `context as AiToolContext` 才能取到仓库。
 class AiToolContext {
   AiToolContext({required this.ref});
 

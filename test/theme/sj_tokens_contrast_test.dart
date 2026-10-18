@@ -16,14 +16,14 @@ import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 ///  - 交互组件边界 3:1（1.4.11）
 void main() {
   // ---------- WCAG 计算 ----------
-  double _lin(double c) =>
+  double lin(double c) =>
       c <= 0.03928 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
 
-  double _lum(Color c) =>
-      0.2126 * _lin(c.r) + 0.7152 * _lin(c.g) + 0.0722 * _lin(c.b);
+  double lum(Color c) =>
+      0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
 
   double contrast(Color fg, Color bg) {
-    final a = _lum(fg), b = _lum(bg);
+    final a = lum(fg), b = lum(bg);
     final hi = math.max(a, b), lo = math.min(a, b);
     return (hi + 0.05) / (lo + 0.05);
   }

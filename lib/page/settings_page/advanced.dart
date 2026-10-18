@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/developer_prefs.dart';
 import 'package:songjiang_reader/dao/book.dart';
@@ -512,12 +512,16 @@ class _HttpProxyDialogState extends ConsumerState<_HttpProxyDialog> {
               host = host.substring(7);
             }
 
+            // 保存后要关掉本对话框。这里先抓住对话框自己的 NavigatorState：
+            // saveConfig 是异步的，等它返回时直接沿用旧写法既可能 pop 到别的路由，
+            // 也无法用 mounted 判断（本闭包不是 State）。
+            final dialogNavigator = Navigator.of(context);
             await ref.read(httpProxyNotifierProvider.notifier).saveConfig(
                   host: host,
                   port: port,
                   testUrl: testUrl,
                 );
-            Navigator.of(context).pop();
+            dialogNavigator.pop();
           },
           child: Text(L10n.of(context).commonSave),
         ),
@@ -532,7 +536,7 @@ Future<void> _showChangelog(BuildContext context) async {
 
   showCupertinoSheet(
     context: navigatorKey.currentContext ?? context,
-    builder: (sheetContext) => ChangelogScreen(
+    scrollableBuilder: (sheetContext, scrollController) => ChangelogScreen(
       lastVersion: lastVersion,
       currentVersion: currentVersion,
       onComplete: () {
@@ -548,7 +552,7 @@ Future<void> _showOnboarding(BuildContext context) async {
 
   showCupertinoSheet(
     context: navigatorKey.currentContext ?? context,
-    builder: (sheetContext) => Scaffold(
+    scrollableBuilder: (sheetContext, scrollController) => Scaffold(
       body: OnboardingScreen(
         onComplete: () {
           AppMiscPrefs.lastAppVersion = currentVersion;

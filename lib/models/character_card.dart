@@ -3,6 +3,7 @@
 /// 设计对齐「造梦」44 字段 schema 的子集，裁剪为读书人真正关心的字段；
 /// 关系保留造梦五元组 trust / affection / powerGap / conflictPoint / hiddenAttitude。
 /// 模型写法对齐既有 VocabItem：fromMap / toMap，JSON 字段做容错。
+library;
 
 import 'dart:convert';
 

@@ -78,47 +78,67 @@ class CharacterChatDao extends BaseDao {
         whereArgs: [id],
       );
 
+  /// 单条删除会话（连同消息与对局状态）。
   Future<void> deleteSession(int id) async {
+    await _deleteSessionRows(
+      whereSessionIds: 'id = ?',
+      args: [id],
+      sessionIdPlaceholders: '?',
+    );
+  }
+
+  /// 批量删除会话。
+  ///
+  /// 会话页支持多选删除，一次可能勾掉很多个。原实现是「每个 id 3 条 DELETE」，
+  /// 删 100 个就是 300 次数据库往返；这里改为按块 `IN (...)`。
+  /// 分块是为了避开 SQLite 的变量个数上限（一个会话 id 在三条语句里各占一位，
+  /// 所以块大小按 3 倍变量估算）。
+  Future<void> deleteSessions(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final unique = ids.toSet().toList();
+    const chunkSize = 300; // 300 个 id → 最多 900 个绑定变量，低于 999 上限
+
+    for (var i = 0; i < unique.length; i += chunkSize) {
+      final chunk = unique.sublist(
+        i,
+        (i + chunkSize) > unique.length ? unique.length : i + chunkSize,
+      );
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      await _deleteSessionRows(
+        whereSessionIds: 'id IN ($placeholders)',
+        args: chunk,
+        sessionIdPlaceholders: placeholders,
+      );
+    }
+  }
+
+  /// 删除一组会话及其附属数据。
+  ///
+  /// [whereSessionIds] 是作用在会话表 id 上的谓词（`id = ?` 或 `id IN (...)`），
+  /// [sessionIdPlaceholders] 是对应的占位符串，供消息表与对局表复用。
+  /// 单条与批量共用这一段，避免两处各维护一套 SQL 而慢慢走偏。
+  Future<void> _deleteSessionRows({
+    required String whereSessionIds,
+    required List<Object?> args,
+    required String sessionIdPlaceholders,
+  }) async {
     await transaction((txn) async {
       await txn.delete(
         tableMessage,
-        where: 'session_id = ?',
-        whereArgs: [id],
+        where: 'session_id IN ($sessionIdPlaceholders)',
+        whereArgs: args,
       );
       // 对局状态跟着对话一起删，否则会留下指向已删会话的孤儿记录
       await txn.delete(
         'tb_gameplay_sessions',
-        where: 'chat_session_id = ?',
-        whereArgs: [id],
+        where: 'chat_session_id IN ($sessionIdPlaceholders)',
+        whereArgs: args,
       );
       await txn.delete(
         tableSession,
-        where: 'id = ?',
-        whereArgs: [id],
+        where: whereSessionIds,
+        whereArgs: args,
       );
-    });
-  }
-
-  Future<void> deleteSessions(List<int> ids) async {
-    if (ids.isEmpty) return;
-    await transaction((txn) async {
-      for (final id in ids) {
-        await txn.delete(
-          tableMessage,
-          where: 'session_id = ?',
-          whereArgs: [id],
-        );
-        await txn.delete(
-          'tb_gameplay_sessions',
-          where: 'chat_session_id = ?',
-          whereArgs: [id],
-        );
-        await txn.delete(
-          tableSession,
-          where: 'id = ?',
-          whereArgs: [id],
-        );
-      }
     });
   }
 

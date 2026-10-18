@@ -7,7 +7,6 @@ import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/services.dart';
 
 /// OPDS 书源管理页。
 class OpdsSettingsPage extends ConsumerStatefulWidget {
@@ -123,6 +122,10 @@ class _OpdsSettingsPageState extends ConsumerState<OpdsSettingsPage> {
 
     if (ok != true) return;
 
+    // 表单对话框是异步返回的；用户在等待期间可能已离开本设置页，
+    // 后续要用 context 取文案与提示，先确认它仍然可用。
+    if (!mounted) return;
+
     final name = _nameController.text.trim();
     final url = _urlController.text.trim();
     if (name.isEmpty || url.isEmpty) {
@@ -152,6 +155,7 @@ class _OpdsSettingsPageState extends ConsumerState<OpdsSettingsPage> {
       );
     }
     _reload();
+    if (!mounted) return;
     SjToast.show(L10n.of(context).commonSuccess);
   }
 

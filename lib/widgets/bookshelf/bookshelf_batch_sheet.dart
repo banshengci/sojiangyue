@@ -143,6 +143,8 @@ Future<void> _applyBatchCover(
   if (result == null || result.files.isEmpty) return;
   final path = result.files.first.path;
   if (path == null || path.isEmpty) {
+    // 文件选择是异步的，返回时本弹层可能已关闭。
+    if (!context.mounted) return;
     SjToast.show(L10n.of(context).importCannotGetFilePath);
     return;
   }

@@ -172,8 +172,8 @@ void main() {
     });
   });
 
-  group('#0011 `\"\"` 语义统一为「缺失」', () {
-    test('空串 = 缺失：getBookByMd5(\"\") 返回 null，不再命中别的书', () async {
+  group('#0011 `""` 语义统一为「缺失」', () {
+    test('空串 = 缺失：getBookByMd5("") 返回 null，不再命中别的书', () async {
       // 造一本 `file_md5 = ''` 的行（模拟"迁移还没跑"的中间状态）
       await db.insert('tb_books', {'title': '空串书', 'file_md5': ''});
       expect(await bookDao.getBookByMd5(''), isNull);

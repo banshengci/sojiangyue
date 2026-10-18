@@ -1,5 +1,4 @@
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/enums/convert_chinese_mode.dart';
@@ -11,9 +10,9 @@ import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/reading_info.dart';
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/page/settings_page/subpage/fonts.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/sj_segmented_button.dart';
 import 'package:flutter/material.dart';
-import 'package:icons_plus/icons_plus.dart';
 
 class ReadingMoreSettings extends StatefulWidget {
   const ReadingMoreSettings({super.key});
@@ -247,13 +246,13 @@ class _ReadingMoreSettingsState extends State<ReadingMoreSettings> {
                         label: L10n.of(context)
                             .readingPageWritingDirectionVertical,
                         value: WritingModeEnum.verticalRl,
-                        icon: const Icon(Bootstrap.arrows_vertical),
+                        icon: const Icon(Icons.swap_vert),
                       ),
                       SegmentButtonItem(
                         label: L10n.of(context)
                             .readingPageWritingDirectionHorizontal,
                         value: WritingModeEnum.horizontalTb,
-                        icon: const Icon(Bootstrap.arrows),
+                        icon: const Icon(Icons.swap_horiz),
                       ),
                     ],
                     selected: {ReadingStylePrefs.writingMode},

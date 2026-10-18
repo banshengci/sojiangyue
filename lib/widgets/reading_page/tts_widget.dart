@@ -1,16 +1,17 @@
+import 'dart:async';
+
 import 'package:songjiang_reader/config/tts_prefs.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
+import 'package:songjiang_reader/page/book_player/epub_player.dart';
+import 'package:songjiang_reader/page/settings_page/narrate.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
 import 'package:songjiang_reader/service/tts/tts_handler.dart';
 import 'package:songjiang_reader/service/tts/tts_service.dart' as tts_svc;
-import 'package:songjiang_reader/widgets/reading_page/widget_title.dart';
-import 'package:songjiang_reader/page/book_player/epub_player.dart';
-import 'package:songjiang_reader/page/settings_page/narrate.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/reading_page/more_settings/more_settings.dart';
+import 'package:songjiang_reader/widgets/reading_page/widget_title.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
 
 class TtsWidget extends StatefulWidget {
   const TtsWidget({super.key, required this.epubPlayerKey});

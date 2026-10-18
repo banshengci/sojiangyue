@@ -735,9 +735,12 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                             await Clipboard.setData(
                                 ClipboardData(text: content!));
                           }
+                          // 取章节正文与写剪贴板都是 await，期间阅读页可能已退出。
+                          if (!context.mounted) return;
                           SjToast.show(L10n.of(context)
                               .readingPageCopiedCharacters(len));
                         } catch (e) {
+                          if (!context.mounted) return;
                           SjToast.show(
                               L10n.of(context).readingPageErrorCopyingContent);
                         }

@@ -828,16 +828,14 @@ Future<void> ensureSchemaIntegrity(Database db) async {
 
     // 放在最后：本步骤包含"无损去重 + 建唯一索引"，万一失败也不该拖累上面的补列/补表。
     await _ensureFileMd5Unique(db);
+    // 高频读路径的索引（对方线）：与上面的补列一样每次打开都幂等补齐
+    await _ensureReadStatsIndexes(db);
   } catch (e, st) {
     // 自检失败不应阻断启动
     SjLog.severe('Database: 结构自检失败: $e\n$st');
   }
 }
 
-/// v2→v3 的历史文件重命名：**同步、可失败、绝不抛**。
-///
-/// 抽出来的原因见 case2 里的注释：这段逻辑原先直接 `listSync()`，目录不存在就抛，
-/// 会把整段数据库迁移带崩。这里补三处守卫：目录不存在 / 不是普通文件 / rename 失败。
 void _renameLegacyFilesSync(Directory dir, String suffix) {
   if (!dir.existsSync()) {
     SjLog.info('Database: 迁移 v2→v3 跳过不存在的目录 ${dir.path}');
@@ -854,6 +852,31 @@ void _renameLegacyFilesSync(Directory dir, String suffix) {
       element.rename(newPath);
     } catch (e) {
       SjLog.warning('Database: 迁移 v2→v3 重命名失败（已跳过）: ${element.path} → $e');
+    }
+  }
+}
+
+Future<void> _ensureReadStatsIndexes(Database db) async {
+  const statements = <String>[
+    // 按日期聚合（热力图 / 趋势 / 连续天数）
+    'CREATE INDEX IF NOT EXISTS idx_reading_time_date '
+        'ON tb_reading_time(date)',
+    // 按书聚合（每本书累计时长、某书近 N 天）
+    'CREATE INDEX IF NOT EXISTS idx_reading_time_book '
+        'ON tb_reading_time(book_id, date)',
+    // 某本书的笔记列表（book_id 等值 + type 过滤 + 按 book_id 分组统计）
+    'CREATE INDEX IF NOT EXISTS idx_notes_book_type '
+        'ON tb_notes(book_id, type)',
+    // 导入去重与「补算 MD5」都按 file_md5 查（bookDao.getBooksByMd5s 的 IN 查询）
+    'CREATE INDEX IF NOT EXISTS idx_books_file_md5 '
+        'ON tb_books(file_md5)',
+  ];
+  for (final sql in statements) {
+    try {
+      await db.execute(sql);
+    } catch (e) {
+      // 与 _ensureColumn 一致：单个索引失败不影响启动
+      SjLog.warning('Database: 自检补索引失败: $e');
     }
   }
 }

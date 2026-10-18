@@ -1,12 +1,11 @@
 import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'base_tool.dart';
 import 'input/chapter_content_by_href_input.dart';
 import 'repository/chapter_content_repository.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
+import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
 class ChapterContentByHrefTool
     extends RepositoryTool<ChapterContentByHrefInput, Map<String, dynamic>> {

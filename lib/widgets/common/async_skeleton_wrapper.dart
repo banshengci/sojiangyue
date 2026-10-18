@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -116,7 +116,7 @@ class AsyncSkeletonWrapper<T> extends StatelessWidget {
   }
 }
 
-/// Combines multiple AsyncValues into a single AsyncValue<List>.
+/// Combines multiple AsyncValues into a single `AsyncValue<List>`.
 ///
 /// This helper function simplifies handling multiple providers:
 /// - If ANY provider is loading, returns AsyncValue.loading()

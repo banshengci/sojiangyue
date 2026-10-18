@@ -2,12 +2,11 @@ import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/book.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 import 'package:songjiang_reader/service/ai/tools/input/bookshelf_organize_input.dart';
 import 'package:songjiang_reader/service/ai/tools/repository/books_repository.dart';
 import 'package:songjiang_reader/service/ai/tools/repository/groups_repository.dart';
-
-import 'base_tool.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
+import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
 class BookshelfOrganizeTool
     extends RepositoryTool<BookshelfOrganizeInput, Map<String, dynamic>> {
@@ -249,8 +248,12 @@ final AiToolDefinition bookshelfOrganizeToolDefinition = AiToolDefinition(
   id: 'bookshelf_organize',
   displayNameBuilder: (L10n l10n) => l10n.aiToolBookshelfOrganizeName,
   descriptionBuilder: (L10n l10n) => l10n.aiToolBookshelfOrganizeDescription,
+  // 同 apply_book_tags_tool：build 的形参静态类型是 Object，转型必需，
+  // 分析器在此处会误报 unnecessary_cast。
   build: (context) => BookshelfOrganizeTool(
+          // ignore: unnecessary_cast
           (context as AiToolContext).booksRepository,
-          context.groupsRepository)
+          // ignore: unnecessary_cast
+          (context as AiToolContext).groupsRepository)
       .tool,
 );

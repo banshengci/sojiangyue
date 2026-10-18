@@ -43,6 +43,8 @@ class _LocalDictSettingsPageState extends State<LocalDictSettingsPage> {
     final file = result.files.first;
     final path = file.path;
     if (path == null || path.isEmpty) {
+      // 文件选择器是异步的，返回时本页可能已销毁。
+      if (!mounted) return;
       SjToast.show(L10n.of(context).importCannotGetFilePath);
       return;
     }

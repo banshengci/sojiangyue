@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -195,18 +195,20 @@ class _HeadlessSearchSession {
         }
       },
       onConsoleMessage: webviewConsoleMessage,
-      onLoadError: (controller, url, code, message) {
-        if (!loadCompleter.isCompleted) {
-          loadCompleter.completeError(
-            Exception('Failed to load reader: [$code] $message'),
-          );
-        }
-      },
-      onLoadHttpError: (controller, url, statusCode, description) {
+      onReceivedError: (controller, request, error) {
         if (!loadCompleter.isCompleted) {
           loadCompleter.completeError(
             Exception(
-                'HTTP error while loading reader: [$statusCode] $description'),
+                'Failed to load reader: [${error.type}] ${error.description}'),
+          );
+        }
+      },
+      onReceivedHttpError: (controller, request, errorResponse) {
+        if (!loadCompleter.isCompleted) {
+          loadCompleter.completeError(
+            Exception(
+                'HTTP error while loading reader: '
+                '[${errorResponse.statusCode}] ${errorResponse.reasonPhrase}'),
           );
         }
       },

@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/config/tts_prefs.dart';
+import 'package:songjiang_reader/config/tts_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/tts_providers.dart';
 import 'package:songjiang_reader/service/tts/models/tts_voice.dart';
@@ -386,6 +386,9 @@ class _NarrateSettingsState extends ConsumerState<NarrateSettings>
                             });
                             final voices =
                                 await ref.refresh(ttsVoicesProvider.future);
+                            // 刷新音色列表是异步的；期间若已离开本页，
+                            // 后面用 context 取 locale 与 setState 都不再安全。
+                            if (!context.mounted) return;
                             if (selectedVoiceModel == null &&
                                 voices.isNotEmpty) {
                               final currentLocale =

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:charset/charset.dart';
@@ -75,10 +75,11 @@ List<ChapterDraft> _parseRtf(String src) {
   int i = 0;
   final n = src.length;
 
-  String _stripTags(String html) =>
+  // 局部函数不加前导下划线（no_leading_underscores_for_local_identifiers）
+  String stripTags(String html) =>
       html.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll('&[a-zA-Z]+;', ' ').trim();
 
-  int? _headingLevelFromStyle(int index) {
+  int? headingLevelFromStyle(int index) {
     final name = styleNames[index];
     if (name == null) return null;
     final m = RegExp(
@@ -130,7 +131,7 @@ List<ChapterDraft> _parseRtf(String src) {
       return;
     }
     if (paraHeadingLevel != null) {
-      final text = _stripTags(html);
+      final text = stripTags(html);
       if (currentHasContent || current.title.isNotEmpty) chapters.add(current);
       // RTF 的标题是通过样式识别的，正文里没有 <hN> 标签，这里补上以便正常渲染。
       final wrapped = '<h$paraHeadingLevel>$html</h$paraHeadingLevel>';
@@ -217,7 +218,7 @@ List<ChapterDraft> _parseRtf(String src) {
           if (inStylesheet) {
             pendingStyleIndex = param;
           } else {
-            paraHeadingLevel = _headingLevelFromStyle(param);
+            paraHeadingLevel = headingLevelFromStyle(param);
           }
         }
         break;
@@ -330,17 +331,23 @@ List<ChapterDraft> _parseRtf(String src) {
       final c2 = src[i + 1];
       i += 2;
       if (c2 == '*') {
-        if (skipDepth == null) skipDepth = depth;
+        skipDepth ??= depth;
         continue;
       }
       if (skipDepth != null) {
         // 跳过该控制字/符号的剩余部分（花括号已在上面单独处理）
         if (RegExp(r'[a-zA-Z]').hasMatch(c2)) {
-          while (i < n && RegExp(r'[a-zA-Z]').hasMatch(src[i])) i++;
+          while (i < n && RegExp(r'[a-zA-Z]').hasMatch(src[i])) {
+            i++;
+          }
           if (i < n &&
               (src[i] == '-' || RegExp(r'[0-9]').hasMatch(src[i]))) {
-            if (src[i] == '-') i++;
-            while (i < n && RegExp(r'[0-9]').hasMatch(src[i])) i++;
+            if (src[i] == '-') {
+              i++;
+            }
+            while (i < n && RegExp(r'[0-9]').hasMatch(src[i])) {
+              i++;
+            }
           }
           if (i < n && src[i] == ' ') i++;
         }
@@ -348,7 +355,9 @@ List<ChapterDraft> _parseRtf(String src) {
       }
       if (RegExp(r'[a-zA-Z]').hasMatch(c2)) {
         var j = i;
-        while (j < n && RegExp(r'[a-zA-Z]').hasMatch(src[j])) j++;
+        while (j < n && RegExp(r'[a-zA-Z]').hasMatch(src[j])) {
+          j++;
+        }
         // i 已经越过反斜杠与首字母 c2，故词名 = c2 + 余下字母
         final word = c2 + src.substring(i, j);
         int? param;
@@ -356,7 +365,9 @@ List<ChapterDraft> _parseRtf(String src) {
             (src[j] == '-' || RegExp(r'[0-9]').hasMatch(src[j]))) {
           var k = j;
           if (src[k] == '-') k++;
-          while (k < n && RegExp(r'[0-9]').hasMatch(src[k])) k++;
+          while (k < n && RegExp(r'[0-9]').hasMatch(src[k])) {
+            k++;
+          }
           param = int.tryParse(src.substring(j, k));
           j = k;
         }

@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/enums/version_check_type.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/utils/app_version.dart';
@@ -59,7 +59,7 @@ class InitializationCheck {
     Future.delayed(const Duration(milliseconds: 800), () {
       showCupertinoSheet(
         context: navigatorKey.currentContext!,
-        builder: (context) => Scaffold(
+        scrollableBuilder: (context, scrollController) => Scaffold(
           body: OnboardingScreen(
             onComplete: () async {
               AppMiscPrefs.lastAppVersion = cv;
@@ -78,7 +78,7 @@ class InitializationCheck {
     Future.delayed(const Duration(milliseconds: 800), () {
       showCupertinoSheet(
         context: navigatorKey.currentContext!,
-        builder: (context) => ChangelogScreen(
+        scrollableBuilder: (context, scrollController) => ChangelogScreen(
           lastVersion: lv,
           currentVersion: cv,
           onComplete: () {

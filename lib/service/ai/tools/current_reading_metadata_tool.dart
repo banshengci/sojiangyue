@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/providers/current_reading.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'base_tool.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
+import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
 class CurrentReadingMetadataTool
     extends RepositoryTool<JsonMap, Map<String, dynamic>> {

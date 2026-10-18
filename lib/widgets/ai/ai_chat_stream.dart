@@ -299,6 +299,8 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
       // reset state when switching service
     });
 
+    // 上面关闭旧流是 await；若期间本组件已卸载，pop 会误关其它路由。
+    if (!context.mounted) return;
     Navigator.of(context).pop();
     _scrollToBottom();
   }

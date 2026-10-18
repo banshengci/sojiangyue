@@ -1,11 +1,10 @@
 import 'dart:async';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
-import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
 import 'package:songjiang_reader/service/ai/tools/input/bookshelf_lookup_input.dart';
 import 'package:songjiang_reader/service/ai/tools/repository/books_repository.dart';
-
-import 'base_tool.dart';
+import 'package:songjiang_reader/service/ai/tools/ai_tool_context.dart';
+import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
 class BookshelfLookupTool
     extends RepositoryTool<BookshelfLookupInput, Map<String, dynamic>> {

@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -16,10 +16,20 @@ class SjHeadlessWebView {
   final void Function(
           InAppWebViewController controller, ConsoleMessage consoleMessage)?
       onConsoleMessage;
-  final void Function(InAppWebViewController controller, Uri? url, int code,
-      String message)? onLoadError;
-  final void Function(InAppWebViewController controller, Uri? url,
-      int statusCode, String description)? onLoadHttpError;
+  /// 资源加载失败回调。
+  ///
+  /// 注意：flutter_inappwebview 6.2 起 `onLoadError` / `onLoadHttpError` 已废弃，
+  /// 替代者是 `onReceivedError` / `onReceivedHttpError`，且回调签名从
+  /// `(controller, url, int code, String message)` 换成了传入结构化对象
+  /// （[WebResourceError] / [WebResourceResponse]）。所以这里跟着改，
+  /// 上层从对象上取 `description` / `statusCode`。
+  final void Function(InAppWebViewController controller, WebResourceRequest request,
+      WebResourceError error)? onReceivedError;
+  final void Function(
+          InAppWebViewController controller,
+          WebResourceRequest request,
+          WebResourceResponse errorResponse)?
+      onReceivedHttpError;
   final WebViewEnvironment? webViewEnvironment;
 
   SjHeadlessWebView({
@@ -28,8 +38,8 @@ class SjHeadlessWebView {
     this.onWebViewCreated,
     this.onLoadStop,
     this.onConsoleMessage,
-    this.onLoadError,
-    this.onLoadHttpError,
+    this.onReceivedError,
+    this.onReceivedHttpError,
     this.webViewEnvironment,
   });
 
@@ -60,8 +70,8 @@ class SjHeadlessWebView {
         onWebViewCreated: onWebViewCreated,
         onLoadStop: onLoadStop,
         onConsoleMessage: onConsoleMessage,
-        onLoadError: onLoadError,
-        onLoadHttpError: onLoadHttpError,
+        onReceivedError: onReceivedError,
+        onReceivedHttpError: onReceivedHttpError,
       );
       try {
         await _headlessWebView?.run();
@@ -92,8 +102,8 @@ class SjHeadlessWebView {
             initialSettings: initialSettings,
             onLoadStop: onLoadStop,
             onConsoleMessage: onConsoleMessage,
-            onLoadError: onLoadError,
-            onLoadHttpError: onLoadHttpError,
+            onReceivedError: onReceivedError,
+            onReceivedHttpError: onReceivedHttpError,
             onWebViewCreated: (controller) {
               onWebViewCreated?.call(controller);
             },

@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/enums/text_alignment.dart';
 import 'package:songjiang_reader/enums/writing_mode.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
@@ -7,7 +7,6 @@ import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/widgets/icon_and_text.dart';
 import 'package:songjiang_reader/widgets/reading_page/more_settings/custom_css_editor.dart';
 import 'package:flutter/material.dart';
-import 'package:icons_plus/icons_plus.dart';
 
 // Reusable style slider widget that can be disabled
 class StyleSlider extends StatelessWidget {
@@ -111,8 +110,8 @@ class _StyleSettingsState extends State<StyleSettings> {
     Widget sideMarginSlider(BookStyle bookStyle, StateSetter setState) {
       return StyleSlider(
         icon: ReadingStylePrefs.writingMode == WritingModeEnum.verticalRl
-            ? Bootstrap.arrows_vertical
-            : Bootstrap.arrows,
+            ? Icons.swap_vert
+            : Icons.swap_horiz,
         label: ReadingStylePrefs.writingMode == WritingModeEnum.verticalRl
             ? L10n.of(context).readingPageVerticleMargin
             : L10n.of(context).readingPageSideMargin,
@@ -157,11 +156,11 @@ class _StyleSettingsState extends State<StyleSettings> {
       return Row(children: [
         ReadingStylePrefs.writingMode == WritingModeEnum.verticalRl
             ? IconAndText(
-                icon: const Icon(Bootstrap.chevron_bar_right),
+                icon: const Icon(Icons.keyboard_arrow_right),
                 text: L10n.of(context).readingPageRightMargin,
               )
             : IconAndText(
-                icon: const Icon(Bootstrap.chevron_bar_up),
+                icon: const Icon(Icons.keyboard_arrow_up),
                 text: L10n.of(context).readingPageTopMargin,
               ),
         Expanded(
@@ -183,11 +182,11 @@ class _StyleSettingsState extends State<StyleSettings> {
         ),
         ReadingStylePrefs.writingMode == WritingModeEnum.verticalRl
             ? IconAndText(
-                icon: const Icon(Bootstrap.chevron_bar_left),
+                icon: const Icon(Icons.keyboard_arrow_left),
                 text: L10n.of(context).readingPageLeftMargin,
               )
             : IconAndText(
-                icon: const Icon(Bootstrap.chevron_bar_down),
+                icon: const Icon(Icons.keyboard_arrow_down),
                 text: L10n.of(context).readingPageBottomMargin,
               ),
         Expanded(

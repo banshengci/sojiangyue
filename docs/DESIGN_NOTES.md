@@ -25,9 +25,12 @@
 - AI 快捷 chip 顺序：读前 → 自测 → 回顾 → 章总结 → 导图 → 全书
 - 底部导航：浮动胶囊 + 毛玻璃，选中用松绿
 
-## 已完成（本轮）
+## 已完成
 
 - [x] 全局替换 EvaIcons → SongJiangIcons / Material（lib 内已清零）
+- [x] **第三方图标体系彻底收敛**：HeroIcons / Bootstrap / OctIcons / AntDesign /
+      IonIcons 全部换成 Material，`icons_plus` 依赖已从 pubspec 移除
+      （此前 DESIGN_NOTES 只写了「lib 内已清零」，实际仍有 6 类图标散落在功能代码里）
 - [x] 更多设置列表图标对齐
 - [x] 空态/加载态：`EmptyStateHint` + `AppLoadingHint`（书架、生词、字体页）
 

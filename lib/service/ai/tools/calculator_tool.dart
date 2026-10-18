@@ -4,8 +4,7 @@ import 'dart:math' as math;
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/service/ai/tools/input/calculator_input.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
-
-import 'base_tool.dart';
+import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
 /// 纯 Dart 算术求值器：支持 + - * / ^ 与括号、一元正负。
 /// 不依赖 math_expressions，避免 CI 上包 API 差异导致测试编译失败。

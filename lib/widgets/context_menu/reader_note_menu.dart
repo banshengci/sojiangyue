@@ -1,7 +1,7 @@
 import 'package:songjiang_reader/dao/book_note.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/book_note.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/widgets/common/axis_flex.dart';
 import 'package:flutter/material.dart';
 

@@ -131,6 +131,9 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
       return;
     }
 
+    // 上面逐个文件写临时目录都是 await，且失败分支只记日志，
+    // 期间用户可能已离开书架页；importBookList 需要可用的 context 来弹导入对话框。
+    if (!mounted) return;
     await importBookList(fileList, context, ref);
   }
 
@@ -546,7 +549,10 @@ class BookshelfPageState extends ConsumerState<BookshelfPage>
                   fileName: file.name,
                 ));
               }
+              // 拖入的文件逐个写临时文件是异步的，期间本页可能已销毁。
+              if (!context.mounted) return;
               await importBookList(files, context, ref);
+              if (!context.mounted) return;
               setState(() {
                 _dragging = false;
               });

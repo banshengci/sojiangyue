@@ -1,4 +1,4 @@
-﻿import 'package:songjiang_reader/config/app_misc_prefs.dart';
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/chapter_split_presets.dart';
 import 'package:songjiang_reader/models/chapter_split_rule.dart';
@@ -137,10 +137,25 @@ class _ChapterSplitRulesPageState extends State<ChapterSplitRulesPage> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
-          ...rules.map((entry) => _buildRuleTile(
-                entry: entry,
-                allowActions: allowActions,
-              )),
+          // Radio 的 groupValue/onChanged 已废弃（Flutter 3.32+），
+          // 选中状态与回调统一交给 RadioGroup 祖先管理。
+          RadioGroup<String>(
+            groupValue: _selectedRuleId,
+            onChanged: (value) {
+              if (value != null) {
+                _onSelectRule(value);
+              }
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...rules.map((entry) => _buildRuleTile(
+                      entry: entry,
+                      allowActions: allowActions,
+                    )),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -164,10 +179,9 @@ class _ChapterSplitRulesPageState extends State<ChapterSplitRulesPage> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 选中态与回调来自上层 RadioGroup 祖先。
                 Radio<String>(
                   value: rule.id,
-                  groupValue: _selectedRuleId,
-                  onChanged: (_) => _onSelectRule(rule.id),
                 ),
                 Expanded(
                   child: Column(

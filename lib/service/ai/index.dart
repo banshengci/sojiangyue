@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:songjiang_reader/config/ai_prefs.dart';
@@ -6,6 +6,7 @@ import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/main.dart';
 import 'package:songjiang_reader/models/ai_provider.dart';
 import 'package:songjiang_reader/providers/ai_providers.dart';
+import 'package:songjiang_reader/service/ai/ai_cache.dart';
 import 'package:songjiang_reader/service/ai/ai_key_rotator.dart';
 import 'package:songjiang_reader/service/ai/langchain_ai_config.dart';
 import 'package:songjiang_reader/service/ai/langchain_registry.dart';
@@ -22,6 +23,17 @@ final CancelableLangchainRunner _runner = CancelableLangchainRunner();
 final List<DateTime> _aiRequestTimestamps = [];
 
 /// Throttle AI requests if RPM limit is configured (sliding 1-minute window).
+///
+/// 关于并发：本函数**刻意不加锁**，因为它已经是竞态安全的。
+/// 「读时间戳列表 → 判断是否超配额 → 追加一条」这三步之间没有任何 `await`
+/// （`await Future.delayed` 在判断与追加**之后**才发生，且期间不会碰列表），
+/// Dart 是单线程事件循环，同步段不会被打断，所以并发调用不会一起通过判断。
+///
+/// 曾经想当然地在这里加过互斥锁并改成「按预期发出时刻记账」，结果是**引入了 bug**：
+/// 把时间戳记成 `now + wait` 会让过期条目推迟到 60 秒后才被清理，
+/// 列表从「近似恒为 60 秒的滑动窗口」退化成不断增长，于是后续请求被误限流。
+/// 该次改动已回滚，并有 `test/utils/async_mutex_test.dart` 里的
+/// 限流不变量用例守着这个形状，避免再被"好心"重构坏。
 Future<void> _throttleIfNeeded() async {
   final rpm = AiPrefs.rpm;
   if (rpm <= 0) return;
@@ -79,6 +91,18 @@ Stream<String> _generateStream({
   SjLog.info('aiGenerateStream called identifier: $identifier');
   final sanitizedMessages = _sanitizeMessagesForPrompt(messages);
 
+  // 缓存只读一次：provider 解析可能失败并落到后面的分支，
+  // 若每个分支都尝试读缓存，同一句话会被反复读文件。
+  // regenerate=true 表示用户主动要新的（「重新生成」），跳过读缓存但不影响写。
+  var cacheReadAttempted = regenerate;
+
+  /// 本轮是否应跳过「读缓存」。调用后即标记为已读，保证每轮只读一次。
+  bool takeSkipRead() {
+    final skip = cacheReadAttempted;
+    cacheReadAttempted = true;
+    return skip;
+  }
+
   LangchainAiConfig config;
 
   // Try to use new provider system first if ref is available
@@ -110,11 +134,15 @@ Stream<String> _generateStream({
           final model = pipeline.model;
 
           await _throttleIfNeeded();
-          yield* _executeStream(
+          final cacheIdentity = '${provider.id}|${config.model}';
+          yield* _cachedExecuteStream(
             model: model,
             pipeline: pipeline,
             sanitizedMessages: sanitizedMessages,
             useAgent: useAgent,
+            cacheIdentity: cacheIdentity,
+            cacheIdentifier: provider.id,
+            skipRead: takeSkipRead(),
           );
 
           // Advance key index for round-robin rotation after successful call
@@ -176,11 +204,15 @@ Stream<String> _generateStream({
             final model = pipeline.model;
 
             await _throttleIfNeeded();
-            yield* _executeStream(
+            final cacheIdentity = '${provider.id}|${config.model}';
+            yield* _cachedExecuteStream(
               model: model,
               pipeline: pipeline,
               sanitizedMessages: sanitizedMessages,
               useAgent: useAgent,
+              cacheIdentity: cacheIdentity,
+              cacheIdentifier: provider.id,
+              skipRead: takeSkipRead(),
             );
 
             // Advance key index in persistent storage for round-robin rotation
@@ -230,11 +262,14 @@ Stream<String> _generateStream({
   final model = pipeline.model;
 
   await _throttleIfNeeded();
-  yield* _executeStream(
+  yield* _cachedExecuteStream(
     model: model,
     pipeline: pipeline,
     sanitizedMessages: sanitizedMessages,
     useAgent: useAgent,
+    cacheIdentity: '$selectedIdentifier|${config.model}',
+    cacheIdentifier: selectedIdentifier,
+    skipRead: takeSkipRead(),
   );
 }
 
@@ -290,6 +325,73 @@ Stream<String> _executeStream({
     try {
       model.close();
     } catch (_) {}
+  }
+}
+
+/// 在 [_executeStream] 外面套一层缓存。
+///
+/// 背景：`AiCache.setAiCache/getAiCache` 此前是**死代码**——
+/// UI 上「AI 缓存 / 缓存大小 / 清空缓存」都在（`settings_page/ai.dart`），
+/// 但没有任何地方调用写入或读取，于是缓存数恒为 0、清空按钮空转，
+/// 用户每次都要等完整的生成。这里把读写接回主链路。
+///
+/// 语义：
+/// - 写：仅在流正常走完后落库。`_executeStream` 产出的是一串**累积**文本
+///   （每个 chunk 是「到目前为止的全部内容」），所以以最后一个 chunk 为准，
+///   天然不会把半截内容写进缓存；被取消的生成因为提前 break 也不会写。
+/// - 读：命中则一次性产出缓存内容并**跳过**网络请求，
+///   因此不消耗额度、也不受 RPM 限流影响。
+/// - `regenerate=true`（用户主动要新答案）时跳过读，避免「重新生成」拿到同一份缓存。
+Stream<String> _cachedExecuteStream({
+  required BaseChatModel model,
+  required LangchainPipeline pipeline,
+  required List<ChatMessage> sanitizedMessages,
+  required bool useAgent,
+  required String cacheIdentity,
+  required String cacheIdentifier,
+  required bool skipRead,
+}) async* {
+  if (!skipRead && cacheIdentity.isNotEmpty) {
+    final hash = AiCache.cacheHashFor(sanitizedMessages, cacheIdentity);
+    final cached = await AiCache.getAiCache(hash, identity: cacheIdentity);
+    if (cached != null && cached.data.isNotEmpty) {
+      SjLog.info('AiCache hit: $cacheIdentity');
+      // 命中缓存就直接返回，不会走到 _executeStream 的 cleanup，
+      // 所以必须在这里自己关掉 model。model 是每次请求新建的
+      // （见 LangchainRegistry.resolveByProtocol，ChatOpenAI/ChatAnthropic
+      // 都持有自己的 dio 客户端），不关就是每次命中泄漏一个。
+      try {
+        model.close();
+      } catch (_) {}
+      yield cached.data;
+      return;
+    }
+  }
+
+  var last = '';
+  await for (final chunk in _executeStream(
+    model: model,
+    pipeline: pipeline,
+    sanitizedMessages: sanitizedMessages,
+    useAgent: useAgent,
+  )) {
+    last = chunk;
+    yield chunk;
+  }
+
+  // 只有拿到非空结果才写；错误信息（_mapError 的产物）不写
+  if (cacheIdentity.isNotEmpty &&
+      last.isNotEmpty &&
+      !last.startsWith('Error: ')) {
+    final hash = AiCache.cacheHashFor(sanitizedMessages, cacheIdentity);
+    await AiCache.setAiCache(
+      hash,
+      last,
+      cacheIdentifier,
+      sanitizedMessages,
+      identity: cacheIdentity,
+    );
+    SjLog.info('AiCache stored: $cacheIdentity');
   }
 }
 

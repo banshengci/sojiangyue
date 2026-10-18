@@ -38,6 +38,11 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # 设计交付快照（.gitignore 掉，CI 检出时不存在）。
+    # 它是独立快照，引用的是另一个包名 package:songjiandu，
+    # 不排除的话本地跑 `dart analyze` 会看到 40 个 error + 10 个 info，
+    # 而 CI 上是干净的——两边门禁不一致，容易把本地噪音误当成真问题。
+    - songjiang-yue-delivery-20260911/**
     # 根目录脚本：仅工具用，避免 avoid_print 把 CI 打红
     - normalize_arb_files.dart
     - release.dart

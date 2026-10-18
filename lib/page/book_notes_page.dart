@@ -1,20 +1,19 @@
 import 'package:songjiang_reader/config/notes_prefs.dart';
-import 'package:songjiang_reader/theme/songjiang_icons.dart';
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/book_note.dart';
 import 'package:songjiang_reader/models/book_notes_state.dart';
-import 'package:songjiang_reader/service/notes/export_notes.dart';
-import 'package:songjiang_reader/widgets/bookshelf/book_cover.dart';
-import 'package:songjiang_reader/widgets/book_notes/book_notes_list.dart';
-import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/page/book_detail.dart';
+import 'package:songjiang_reader/providers/book_notes.dart';
+import 'package:songjiang_reader/service/notes/export_notes.dart';
+import 'package:songjiang_reader/theme/songjiang_icons.dart';
+import 'package:songjiang_reader/widgets/book_notes/book_notes_list.dart';
+import 'package:songjiang_reader/widgets/bookshelf/book_cover.dart';
 import 'package:songjiang_reader/widgets/common/container/filled_container.dart';
 import 'package:songjiang_reader/widgets/highlight_digit.dart';
 import 'package:songjiang_reader/widgets/icon_and_text.dart';
-import 'package:songjiang_reader/providers/book_notes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:icons_plus/icons_plus.dart';
 
 class BookNotesPage extends ConsumerStatefulWidget {
   const BookNotesPage({
@@ -167,7 +166,7 @@ class _BookNotesPageState extends ConsumerState<BookNotesPage> {
                                 notes,
                                 ExportType.md,
                                 mergeChapters: allowMerge && mergeChapters,
-                                icon: const Icon(IonIcons.logo_markdown),
+                                icon: const Icon(Icons.code),
                                 label: 'Markdown',
                               ),
                               _exportButton(
