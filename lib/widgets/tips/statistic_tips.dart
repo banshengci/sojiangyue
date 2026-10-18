@@ -1,39 +1,24 @@
-import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:flutter/material.dart';
 
+import 'package:songjiang_reader/design/songjiang/sj_icon.dart';
+import 'package:songjiang_reader/l10n/generated/L10n.dart';
+import 'package:songjiang_reader/widgets/tips/sj_empty_tip.dart';
+
 /// 统计空态：品牌插画 + 标题 + 副标题。
+///
+/// 版式统一由 [SjEmptyTip] 提供。
 class StatisticsTips extends StatelessWidget {
-  const StatisticsTips({super.key});
+  const StatisticsTips({super.key, this.action});
+
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SjIllustrationView(SjIllustration.noResults, width: 200),
-          const SizedBox(height: 28),
-          Text(
-            L10n.of(context).statisticsTips_1,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            L10n.of(context).statisticsTips_2,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.5,
-                ),
-          ),
-        ],
-      ),
+    return SjEmptyTip(
+      illustration: SjIllustration.noResults,
+      title: L10n.of(context).statisticsTips_1,
+      message: L10n.of(context).statisticsTips_2,
+      action: action,
     );
   }
 }

@@ -26,97 +26,106 @@ class _SjMinePageState extends State<SjMinePage> {
     final c = SjColors.of(context);
     final profile = widget.profile;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(SjSpace.page, 12, SjSpace.page, 120),
-      children: [
-        // 个人信息
-        Row(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: c.pine, shape: BoxShape.circle),
-              child: Text(
-                '墨',
-                style: TextStyle(
-                  fontFamily: SjText.serif,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: c.onPine,
-                ),
-              ),
-            ),
-            const SizedBox(width: SjSpace.l),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '墨客',
-                    style: SjText.coverTitle(c.ink).copyWith(fontSize: 22),
+    return Material(
+      // 本页含 InkWell（见 SjMenuRow），必须有 Material 祖先才能画水波。
+      // 设计模块的页面都只是 body，由 SjAppGallery 提供 Scaffold；
+      // 但单独把这个页面当整页用时就会缺 Material 而抛
+      // 「No Material widget found」。这里自带一层透明 Material，
+      // 既不改视觉，也让页面可以独立使用。
+      type: MaterialType.transparency,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(SjSpace.page, 12, SjSpace.page, 120),
+        children: [
+          // 个人信息
+          Row(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                alignment: Alignment.center,
+                decoration:
+                    BoxDecoration(color: c.pine, shape: BoxShape.circle),
+                child: Text(
+                  '墨',
+                  style: TextStyle(
+                    fontFamily: SjText.serif,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: c.onPine,
                   ),
-                  const SizedBox(height: 6),
-                  Text(profile.subtitle, style: SjText.meta(c.inkSoft)),
-                ],
+                ),
               ),
+              const SizedBox(width: SjSpace.l),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '墨客',
+                      style: SjText.coverTitle(c.ink).copyWith(fontSize: 22),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(profile.subtitle, style: SjText.meta(c.inkSoft)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // 数据统计
+          const SizedBox(height: SjSpace.xl),
+          SjCard(
+            padding: const EdgeInsets.symmetric(vertical: 22),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SjStatTile(
+                    value: '${profile.booksRead}',
+                    label: '已读',
+                  ),
+                ),
+                _StatDivider(color: c.divider),
+                Expanded(
+                  child: SjStatTile(
+                    value: '${profile.favorites}',
+                    label: '收藏',
+                  ),
+                ),
+                _StatDivider(color: c.divider),
+                Expanded(
+                  child: SjStatTile(value: '${profile.notes}', label: '笔记'),
+                ),
+              ],
             ),
-          ],
-        ),
-
-        // 数据统计
-        const SizedBox(height: SjSpace.xl),
-        SjCard(
-          padding: const EdgeInsets.symmetric(vertical: 22),
-          child: Row(
-            children: [
-              Expanded(
-                child: SjStatTile(
-                  value: '${profile.booksRead}',
-                  label: '已读',
-                ),
-              ),
-              _StatDivider(color: c.divider),
-              Expanded(
-                child: SjStatTile(
-                  value: '${profile.favorites}',
-                  label: '收藏',
-                ),
-              ),
-              _StatDivider(color: c.divider),
-              Expanded(
-                child: SjStatTile(value: '${profile.notes}', label: '笔记'),
-              ),
-            ],
           ),
-        ),
 
-        // 功能菜单
-        const SizedBox(height: SjSpace.xl),
-        SjCard(
-          child: Column(
-            children: [
-              const SjMenuRow(icon: SjIconName.stats, label: '阅读统计'),
-              const SjCardDivider(),
-              const SjMenuRow(icon: SjIconName.note, label: '我的笔记'),
-              const SjCardDivider(),
-              const SjMenuRow(icon: SjIconName.sync, label: '离线缓存'),
-              const SjCardDivider(),
-              SjMenuRow(
-                icon: SjIconName.nightMode,
-                label: '深色模式',
-                trailing: Switch(
-                  value: _darkMode,
-                  activeThumbColor: c.pine,
-                  onChanged: (v) => setState(() => _darkMode = v),
+          // 功能菜单
+          const SizedBox(height: SjSpace.xl),
+          SjCard(
+            child: Column(
+              children: [
+                const SjMenuRow(icon: SjIconName.stats, label: '阅读统计'),
+                const SjCardDivider(),
+                const SjMenuRow(icon: SjIconName.note, label: '我的笔记'),
+                const SjCardDivider(),
+                const SjMenuRow(icon: SjIconName.sync, label: '离线缓存'),
+                const SjCardDivider(),
+                SjMenuRow(
+                  icon: SjIconName.nightMode,
+                  label: '深色模式',
+                  trailing: Switch(
+                    value: _darkMode,
+                    activeThumbColor: c.pine,
+                    onChanged: (v) => setState(() => _darkMode = v),
+                  ),
                 ),
-              ),
-              const SjCardDivider(),
-              const SjMenuRow(icon: SjIconName.settings, label: '设置'),
-            ],
+                const SjCardDivider(),
+                const SjMenuRow(icon: SjIconName.settings, label: '设置'),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
