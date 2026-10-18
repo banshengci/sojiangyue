@@ -224,8 +224,12 @@ class CharacterDistillService {
     if (focusSet.isNotEmpty) {
       for (var i = 0; i < chunks.length; i++) {
         if (!chunkMentionsAny(chunks[i].text, focusSet)) {
-          focusSkipped++;
-          pending.remove(i);
+          // 只统计"本来要跑、被这一步筛掉"的切片：增量模式已跳过的切片
+          // 不在 pending 里，重复计数会让提示语偏大。
+          if (pending.contains(i)) {
+            focusSkipped++;
+            pending.remove(i);
+          }
         }
       }
     }
