@@ -9,7 +9,6 @@
 // - 预置插件：随包分发的第三方 plugin.json 在启动时自动加载（assets/plugins/）。
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -20,6 +19,7 @@ import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
 import 'builtin/character_distill_plugin.dart';
+import 'builtin/reading_assistant_plugins.dart';
 import 'declarative_plugin_tool.dart';
 
 /// 预置随包分发的第三方插件清单（assets 目录，需在 pubspec 的 flutter.assets 声明）。
@@ -62,6 +62,11 @@ class PluginRegistry {
   PluginRegistry._() {
     // 注册内置能力型插件（首个：人物蒸馏）。
     _builtin.add(const CharacterDistillPlugin());
+    // 读书助手三件套：摘句卡 / 章节回顾 / 共读提问。
+    // 它们把配方交给声明式引擎编译，与第三方插件走同一条执行路径。
+    _builtin.add(const QuoteCardPlugin());
+    _builtin.add(const ChapterRecapPlugin());
+    _builtin.add(const DiscussionQuestionsPlugin());
     // 异步加载持久化状态与预置第三方插件（fire-and-forget）。
     // 若 main 中显式 await ensureLoaded()，可确保进入设置页前已就绪。
     unawaited(ensureLoaded());
