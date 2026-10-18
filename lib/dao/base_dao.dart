@@ -7,7 +7,18 @@ import 'database.dart';
 typedef RowMapper<T> = T Function(Map<String, dynamic> row);
 
 abstract class BaseDao {
-  Future<Database> get _database async => DBHelper().database;
+  /// 测试用数据库覆盖。
+  ///
+  /// 默认 DAO 走全局 DBHelper；但那是单例 + 真实文件，测试里既脏又慢。
+  /// 这里留一个口子，让测试把 DAO 指到内存库（见 test/dao/character_chat_dao_test.dart）。
+  /// 生产代码不要调用。
+  Database? _override;
+
+  void useDatabaseForTest(Database db) => _override = db;
+
+  void clearDatabaseOverride() => _override = null;
+
+  Future<Database> get _database async => _override ?? DBHelper().database;
 
   Future<Database> get database async => _database;
 
