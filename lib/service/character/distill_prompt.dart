@@ -44,14 +44,37 @@ String buildDistillSystemPrompt() {
 ''';
 }
 
-String buildDistillUserPrompt(String chapterTitle, String text) => '''
+/// 组装用户提示词。
+///
+/// [focusNames] 非空时只抽这几个人物（以及他们之间的关系）：
+/// 整本自动找会把几百个龙套一起抽出来，既贵又难校对；
+/// 先锁定 2~4 位主要人物，跑完再增量补人，是更省的做法。
+String buildDistillUserPrompt(
+  String chapterTitle,
+  String text, {
+  List<String> focusNames = const [],
+}) {
+  final focus = focusNames
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
+  final focusBlock = focus.isEmpty
+      ? ''
+      : '''
+【只抽这些人物】
+${focus.join('、')}
+只抽取上述人物（以及他们彼此之间的关系）；其他人即使出现也忽略。
+若某人在这段文本里没有出现，就不要输出他。
+''';
+  return '''
 【章节】$chapterTitle
 
 【正文】
 $text
-
+$focusBlock
 请按系统指令输出 JSON。
 ''';
+}
 
 /// 解析模型原始输出为结构化结果。对 ```json 围栏、前后缀散文、字段类型错位都做容错。
 DistillResult parseDistillJson(String raw, {required int bookId}) {

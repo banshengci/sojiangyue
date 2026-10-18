@@ -7,6 +7,7 @@ import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
+import 'package:songjiang_reader/service/character/character_distill_estimate.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/character_distill_service.dart';
 import 'package:songjiang_reader/service/character/distill_background.dart';
@@ -60,6 +61,31 @@ class _CharacterListPageState extends State<CharacterListPage> {
     });
   }
 
+  /// 人物名输入：逗号 / 顿号 / 分号 / 换行都当分隔符。
+  List<String> _parseNames(String raw) => raw
+      .split(RegExp(r'[,，、;；\n]'))
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
+
+  int _countNames(String raw) => _parseNames(raw).length;
+
+  /// 预估文案。纯计算，不调模型——所以拖动范围能实时刷新。
+  String _estimateText(
+    List<int> chapterLengths,
+    int from,
+    int to,
+    int focusCount,
+  ) {
+    if (chapterLengths.isEmpty) return '预估不可用（读不到章节）';
+    final scoped = sliceChapterLengths(chapterLengths, from, to);
+    final e = estimateDistill(
+      chapterLengths: scoped,
+      focusNameCount: focusCount,
+    );
+    return e.describe();
+  }
+
   /// 用户停止蒸馏后，把任务清单里的状态改成「已取消」，
   /// 免得任务中心一直显示「进行中」。
   Future<void> _markDistillCanceled() async {
@@ -77,14 +103,27 @@ class _CharacterListPageState extends State<CharacterListPage> {
 
   /// 蒸馏前的选项面板：增量 / 全量 + 收录范围，并把蒸馏原理讲清楚。
   Future<void> _startDistill() async {
-    if (_cards.isEmpty) {
-      await _runDistill();
-      return;
-    }
 
     // 变量声明在 showModalBottomSheet 之外：StatefulBuilder 重建时不会重置
     var incremental = true;
     var majorOnly = false;
+
+    // 章节字数用于预估与范围选择；取不到就退化为"整本、不显示范围"
+    var chapterLengths = <int>[];
+    try {
+      final chapters = await CharacterDistillRepository(bookDao: bookDao)
+          .getChapters(widget.bookId);
+      chapterLengths = chapters.map((c) => c.text.length).toList();
+    } catch (e) {
+      SjLog.warning('Distill: 读取章节失败（预估不可用）: $e');
+    }
+    final focusController = TextEditingController();
+    var rangeStart = 1.0;
+    var rangeEnd = chapterLengths.isEmpty
+        ? 1.0
+        : chapterLengths.length.toDouble();
+
+    if (!mounted) return;
 
     final opts = await showModalBottomSheet<_DistillOptions>(
       context: context,
@@ -120,6 +159,56 @@ class _CharacterListPageState extends State<CharacterListPage> {
                   ),
                   const Divider(height: 8),
                   Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: TextField(
+                      controller: focusController,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        labelText: '只抽这些人物（可空）',
+                        hintText: '林黛玉、贾宝玉',
+                        helperText: '留空＝自动找出场最多的；建议先填 2–4 位主要人物',
+                        helperMaxLines: 2,
+                      ),
+                      onChanged: (_) => setSheetState(() {}),
+                    ),
+                  ),
+                  if (chapterLengths.length > 1) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                      child: Text(
+                        '章节范围：第 ${rangeStart.toInt()} – ${rangeEnd.toInt()} 章'
+                        '（共 ${chapterLengths.length} 章）',
+                        style: SjText.meta(c.ink),
+                      ),
+                    ),
+                    RangeSlider(
+                      min: 1,
+                      max: chapterLengths.length.toDouble(),
+                      divisions: chapterLengths.length - 1,
+                      values: RangeValues(rangeStart, rangeEnd),
+                      labels: RangeLabels(
+                        rangeStart.round().toString(),
+                        rangeEnd.round().toString(),
+                      ),
+                      onChanged: (v) => setSheetState(() {
+                        rangeStart = v.start;
+                        rangeEnd = v.end;
+                      }),
+                    ),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                    child: Text(
+                      _estimateText(
+                        chapterLengths,
+                        rangeStart.toInt(),
+                        rangeEnd.toInt(),
+                        _countNames(focusController.text),
+                      ),
+                      style: SjText.meta(c.inkSoft),
+                    ),
+                  ),
+                  Padding(
                     padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
                     child: Text(CharactersPageText.distillHowItWorksTitle,
                         style: SjText.meta(c.ink)),
@@ -139,6 +228,13 @@ class _CharacterListPageState extends State<CharacterListPage> {
                         onPressed: () => Navigator.pop(
                           ctx,
                           _DistillOptions(
+                            focusNames: _parseNames(focusController.text),
+                            chapterStart: rangeStart <= 1
+                                ? null
+                                : rangeStart.toInt(),
+                            chapterEnd: rangeEnd >= chapterLengths.length
+                                ? null
+                                : rangeEnd.toInt(),
                             incremental: incremental,
                             majorOnly: majorOnly,
                           ),
@@ -156,7 +252,12 @@ class _CharacterListPageState extends State<CharacterListPage> {
     );
 
     if (opts == null || !mounted) return;
+
+    focusController.dispose();
     await _runDistill(
+      focusNames: opts.focusNames,
+      chapterStart: opts.chapterStart,
+      chapterEnd: opts.chapterEnd,
       incremental: opts.incremental,
       minImportance: opts.majorOnly ? 50 : 0,
     );
@@ -165,6 +266,9 @@ class _CharacterListPageState extends State<CharacterListPage> {
   Future<void> _runDistill({
     bool incremental = true,
     int minImportance = 0,
+    List<String> focusNames = const [],
+    int? chapterStart,
+    int? chapterEnd,
   }) async {
     // 统一解析：优先新的 provider 体系，再回退旧 aiConfig_* 体系。
     // 只读 AiPrefs.getConfig(selectedServiceId) 会漏掉新体系，导致配置好了
@@ -204,6 +308,9 @@ class _CharacterListPageState extends State<CharacterListPage> {
         chapterCharBudget: 12000,
         incremental: incremental,
         minImportance: minImportance,
+        focusNames: focusNames,
+        chapterStart: chapterStart,
+        chapterEnd: chapterEnd,
       ),
       tag: tag,
       onEvent: (e) {
@@ -471,8 +578,21 @@ class _CharacterListPageState extends State<CharacterListPage> {
 
 /// 蒸馏前的选项。
 class _DistillOptions {
-  const _DistillOptions({required this.incremental, required this.majorOnly});
+  const _DistillOptions({
+    required this.incremental,
+    required this.majorOnly,
+    this.focusNames = const [],
+    this.chapterStart,
+    this.chapterEnd,
+  });
 
   final bool incremental;
   final bool majorOnly;
+
+  /// 只抽这几个人物（空 = 自动全找）。
+  final List<String> focusNames;
+
+  /// 章节范围（1 基，含两端）。
+  final int? chapterStart;
+  final int? chapterEnd;
 }

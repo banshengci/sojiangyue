@@ -296,7 +296,7 @@ class _AISettingsState extends ConsumerState<AISettings> {
             },
             title: const Text('导入后自动蒸馏人物'),
             description: const Text(
-              '导入书籍后自动抽取人物与关系（当前仅支持 TXT，会消耗较多 Token）',
+              '导入书籍后自动抽取人物与关系（支持 TXT 与 EPUB，会消耗较多 Token）',
             ),
           ),
           toolsTile,

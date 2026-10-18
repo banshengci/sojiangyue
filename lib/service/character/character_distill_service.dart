@@ -49,10 +49,15 @@ class DistillChunkPlanner {
   final int chapterCharBudget;
   final int overlap;
 
-  List<DistillChunk> plan(List<BookChapter> chapters) {
+  List<DistillChunk> plan(
+    List<BookChapter> chapters, {
+    int? fromChapter,
+    int? toChapter,
+  }) {
+    final scoped = scopeChapters(chapters, fromChapter, toChapter);
     final chunks = <DistillChunk>[];
     var idx = 0;
-    for (final ch in chapters) {
+    for (final ch in scoped) {
       if (ch.text.length <= chapterCharBudget) {
         chunks.add(DistillChunk(index: idx++, title: ch.title, text: ch.text));
         continue;
@@ -120,6 +125,12 @@ class CharacterDistillService {
     bool incremental = defaultIncremental,
     int concurrency = defaultConcurrency,
     int minImportance = 0,
+    /// 只抽这几个人物（空 = 全书自动找）。
+    List<String> focusNames = const [],
+
+    /// 章节范围（1 基，含两端；null 表示不限制）。
+    int? chapterStart,
+    int? chapterEnd,
   }) async* {
     yield const DistillProgress(
         phase: DistillPhase.preparing, message: '读取章节…');
@@ -130,7 +141,11 @@ class CharacterDistillService {
 
     final chapters = await repository.getChapters(bookId);
     final planner = DistillChunkPlanner(chapterCharBudget: chapterCharBudget);
-    final chunks = planner.plan(chapters);
+    final chunks = planner.plan(
+      chapters,
+      fromChapter: chapterStart,
+      toChapter: chapterEnd,
+    );
 
     // 空文本直接失败：否则会一路走到「完成：0 个人物」，用户完全不知道原因。
     if (chunks.isEmpty) {
@@ -435,9 +450,15 @@ class CharacterDistillService {
     return kept.length;
   }
 
-  Future<String> _extract(BaseChatModel model, DistillChunk chunk) async {
+  Future<String> _extract(
+    BaseChatModel model,
+    DistillChunk chunk, {
+    List<String> focusNames = const [],
+  }) async {
     final system = ChatMessage.system(buildDistillSystemPrompt());
-    final user = ChatMessage.humanText(buildDistillUserPrompt(chunk.title, chunk.text));
+    final user = ChatMessage.humanText(
+      buildDistillUserPrompt(chunk.title, chunk.text, focusNames: focusNames),
+    );
     final prompt = PromptValue.chat([system, user]);
     final buffer = StringBuffer();
     await for (final event in model.stream(prompt)) {
@@ -506,4 +527,18 @@ class CharacterDistillService {
       updatedAt: DateTime.now(),
     );
   }
+}
+/// 按 1 基章节区间截取（含两端）。范围非法时退化为全部，而不是返回空。
+List<BookChapter> scopeChapters(
+  List<BookChapter> chapters,
+  int? from,
+  int? to,
+) {
+  if (chapters.isEmpty) return const [];
+  var start = (from ?? 1) - 1;
+  var end = (to ?? chapters.length) - 1;
+  if (start < 0) start = 0;
+  if (end >= chapters.length) end = chapters.length - 1;
+  if (start > end) return chapters;
+  return chapters.sublist(start, end + 1);
 }
