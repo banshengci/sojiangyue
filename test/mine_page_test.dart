@@ -43,14 +43,15 @@ void main() {
 
     expect(find.text('成就徽章'), findsOneWidget);
     expect(find.text('我的收藏'), findsOneWidget);
-    expect(find.text('数据面板'), findsOneWidget);
+    // 「数据面板」已移除：它指向的是设计预览画板 SjGallery，会给用户看到第二套系统
+    expect(find.text('数据面板'), findsNothing);
   });
 
   testWidgets('内容入口行高不低于 52（触控下限）', (tester) async {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    for (final label in ['成就徽章', '我的收藏', '数据面板']) {
+    for (final label in ['成就徽章', '我的收藏']) {
       final finder = find.text(label);
       expect(finder, findsOneWidget);
       final box = tester.getSize(

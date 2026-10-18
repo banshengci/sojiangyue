@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:songjiang_reader/design/songjiang/data/sj_data_providers.dart';
 import 'package:songjiang_reader/design/songjiang/data/sj_view_models.dart';
-import 'package:songjiang_reader/design/songjiang/sj_app_gallery.dart';
 import 'package:songjiang_reader/design/songjiang/pages/sj_achievements_page.dart';
 import 'package:songjiang_reader/design/songjiang/pages/sj_favorites_page.dart';
 import 'package:songjiang_reader/design/songjiang/sj_tap_target.dart';
@@ -355,13 +354,11 @@ class _MinePageState extends ConsumerState<MinePage> {
             title: '我的收藏',
             onTap: () => _push(const _FavoritesRoute()),
           ),
-          _rowDivider(c),
-          _MineRow(
-            icon: Icons.dashboard_outlined,
-            title: '数据面板',
-            subtitle: '统计 · 收藏 · 成就 · 我的',
-            onTap: () => _push(const SjAppGallery()),
-          ),
+          // 原来的「数据面板」入口指向 SjAppGallery —— 那是**设计预览画板**
+          // （SjGallery 的注释写明「纯展示」「预览用，非交付页面」，自带一套
+          // 底栏 + 我的/收藏/成就/统计），用户点进来会看到"第二套系统"。
+          // 统计入口保留在页面顶部的统计卡：「完整数据 ›」直达真正的 StatisticPage。
+          // 收藏与成就已在本列表里各有入口，删除此行不丢任何功能。
           if (EnvVar.enableAIFeature) ...[
             _rowDivider(c),
             _MineRow(
