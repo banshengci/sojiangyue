@@ -30,6 +30,9 @@ import 'package:songjiang_reader/service/gameplay/gameplay_pack_models.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_service.dart';
 import 'package:songjiang_reader/page/gameplay/gamepack_market_dialog.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
+import 'package:songjiang_reader/service/gameplay/gameplay_catalog.dart';
+import 'package:songjiang_reader/service/gameplay/official_gameplay_packs.dart';
+import 'package:songjiang_reader/utils/log/common.dart';
 
 class GameplayCenterPage extends ConsumerStatefulWidget {
   const GameplayCenterPage({super.key, this.controller});
@@ -45,6 +48,12 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
   List<GameplayPackManifest> _packs = const [];
   Set<String> _activated = const {};
   bool _loading = true;
+
+  /// 内置 + 已安装玩法包里的玩法。
+  GameplayCatalog _catalog = const GameplayCatalog(
+    builtin: kBuiltinGameplayModes,
+    installed: [],
+  );
 
   @override
   void initState() {
@@ -72,13 +81,34 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
     // 重启后恢复已激活脚本包的工具注入（能力持久化）。
     await GameplayPackService.instance.restoreActivated(packs);
     final activated = await GameplayPackService.instance.activatedIds();
+    final catalog = await GameplayCatalog.load();
     if (mounted) {
       setState(() {
         _packs = packs;
         _activated = activated;
+        _catalog = catalog;
         _loading = false;
       });
     }
+  }
+
+  /// 一键安装官方玩法包（江湖 / 朝堂 / 末世 / 修仙 / 校园 / 商战）。
+  ///
+  /// 走的是与「导入 .sjgame.zip」完全相同的持久化路径，所以装完重启仍在；
+  /// 也让这批玩法能以包的形式单独分发。
+  Future<void> _installOfficialModes() async {
+    var added = 0;
+    for (final pack in kOfficialGameplayPacks) {
+      try {
+        await GameplayPackService.instance.saveInstalled(pack);
+        added++;
+      } catch (e) {
+        SjLog.warning('Gameplay: 安装官方玩法包失败 ${pack.id}: $e');
+      }
+    }
+    if (!mounted) return;
+    SjToast.show(added == 0 ? '没有可安装的玩法包' : '已安装 $added 个玩法');
+    await _reload();
   }
 
   Future<void> _import() async {
@@ -224,8 +254,15 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
             const Text('玩法模式',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(width: 8),
-            Text('${kBuiltinGameplayModes.length}',
+            Text('${_catalog.all.length}',
                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            const Spacer(),
+            if (_catalog.installed.isEmpty)
+              TextButton.icon(
+                onPressed: _installOfficialModes,
+                icon: const Icon(Icons.download_outlined, size: 16),
+                label: const Text('安装 6 个新玩法'),
+              ),
           ],
         ),
         const Padding(
@@ -239,7 +276,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final mode in kBuiltinGameplayModes)
+              for (final mode in _catalog.all)
                 _modeCard(context, mode),
             ],
           ),

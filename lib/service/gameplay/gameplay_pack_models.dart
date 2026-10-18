@@ -13,6 +13,7 @@
 // - fromJson 严格校验 packType 与必需字段，缺字段 / 非法类型立即抛错，
 //   配套契约测试（test/contract/gameplay_pack_contract_test.dart）卡门。
 
+import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 
 /// 玩法包类型常量。
@@ -28,11 +29,15 @@ class GameplayPackType {
   /// 名句 / 名场面分享卡。
   static const String sceneCard = 'scene_card';
 
+  /// 玩法模式包：带状态 / 分幕 / 暗牌的可安装玩法（在玩法中心开一局）。
+  static const String gameplayMode = 'gameplay_mode';
+
   /// 全部合法类型（契约边界）。
   static const List<String> values = [
     readingScript,
     readingChallenge,
     sceneCard,
+    gameplayMode,
   ];
 }
 
@@ -171,6 +176,7 @@ class GameplayPackManifest {
     this.sceneCards = const [],
     this.challenges = const [],
     this.scriptToolsJson = const [],
+    this.gameplayModesJson = const [],
     this.minAppVersion,
     this.createdAt,
   });
@@ -193,8 +199,24 @@ class GameplayPackManifest {
 
   /// 阅读剧本的声明式脚本工具（原文 Map，复用 2.3 PluginToolSpec）。
   final List<Map<String, dynamic>> scriptToolsJson;
+
+  /// 玩法模式原文（玩法模式包专用，复用 GameplayMode.fromJson）。
+  final List<Map<String, dynamic>> gameplayModesJson;
   final String? minAppVersion;
   final String? createdAt;
+
+  /// 解析本包携带的玩法模式（坏条目跳过，不拖累整包）。
+  List<GameplayMode> get gameplayModes {
+    final out = <GameplayMode>[];
+    for (final j in gameplayModesJson) {
+      try {
+        out.add(GameplayMode.fromJson(j));
+      } catch (_) {
+        // 单个玩法非法不影响其它玩法
+      }
+    }
+    return out;
+  }
 
   /// 把 scriptToolsJson 编译为 PluginToolSpec 列表（供 UI / 激活校验）。
   List<PluginToolSpec> get scriptTools =>
@@ -230,6 +252,9 @@ class GameplayPackManifest {
       scriptToolsJson: (j['scriptTools'] as List? ?? [])
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList(),
+      gameplayModesJson: ((j['gameplayModes'] as List?) ?? const [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
       minAppVersion: j['x_songjiang_minApp'] as String?,
       createdAt: j['createdAt'] as String?,
     );
@@ -248,6 +273,7 @@ class GameplayPackManifest {
         'sceneCards': sceneCards.map((e) => e.toMap()).toList(),
         'challenges': challenges.map((e) => e.toMap()).toList(),
         'scriptTools': scriptToolsJson,
+        'gameplayModes': gameplayModesJson,
         if (minAppVersion != null) 'x_songjiang_minApp': minAppVersion,
         if (createdAt != null) 'createdAt': createdAt,
       };

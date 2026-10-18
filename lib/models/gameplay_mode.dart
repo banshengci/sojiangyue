@@ -20,6 +20,42 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+/// 玩法模式里可用的图标名 → IconData 映射。
+///
+/// 玩法包是纯数据（JSON），没法直接写 IconData，所以用名字引用图标。
+/// 认不出的名字回退成一个中性图标——缺图标不该让整包装不上。
+const Map<String, IconData> kGameplayIconNames = {
+  'search': Icons.search_outlined,
+  'theater': Icons.theater_comedy_outlined,
+  'heart': Icons.favorite_border,
+  'mail': Icons.mail_outline,
+  'debate': Icons.forum_outlined,
+  'book': Icons.menu_book_outlined,
+  'gift': Icons.card_giftcard_outlined,
+  'group': Icons.groups_outlined,
+  'castle': Icons.castle_outlined,
+  'forest': Icons.forest_outlined,
+  'swords': Icons.gavel_outlined,
+  'crown': Icons.workspace_premium_outlined,
+  'school': Icons.school_outlined,
+  'business': Icons.business_center_outlined,
+  'rocket': Icons.rocket_launch_outlined,
+  'potion': Icons.science_outlined,
+  'compass': Icons.explore_outlined,
+  'ghost': Icons.visibility_outlined,
+};
+
+IconData gameplayIconByName(String? name) =>
+    kGameplayIconNames[name] ?? Icons.auto_awesome_outlined;
+
+/// 把 IconData 反查成名字（导出玩法包时用）；找不到就退回 'search'。
+String gameplayIconNameOf(IconData icon) {
+  for (final e in kGameplayIconNames.entries) {
+    if (e.value.codePoint == icon.codePoint) return e.key;
+  }
+  return 'search';
+}
+
 /// 一个可追踪的状态量定义。
 class GameplayStatDef {
   const GameplayStatDef({
@@ -50,6 +86,28 @@ class GameplayStatDef {
   /// 线索、神志这类天生是集体的值保持 false；
   /// 群聊场景里，perMember 的值会以「好感|林黛玉」的形式出现在状态块中。
   final bool perMember;
+
+  factory GameplayStatDef.fromJson(Map<String, dynamic> j) => GameplayStatDef(
+        key: (j['key'] ?? '').toString(),
+        name: (j['name'] ?? j['key'] ?? '').toString(),
+        initial: (j['initial'] as num?)?.toInt() ?? 0,
+        min: (j['min'] as num?)?.toInt() ?? 0,
+        max: (j['max'] as num?)?.toInt() ?? 100,
+        hint: (j['hint'] ?? '').toString(),
+        isScore: j['isScore'] == true,
+        perMember: j['perMember'] == true,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'name': name,
+        'initial': initial,
+        'min': min,
+        'max': max,
+        if (hint.isNotEmpty) 'hint': hint,
+        if (isScore) 'isScore': true,
+        if (perMember) 'perMember': true,
+      };
 }
 
 /// 一场玩法。
@@ -107,4 +165,61 @@ class GameplayMode {
 
   String? randomSceneHint(Random random) =>
       sceneHints.isEmpty ? null : sceneHints[random.nextInt(sceneHints.length)];
+
+  /// 从玩法包里的 JSON 还原一个玩法。
+  ///
+  /// 这是「玩法可以安装」的前提：玩法包是纯数据，必须能变成运行时的
+  /// [GameplayMode] 才能开一局。缺 id 或 directive 的包直接判非法——
+  /// 没有规则外壳的玩法开出来只是个空壳。
+  factory GameplayMode.fromJson(Map<String, dynamic> j) {
+    final id = (j['id'] ?? '').toString().trim();
+    final directive = (j['directive'] ?? '').toString().trim();
+    if (id.isEmpty) throw FormatException('玩法缺少 id');
+    if (directive.isEmpty) throw FormatException('玩法 $id 缺少 directive');
+    return GameplayMode(
+      id: id,
+      name: (j['name'] ?? id).toString(),
+      icon: gameplayIconByName(j['icon'] as String?),
+      summary: (j['summary'] ?? '').toString(),
+      directive: directive,
+      sceneHints: ((j['sceneHints'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.trim().isNotEmpty)
+          .toList(),
+      tag: (j['tag'] ?? '').toString(),
+      stats: ((j['stats'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => GameplayStatDef.fromJson(e.cast<String, dynamic>()))
+          .where((s) => s.key.isNotEmpty)
+          .toList(),
+      phases: ((j['phases'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.trim().isNotEmpty)
+          .toList(),
+      setupPrompt: (j['setupPrompt'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : j['setupPrompt'] as String?,
+      secretLabel: (j['secretLabel'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : j['secretLabel'] as String?,
+      endingHint: (j['endingHint'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : j['endingHint'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'icon': gameplayIconNameOf(icon),
+        'summary': summary,
+        'tag': tag,
+        'directive': directive,
+        if (sceneHints.isNotEmpty) 'sceneHints': sceneHints,
+        if (stats.isNotEmpty) 'stats': stats.map((s) => s.toJson()).toList(),
+        if (phases.isNotEmpty) 'phases': phases,
+        if (setupPrompt != null) 'setupPrompt': setupPrompt,
+        if (secretLabel != null) 'secretLabel': secretLabel,
+        if (endingHint != null) 'endingHint': endingHint,
+      };
 }
