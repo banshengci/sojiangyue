@@ -5,6 +5,7 @@
 
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 import 'package:songjiang_reader/service/ai/tools/character_distill_tool.dart';
+import 'package:songjiang_reader/plugin/plugin_rules.dart';
 import 'package:songjiang_reader/plugin/plugin_settings.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 
@@ -49,4 +50,7 @@ class CharacterDistillPlugin implements SongjiangPlugin {
 
   @override
   List<PluginSettingDef> get settings => const [];
+
+  @override
+  List<PluginRule> get rules => const [];
 }

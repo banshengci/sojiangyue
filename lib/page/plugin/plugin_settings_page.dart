@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
+import 'package:songjiang_reader/plugin/plugin_rules.dart';
 import 'package:songjiang_reader/plugin/plugin_settings.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
@@ -94,6 +95,7 @@ class _PluginSettingsPageState extends State<PluginSettingsPage> {
   Widget build(BuildContext context) {
     final settings = widget.plugin.settings;
     final enhancers = widget.plugin.enhancers;
+    final rules = widget.plugin.rules;
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.plugin.name)),
@@ -123,6 +125,23 @@ class _PluginSettingsPageState extends State<PluginSettingsPage> {
                     ),
                   ),
                   for (final e in enhancers) _buildEnhancerTile(e),
+                ],
+                if (rules.isNotEmpty) ...[
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 20, 16, 4),
+                    child: Text(
+                      '规则',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(
+                      '满足条件时自动生效，默认关闭。',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                  for (final r in rules) _buildRuleTile(r),
                 ],
                 const SizedBox(height: 24),
               ],
@@ -164,6 +183,21 @@ class _PluginSettingsPageState extends State<PluginSettingsPage> {
           onTap: () => _editText(def),
         );
     }
+  }
+
+  Widget _buildRuleTile(PluginRule r) {
+    final on = PluginRegistry.instance.isRuleEnabled(widget.plugin.id, r.id);
+    final desc =
+        '${describeRuleEvent(r.event)} · ${describeRuleMatch(r.match)}';
+    return SwitchListTile(
+      title: Text(r.title),
+      subtitle: Text(desc),
+      value: on,
+      onChanged: (v) {
+        PluginRegistry.instance.setRuleEnabled(widget.plugin.id, r.id, v);
+        setState(() {});
+      },
+    );
   }
 
   Widget _buildEnhancerTile(PluginEnhancer e) {

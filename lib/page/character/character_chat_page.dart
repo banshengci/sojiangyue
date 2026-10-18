@@ -22,6 +22,7 @@ import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 
 import 'characters_page_strings.dart';
+import 'package:songjiang_reader/plugin/plugin_rule_runner.dart';
 
 /// 与角色对话。
 ///
@@ -70,6 +71,15 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   CharacterChatSession? _session;
   List<CharacterChatMessage> _messages = [];
 
+  /// 本轮由插件规则注入的指令（生成前算好，重新生成时复用同一份）。
+  String? _ruleInstruction;
+
+  /// 对话回合数（以角色发言计），规则里的 everyTurns 用它。
+  int _turn = 0;
+
+  /// 最近一次用户输入（after_turn 规则要按关键词匹配）。
+  String _lastUserInput = '';
+
   /// 玩法运行时状态（仅当选了玩法模式时存在）。
   GameplaySession? _gameplay;
   bool _gameplayBusy = false;
@@ -109,6 +119,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         widget.gameplayDirective!.trim(),
       if (widget.opening?.trim().isNotEmpty ?? false)
         '当前情境：${widget.opening!.trim()}',
+      if (_ruleInstruction != null && _ruleInstruction!.trim().isNotEmpty)
+        _ruleInstruction!.trim(),
     ];
     return parts.isEmpty ? null : parts.join('\n\n');
   }
@@ -139,6 +151,10 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       if (session == null) throw StateError('会话创建失败');
 
       final messages = await characterChatDao.listMessages(session.id!);
+      // 回合数从已有消息里恢复：规则的 everyTurns 要跨越重启继续数
+      _turn = messages
+          .where((m) => m.role == CharacterChatRole.character)
+          .length;
       if (!mounted) return;
       setState(() {
         _session = session;
@@ -336,6 +352,22 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
     await _service.saveUserMessage(session.id!, text);
 
+    // 生成前：结算 before_generation 规则，指令并进本轮设定
+    _ruleInstruction = null;
+    _lastUserInput = text;
+    try {
+      final instructions = await PluginRuleRunner.instructionsFor(
+        sessionId: session.id!,
+        turn: _turn + 1,
+        userInput: text,
+      );
+      if (instructions.isNotEmpty) {
+        _ruleInstruction = instructions.join('\n');
+      }
+    } catch (_) {
+      // 规则失败不阻断发送
+    }
+
     try {
       await for (final chunk in _service.reply(
         session: session,
@@ -366,6 +398,13 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       await _service.touch(session.id!);
       await _applyGameplayTurn(turn);
       // 记忆折叠：后台进行，不阻塞本次对话，失败也不影响展示
+      // 回合结束：结算 after_turn 规则
+      await PluginRuleRunner.settleTurn(
+        sessionId: session.id!,
+        turn: _turn + 1,
+        userInput: _lastUserInput,
+      );
+      _turn++;
       unawaited(_service.refreshMemory(session.id!));
       if (!mounted) return;
       setState(() {
@@ -490,6 +529,13 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       await _service.touch(session.id!);
       await _applyGameplayTurn(turn);
       // 记忆折叠：后台进行，不阻塞本次对话，失败也不影响展示
+      // 回合结束：结算 after_turn 规则
+      await PluginRuleRunner.settleTurn(
+        sessionId: session.id!,
+        turn: _turn + 1,
+        userInput: _lastUserInput,
+      );
+      _turn++;
       unawaited(_service.refreshMemory(session.id!));
       if (!mounted) return;
       setState(() {

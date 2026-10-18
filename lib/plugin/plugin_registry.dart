@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
+import 'package:songjiang_reader/plugin/plugin_rules.dart';
 import 'package:songjiang_reader/plugin/plugin_settings.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
@@ -63,6 +64,9 @@ class DeclarativePlugin implements SongjiangPlugin {
 
   @override
   List<PluginSettingDef> get settings => manifest.settings;
+
+  @override
+  List<PluginRule> get rules => manifest.rules;
 }
 
 class PluginRegistry {
@@ -85,6 +89,7 @@ class PluginRegistry {
   final List<SongjiangPlugin> _dynamic = [];
   final Set<String> _disabledPluginIds = {};
   final Set<String> _enabledEnhancerIds = {};
+  final Set<String> _enabledRuleIds = {};
   bool _initialized = false;
 
   /// 全部已注册插件（内置 + 动态）。
@@ -182,6 +187,61 @@ class PluginRegistry {
 
   static const String _enabledEnhancersKey = 'plugin.enabledEnhancers';
 
+  // ---- 规则引擎 ----
+
+  /// 全部可用规则（只取已启用插件的）。
+  List<({String pluginId, PluginRule rule})> get availableRules {
+    final out = <({String pluginId, PluginRule rule})>[];
+    for (final p in _dynamic) {
+      if (!isEnabled(p.id)) continue;
+      for (final r in p.rules) {
+        out.add((pluginId: p.id, rule: r));
+      }
+    }
+    return out;
+  }
+
+  static String ruleKey(String pluginId, String ruleId) => '$pluginId>$ruleId';
+
+  /// 规则默认**关闭**：能凭概率改变对话的规则，必须用户明确开启。
+  bool isRuleEnabled(String pluginId, String ruleId) =>
+      _enabledRuleIds.contains(ruleKey(pluginId, ruleId));
+
+  void setRuleEnabled(String pluginId, String ruleId, bool enabled) {
+    final key = ruleKey(pluginId, ruleId);
+    if (enabled) {
+      _enabledRuleIds.add(key);
+    } else {
+      _enabledRuleIds.remove(key);
+    }
+    unawaited(_saveRules());
+  }
+
+  /// 当前真正生效的规则（插件已启用 + 用户已开启）。
+  List<({String pluginId, PluginRule rule})> get activeRules => availableRules
+      .where((e) => isRuleEnabled(e.pluginId, e.rule.id))
+      .toList();
+
+  static const String _enabledRulesKey = 'plugin.enabledRules';
+
+  Future<void> _loadRules() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      _enabledRuleIds.addAll(sp.getStringList(_enabledRulesKey) ?? []);
+    } catch (e) {
+      SjLog.warning('Plugin: 读取规则开关失败: $e');
+    }
+  }
+
+  Future<void> _saveRules() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setStringList(_enabledRulesKey, _enabledRuleIds.toList());
+    } catch (e) {
+      SjLog.warning('Plugin: 保存规则开关失败: $e');
+    }
+  }
+
   Future<void> _loadEnhancers() async {
     try {
       final sp = await SharedPreferences.getInstance();
@@ -274,6 +334,7 @@ class PluginRegistry {
     _initialized = true;
     await _loadDisabled();
     await _loadEnhancers();
+    await _loadRules();
     await _loadBundled();
     await _loadInstalled();
   }

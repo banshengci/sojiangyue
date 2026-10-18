@@ -10,6 +10,7 @@
 // 为什么选这三个：读书场景里高频、不依赖额外数据源、失败也无害。
 
 import 'package:songjiang_reader/plugin/declarative_plugin_tool.dart';
+import 'package:songjiang_reader/plugin/plugin_rules.dart';
 import 'package:songjiang_reader/plugin/plugin_settings.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
@@ -88,6 +89,9 @@ class QuoteCardPlugin implements SongjiangPlugin {
 
   @override
   List<PluginSettingDef> get settings => _manifest.settings;
+
+  @override
+  List<PluginRule> get rules => const [];
 }
 
 /// 章节回顾：读完一章，用几句话收束。
@@ -153,6 +157,9 @@ class ChapterRecapPlugin implements SongjiangPlugin {
 
   @override
   List<PluginSettingDef> get settings => _manifest.settings;
+
+  @override
+  List<PluginRule> get rules => const [];
 }
 
 /// 共读提问：给一章出几个能聊起来的问题。
@@ -218,4 +225,7 @@ class DiscussionQuestionsPlugin implements SongjiangPlugin {
 
   @override
   List<PluginSettingDef> get settings => _manifest.settings;
+
+  @override
+  List<PluginRule> get rules => const [];
 }

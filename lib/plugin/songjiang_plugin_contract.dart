@@ -8,6 +8,7 @@
 
 import 'dart:convert';
 
+import 'package:songjiang_reader/plugin/plugin_rules.dart';
 import 'package:songjiang_reader/plugin/plugin_settings.dart';
 import 'package:songjiang_reader/service/ai/tools/base_tool.dart';
 
@@ -171,6 +172,7 @@ class PluginManifest {
     required this.tools,
     this.settings = const [],
     this.enhancers = const [],
+    this.rules = const [],
     this.minAppVersion,
   });
 
@@ -189,6 +191,9 @@ class PluginManifest {
 
   /// 生成增强器：启用后其规则会注入主对话。
   final List<PluginEnhancer> enhancers;
+
+  /// 事件 / 条件触发的规则（对标造梦 execution.rules）。
+  final List<PluginRule> rules;
   final String? minAppVersion;
 
   factory PluginManifest.fromJson(Map<String, dynamic> j) => PluginManifest(
@@ -219,6 +224,7 @@ class PluginManifest {
             .map((e) => PluginEnhancer.fromJson(e.cast<String, dynamic>()))
             .where((e) => e.id.isNotEmpty && e.rule.trim().isNotEmpty)
             .toList(),
+        rules: _parseRules(j),
         minAppVersion: j['minAppVersion'] as String?,
       );
 
@@ -252,4 +258,22 @@ abstract class SongjiangPlugin {
 
   /// 宿主渲染的设置项（可空）。
   List<PluginSettingDef> get settings => const [];
+
+  /// 事件 / 条件触发的规则。
+  List<PluginRule> get rules => const [];
+}
+/// 解析规则：兼容 `rules` 顶层写法与造梦的 `execution.rules` 嵌套写法。
+List<PluginRule> _parseRules(Map<String, dynamic> j) {
+  var raw = j['rules'];
+  if (raw == null) {
+    final exec = j['execution'];
+    if (exec is Map) raw = exec['rules'];
+  }
+  if (raw is! List) return const [];
+  return raw
+      .whereType<Map>()
+      .map((e) => PluginRule.fromJson(e.cast<String, dynamic>()))
+      .whereType<PluginRule>()
+      .toList();
+
 }
