@@ -66,7 +66,12 @@ dependencies:
   # ExpandablePageView 默认 100ms 可接受，故迁回官方。
   contentsize_tabbarview: ^0.0.2
   wakelock_plus: ^1.2.5
-  icons_plus: ^5.0.0
+  # icons_plus 5.0.0 已停更（2023-12），且实现方式（继承 IconData）在
+  # Flutter 3.44+ 会编译失败（IconData 变成了 final class）。
+  # 这里 vendored 了一份等价实现：把每个 XxxIconData 内联成字面量 const IconData(...)，
+  # 对外 API 完全不变。改动理由与生成方式见 third_party/icons_plus/VENDORED.md。
+  icons_plus:
+    path: third_party/icons_plus
   url_launcher: ^6.2.6
   sqflite_common_ffi: ^2.3.3
   battery_plus: ^6.2.1

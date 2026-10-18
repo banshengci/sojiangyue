@@ -1,4 +1,4 @@
-﻿# Miscellaneous
+# Miscellaneous
 *.class
 *.log
 *.pyc
@@ -83,3 +83,6 @@ songjiang-yue-delivery-20260911.zip
 
 # 本地 AI 助手的工作目录（记忆/临时脚本），与工程无关
 .workbuddy/
+
+# 本地临时依赖覆盖（仅供本机调试，绝不能提交；提交会让 CI 指向不存在的路径）
+pubspec_overrides.yaml
