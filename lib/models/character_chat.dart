@@ -25,6 +25,36 @@ enum CharacterChatMode {
       );
 }
 
+/// 读者在会话中的参与方式（造梦的三种开局姿态）。
+///
+/// 它决定 system prompt 里「你是谁、你能不能说话」：
+///  - spectator 旁观：人物自行推进，读者不发言
+///  - roleplay 扮演：读者就是书中某个人物（见 userPersona）
+///  - join 入场：读者以自己的身份出现，人物知道"有个外来者"
+enum CharacterParticipation {
+  /// 旁观。
+  spectator('spectator', '旁观'),
+
+  /// 扮演（代入书中人物）。
+  roleplay('roleplay', '扮演'),
+
+  /// 入场（以自己的身份加入）。
+  join('join', '入场');
+
+  const CharacterParticipation(this.code, this.label);
+
+  final String code;
+
+  /// 中文展示名。
+  final String label;
+
+  static CharacterParticipation fromCode(String? code) =>
+      CharacterParticipation.values.firstWhere(
+        (p) => p.code == code,
+        orElse: () => CharacterParticipation.spectator,
+      );
+}
+
 /// 一条对话消息的发言方。
 enum CharacterChatRole {
   /// 读者。
@@ -55,6 +85,8 @@ class CharacterChatSession {
     required this.characterName,
     this.title,
     this.mode = CharacterChatMode.single,
+    this.participation = CharacterParticipation.spectator,
+    this.userPersona,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -68,6 +100,16 @@ class CharacterChatSession {
   /// 会话标题，首轮对话后由 AI 自动生成。
   final String? title;
   final CharacterChatMode mode;
+
+  /// 读者姿态：旁观 / 扮演 / 入场。
+  final CharacterParticipation participation;
+
+  /// 读者身份。
+  ///  - 扮演时为所代入的**书中人物名**
+  ///  - 入场时为读者自定义的名字
+  ///  - 旁观时为 null
+  final String? userPersona;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -88,6 +130,8 @@ class CharacterChatSession {
     int? id,
     String? title,
     CharacterChatMode? mode,
+    CharacterParticipation? participation,
+    String? userPersona,
     DateTime? updatedAt,
   }) =>
       CharacterChatSession(
@@ -96,6 +140,8 @@ class CharacterChatSession {
         characterName: characterName,
         title: title ?? this.title,
         mode: mode ?? this.mode,
+        participation: participation ?? this.participation,
+        userPersona: userPersona ?? this.userPersona,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -107,6 +153,9 @@ class CharacterChatSession {
         characterName: map['character_name'] as String,
         title: map['title'] as String?,
         mode: CharacterChatMode.fromCode(map['mode'] as String?),
+        participation:
+            CharacterParticipation.fromCode(map['participation'] as String?),
+        userPersona: map['user_persona'] as String?,
         createdAt: DateTime.tryParse(map['created_at'] as String? ?? '') ??
             DateTime.now(),
         updatedAt: DateTime.tryParse(map['updated_at'] as String? ?? '') ??
@@ -118,6 +167,8 @@ class CharacterChatSession {
         'character_name': characterName,
         'title': title,
         'mode': mode.code,
+        'participation': participation.code,
+        'user_persona': userPersona,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };

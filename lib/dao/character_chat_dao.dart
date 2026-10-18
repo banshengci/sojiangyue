@@ -14,6 +14,8 @@ class CharacterChatDao extends BaseDao {
     required int bookId,
     required String characterName,
     CharacterChatMode mode = CharacterChatMode.single,
+    CharacterParticipation participation = CharacterParticipation.spectator,
+    String? userPersona,
     String? title,
   }) async {
     final now = DateTime.now();
@@ -23,6 +25,8 @@ class CharacterChatDao extends BaseDao {
         bookId: bookId,
         characterName: characterName,
         mode: mode,
+        participation: participation,
+        userPersona: userPersona,
         title: title,
         createdAt: now,
         updatedAt: now,

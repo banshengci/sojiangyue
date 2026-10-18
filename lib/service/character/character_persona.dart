@@ -8,6 +8,7 @@
 // 世界观决定他说话时能引用什么、不能越界到哪里。
 
 import 'package:songjiang_reader/models/character_card.dart';
+import 'package:songjiang_reader/models/character_chat.dart';
 
 /// 把关系五元组翻译成人话（供 prompt 使用，不展示给用户）。
 String _describeRelation(CharacterRelation r, String self) {
@@ -37,9 +38,42 @@ String _describeRelation(CharacterRelation r, String self) {
   return '- $other（$desc）';
 }
 
+/// 读者姿态 → 一段写给模型的说明。
+///
+/// 造梦的三种开局姿态决定了「读者能不能说话、他说的话代表谁」，
+/// 这是同人物、同场景下体验差别最大的一层，必须显式告诉模型，
+/// 否则模型会默认「你一句我一句」的聊天机器人节奏。
+String buildParticipationDirective({
+  required CharacterParticipation participation,
+  String? userPersona,
+}) {
+  switch (participation) {
+    case CharacterParticipation.spectator:
+      return '## 读者的位置\n'
+          '读者在**旁观**这一场，不会发言。你要主动推进场面：与在场的人互动、'
+          '做动作、说台词，不要提问等待读者回答，也不要描述读者的反应。';
+    case CharacterParticipation.roleplay:
+      final who = (userPersona == null || userPersona.trim().isEmpty)
+          ? '书中的某个人物'
+          : '「${userPersona.trim()}」';
+      return '## 读者的位置\n'
+          '读者正在**扮演**$who。把读者当作$who本人来对待，'
+          '不要替他说话，不要代写他的台词或心理活动，也不要称呼他"读者"。';
+    case CharacterParticipation.join:
+      final who = (userPersona == null || userPersona.trim().isEmpty)
+          ? '一个外来者'
+          : '「${userPersona.trim()}」';
+      return '## 读者的位置\n'
+          '读者以$who的身份**入场**。他不属于这本书的世界，'
+          '你可以对他好奇、戒备或试探，但不要让他凭空知道书里才有的事。';
+  }
+}
+
 /// 构建单人对话的 system prompt。
 String buildCharacterSystemPrompt({
   required CharacterCard character,
+  CharacterParticipation? participation,
+  String? userPersona,
   List<CharacterRelation> relations = const [],
   List<WorldSetting> world = const [],
   String? bookTitle,
@@ -51,6 +85,14 @@ String buildCharacterSystemPrompt({
   buf.writeln('你现在是 $book 中的人物「${character.name}」。');
   buf.writeln('接下来与读者对话时，你必须始终以这个人的身份说话，而不是一个助手。');
   buf.writeln();
+
+  if (participation != null) {
+    buf.writeln(buildParticipationDirective(
+      participation: participation,
+      userPersona: userPersona,
+    ));
+    buf.writeln();
+  }
 
   buf.writeln('## 你是谁');
   if (character.role != null && character.role!.isNotEmpty) {
@@ -120,6 +162,8 @@ String buildCharacterSystemPrompt({
 /// 群聊（多人同场）的 system prompt：列出在场每个人的性格要点。
 String buildGroupSystemPrompt({
   required List<CharacterCard> characters,
+  CharacterParticipation? participation,
+  String? userPersona,
   List<CharacterRelation> relations = const [],
   String? bookTitle,
 }) {
@@ -132,6 +176,14 @@ String buildGroupSystemPrompt({
       '由最该开口的那个人接话。');
   buf.writeln('每次只输出一个人的发言，格式为「姓名：说的话」。');
   buf.writeln();
+
+  if (participation != null) {
+    buf.writeln(buildParticipationDirective(
+      participation: participation,
+      userPersona: userPersona,
+    ));
+    buf.writeln();
+  }
 
   for (final c in characters) {
     buf.writeln('### ${c.name}');

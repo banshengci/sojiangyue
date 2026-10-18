@@ -800,6 +800,15 @@ Future<void> ensureSchemaIntegrity(Database db) async {
     // 其他表的历史新增列
     await _ensureColumn(db, 'tb_notes', 'reader_note', 'TEXT');
     await _ensureColumn(db, 'tb_themes', 'name', 'TEXT');
+    // 造梦开局姿态：老库的会话表没有这两列，打开时补上。
+    // 用自检补列而不是顶数据库版本号，是为了不牵动 DatabaseSyncManager 的版本比较。
+    await _ensureColumn(
+      db,
+      'tb_character_chat_sessions',
+      'participation',
+      "TEXT NOT NULL DEFAULT 'spectator'",
+    );
+    await _ensureColumn(db, 'tb_character_chat_sessions', 'user_persona', 'TEXT');
 
     // 放在最后：本步骤包含"无损去重 + 建唯一索引"，万一失败也不该拖累上面的补列/补表。
     await _ensureFileMd5Unique(db);

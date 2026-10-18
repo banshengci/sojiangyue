@@ -232,12 +232,17 @@ class CharacterChatService {
         ? buildGroupSystemPrompt(
             characters: ctx.onStage,
             relations: ctx.relations,
+            // 读者姿态（旁观/扮演/入场）决定模型怎么对待读者的发言
+            participation: session.participation,
+            userPersona: session.userPersona,
           )
         : buildCharacterSystemPrompt(
             character: ctx.main!,
             relations: ctx.relations,
             world: ctx.world,
             extraDirective: extraDirective,
+            participation: session.participation,
+            userPersona: session.userPersona,
           );
 
     final messages = <ChatMessage>[
