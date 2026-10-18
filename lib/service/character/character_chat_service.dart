@@ -197,6 +197,7 @@ class CharacterChatService {
     required CharacterChatSession session,
     required List<CharacterChatMessage> history,
     required String input,
+    bool continueScene = false,
     String? extraDirective,
   }) async* {
     final model = resolveCurrentModel();
@@ -243,7 +244,7 @@ class CharacterChatService {
         ].where((s) => s.trim().isNotEmpty).join('\n'),
       ),
       ..._historyToMessages(history),
-      ChatMessage.humanText(input),
+      ChatMessage.humanText(continueScene ? continueNudge : input),
     ];
 
     final buffer = StringBuffer();
@@ -453,3 +454,11 @@ class _ChatContext {
   final List<WorldSetting> world;
   final String? extraDirective;
 }
+/// 「继续演出」时代替用户发言的推进信号。
+///
+/// 旁观模式下用户不发言，但每轮请求仍需要一条 human 消息来驱动
+/// （详见 chat 页 `_advance` 的注释）。这条不发用户气泡、不落库，
+/// 只作为本轮的舞台指令存在。
+const String continueNudge =
+    '【继续演出】接着往下推进这一幕：让人物继续各自的行动与对话，'
+    '不要停下来等读者发言，也不要复述已经写过的内容。';

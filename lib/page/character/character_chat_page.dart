@@ -24,6 +24,7 @@ import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 import 'characters_page_strings.dart';
 import 'package:songjiang_reader/plugin/plugin_npc_runner.dart';
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
+import 'package:songjiang_reader/service/character/chat_autoplay.dart';
 import 'package:songjiang_reader/plugin/plugin_rule_runner.dart';
 
 /// 与角色对话。
@@ -78,6 +79,14 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
   /// 对话回合数（以角色发言计），规则里的 everyTurns 用它。
   int _turn = 0;
+
+  /// 旁观模式的「继续演出」：置位后复用 _send 的流程，但不发用户消息。
+  bool _advanceRequested = false;
+
+  /// 自动连播：开启后每轮结束自动再推进一幕，到上限或被打断即停。
+  bool _autoPlay = false;
+  int _autoTurns = 0;
+  static const int _autoPlayLimit = 10;
 
   /// 最近一次用户输入（after_turn 规则要按关键词匹配）。
   String _lastUserInput = '';
@@ -135,6 +144,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
   @override
   void dispose() {
+    // 离开页面必须停连播：否则会在后台继续烧 token
+    _autoPlay = false;
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -336,8 +347,12 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
   Future<void> _send() async {
     final session = _session;
-    final text = _inputController.text.trim();
-    if (session == null || text.isEmpty || _sending) return;
+    final advancing = _advanceRequested;
+    // 推进时忽略输入框里的半截文字：那是用户没发出来的话，不该算进这一轮
+    final text = advancing ? '' : _inputController.text.trim();
+    if (session == null || _sending) return;
+    // 旁观模式的「继续演出」没有用户发言，不能按空文本拦掉
+    if (text.isEmpty && !advancing) return;
 
     final history = List<CharacterChatMessage>.from(_messages);
     final isFirstRound = history.isEmpty;
@@ -349,20 +364,23 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       _error = null;
       _streaming = '';
       _streamingRaw = '';
-      _messages = [
-        ..._messages,
-        CharacterChatMessage(
-          sessionId: session.id!,
-          role: CharacterChatRole.user,
-          content: text,
-          createdAt: DateTime.now(),
-        ),
-      ];
+      // 「继续演出」没有用户发言：不追加空气泡，否则历史里会出现一条空白
+      if (!advancing) {
+        _messages = [
+          ..._messages,
+          CharacterChatMessage(
+            sessionId: session.id!,
+            role: CharacterChatRole.user,
+            content: text,
+            createdAt: DateTime.now(),
+          ),
+        ];
+      }
     });
-    _inputController.clear();
-    _scrollToEnd();
-
-    await _service.saveUserMessage(session.id!, text);
+    if (!advancing) {
+      _inputController.clear();
+      _scrollToEnd();
+    }
 
     // 生成前：结算 before_generation 规则，指令并进本轮设定
     _ruleInstruction = null;
@@ -385,6 +403,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         session: session,
         history: history,
         input: text,
+        continueScene: advancing,
         extraDirective: _extraDirective,
       )) {
         if (!mounted) return;
@@ -435,7 +454,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       });
 
       // 首轮对话后自动生成会话标题（失败也不影响使用）
-      if (isFirstRound && (session.title == null || session.title!.isEmpty)) {
+      if (!advancing && isFirstRound &&
+          (session.title == null || session.title!.isEmpty)) {
         final title = await _service.generateTitle(
           session: session,
           firstUserMessage: text,
@@ -457,6 +477,57 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         });
       }
     }
+  }
+
+  /// 旁观模式的「继续演出」：让在场的人自己往下演一幕。
+  ///
+  /// 与 [_send] 的区别只有一点——没有用户发言。规则结算、流式接收、
+  /// 落库、玩法结算全部复用同一条路径，靠 [_advanceRequested] 告诉
+  /// [_send] 走「无发言」分支；另写一份迟早会两边走偏。
+  Future<void> _advance() async {
+    if (_session == null || _sending) return;
+    _advanceRequested = true;
+    try {
+      await _send();
+    } finally {
+      _advanceRequested = false;
+    }
+  }
+
+  /// 开关自动连播。开启后每演完一幕自动续下一幕，到上限或被操作打断即停。
+  void _toggleAutoPlay() {
+    if (_autoPlay) {
+      setState(() => _autoPlay = false);
+      return;
+    }
+    setState(() {
+      _autoPlay = true;
+      _autoTurns = 0;
+    });
+    unawaited(_runAutoPlay());
+  }
+
+  Future<void> _runAutoPlay() async {
+    while (mounted &&
+        shouldContinueAutoPlay(
+          autoPlay: _autoPlay,
+          turns: _autoTurns,
+          limit: _autoPlayLimit,
+          hasError: _error != null,
+        )) {
+      setState(() => _autoTurns++);
+      await _advance();
+      // 出错或用户已经离开：立刻停，不要继续烧 token
+      if (!mounted || _error != null) break;
+      // 给用户一个能按停的窗口，也避免请求打得太密
+      await Future<void>.delayed(autoPlayGap);
+    }
+    if (mounted && _autoPlay) setState(() => _autoPlay = false);
+  }
+
+  /// 用户开始打字 = 他要插话了，连播让位。
+  void _stopAutoPlayOnType() {
+    if (_autoPlay) setState(() => _autoPlay = false);
   }
 
   void _scrollToEnd() {
@@ -1332,46 +1403,95 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         ),
       );
 
+  /// 旁观模式才有「继续演出」：这种模式不靠读者发言驱动，
+  /// 否则提示词里那句"不要等读者回答"永远等不到兑现。
+  bool get _isSpectator =>
+      (_session?.participation ?? CharacterParticipation.spectator) ==
+      CharacterParticipation.spectator;
+
+  Widget _buildAutoPlayBanner(SjColors c) => Padding(
+        padding: const EdgeInsets.fromLTRB(14, 6, 8, 0),
+        child: Row(
+          children: [
+            Icon(Icons.play_circle_outline, size: 16, color: c.pine),
+            const SizedBox(width: 6),
+            Text(
+              '自动连播中 · $_autoTurns / $_autoPlayLimit 幕',
+              style: SjText.meta(c.inkSoft),
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: () => setState(() => _autoPlay = false),
+              child: const Text('停止'),
+            ),
+          ],
+        ),
+      );
+
   Widget _buildInputBar(SjColors c) {
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _inputController,
-                minLines: 1,
-                maxLines: 4,
-                enabled: !_sending && !_gameplayBusy,
-                decoration: InputDecoration(
-                  hintText: CharactersPageText.chatInputHint,
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                onSubmitted: (_) => _send(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            _sending
-                ? SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: CircularProgressIndicator(strokeWidth: 2, color: c.pine),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_autoPlay) _buildAutoPlayBanner(c),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _inputController,
+                    minLines: 1,
+                    maxLines: 4,
+                    enabled: !_sending && !_gameplayBusy,
+                    decoration: InputDecoration(
+                      hintText: _isSpectator ? '插话（也可以直接看下去）' : CharactersPageText.chatInputHint,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                     ),
-                  )
-                : IconButton.filled(
-                    onPressed: _send,
-                    icon: const Icon(Icons.send),
-                    tooltip: CharactersPageText.chatSend,
+                    onChanged: (_) => _stopAutoPlayOnType(),
+                    onSubmitted: (_) => _send(),
                   ),
-          ],
-        ),
+                ),
+                if (_isSpectator) ...[
+                  const SizedBox(width: 6),
+                  IconButton(
+                    onPressed: _sending ? null : _advance,
+                    icon: const Icon(Icons.skip_next),
+                    tooltip: '继续演出',
+                  ),
+                  IconButton(
+                    onPressed: _sending ? null : _toggleAutoPlay,
+                    icon: Icon(
+                      _autoPlay ? Icons.pause_circle : Icons.play_circle,
+                    ),
+                    color: _autoPlay ? c.pine : null,
+                    tooltip: _autoPlay ? '暂停连播' : '自动连播',
+                  ),
+                ],
+                const SizedBox(width: 8),
+                _sending
+                    ? SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: c.pine),
+                        ),
+                      )
+                    : IconButton.filled(
+                        onPressed: _send,
+                        icon: const Icon(Icons.send),
+                        tooltip: CharactersPageText.chatSend,
+                      ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
