@@ -1,3 +1,4 @@
+import 'dart:convert';
 // lib/plugin/plugin_registry.dart
 //
 // 插件注册表：聚合「内置能力型插件」与「第三方声明式插件」，
@@ -67,6 +68,9 @@ class DeclarativePlugin implements SongjiangPlugin {
 
   @override
   List<PluginRule> get rules => manifest.rules;
+
+  @override
+  List<PluginNpcGenerator> get npcGenerators => const [];
 }
 
 class PluginRegistry {
@@ -90,6 +94,7 @@ class PluginRegistry {
   final Set<String> _disabledPluginIds = {};
   final Set<String> _enabledEnhancerIds = {};
   final Set<String> _enabledRuleIds = {};
+  final Map<String, Set<String>> _sessionEnhancers = {};
   bool _initialized = false;
 
   /// 全部已注册插件（内置 + 动态）。
@@ -137,6 +142,109 @@ class PluginRegistry {
 
   /// 加载第三方 plugin.json 清单：校验 → 编译工具 → 注册。
   /// 返回新注册的插件（已合并进 allToolDefinitions）。
+  /// 全部可用的临时角色生成器（只取已启用插件的）。
+  List<({String pluginId, PluginNpcGenerator generator})>
+      get availableNpcGenerators {
+    final out = <({String pluginId, PluginNpcGenerator generator})>[];
+    for (final p in _dynamic) {
+      if (!isEnabled(p.id)) continue;
+      for (final g in p.npcGenerators) {
+        out.add((pluginId: p.id, generator: g));
+      }
+    }
+    return out;
+  }
+
+  // ---- 按会话的增强器 ----
+  //
+  // 全局开关（上面那套）给阅读页 AI 用——它没有会话概念。
+  // 角色对话是「一个会话一个世界」，所以每个会话各记一份。
+
+  static const String _sessionEnhancersKey = 'plugin.sessionEnhancers';
+
+  bool isEnhancerEnabledIn(
+    int sessionId,
+    String pluginId,
+    String enhancerId,
+  ) =>
+      _sessionEnhancers['$sessionId']
+          ?.contains(enhancerKey(pluginId, enhancerId)) ??
+      false;
+
+  void setEnhancerEnabledIn(
+    int sessionId,
+    String pluginId,
+    String enhancerId,
+    bool enabled,
+  ) {
+    final bucket = _sessionEnhancers.putIfAbsent('$sessionId', () => {});
+    final key = enhancerKey(pluginId, enhancerId);
+    if (enabled) {
+      bucket.add(key);
+    } else {
+      bucket.remove(key);
+    }
+    if (bucket.isEmpty) _sessionEnhancers.remove('$sessionId');
+    unawaited(_saveSessionEnhancers());
+  }
+
+  /// 某个会话当前生效的增强规则。
+  List<String> enhancerRulesForSession(int sessionId) {
+    final bucket = _sessionEnhancers['$sessionId'] ?? const <String>{};
+    if (bucket.isEmpty) return const [];
+    final rules = <String>[];
+    for (final entry in availableEnhancers) {
+      if (!bucket.contains(
+        enhancerKey(entry.pluginId, entry.enhancer.id),
+      )) {
+        continue;
+      }
+      final rule = entry.enhancer.rule.trim();
+      if (rule.isNotEmpty) rules.add(rule);
+    }
+    return rules;
+  }
+
+  /// 清掉某个会话的增强器状态（会话删除时调用）。
+  void clearSessionEnhancers(int sessionId) {
+    _sessionEnhancers.remove('$sessionId');
+    unawaited(_saveSessionEnhancers());
+  }
+
+  Future<void> _loadSessionEnhancers() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final raw = sp.getString(_sessionEnhancersKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      decoded.forEach((k, v) {
+        if (v is List) {
+          _sessionEnhancers[k.toString()] = {
+            for (final e in v) e.toString(),
+          };
+        }
+      });
+    } catch (e) {
+      SjLog.warning('Plugin: 读取会话增强器失败: $e');
+    }
+  }
+
+  Future<void> _saveSessionEnhancers() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(
+        _sessionEnhancersKey,
+        jsonEncode({
+          for (final e in _sessionEnhancers.entries)
+            e.key: e.value.toList(),
+        }),
+      );
+    } catch (e) {
+      SjLog.warning('Plugin: 保存会话增强器失败: $e');
+    }
+  }
+
   // ---- 生成增强器 ----
 
   /// 全部可用增强器（只取已启用插件的）。
@@ -335,6 +443,7 @@ class PluginRegistry {
     await _loadDisabled();
     await _loadEnhancers();
     await _loadRules();
+    await _loadSessionEnhancers();
     await _loadBundled();
     await _loadInstalled();
   }

@@ -158,6 +158,37 @@ class PluginEnhancer {
       );
 }
 
+/// 临时角色生成器：按当前场景临时造一个「来客」。
+///
+/// 与 [PluginEnhancer] / [PluginRule] 的区别：那两个是"自动发生"，
+/// 这个是**用户点一下才发生**，所以不需要开关。
+class PluginNpcGenerator {
+  const PluginNpcGenerator({
+    required this.id,
+    required this.title,
+    required this.direction,
+    this.notice,
+  });
+
+  final String id;
+  final String title;
+
+  /// 给模型的生成方向（"什么样的人该出现"）。
+  final String direction;
+
+  /// 入场时写进会话的旁白，缺省用一句通用文案。
+  final String? notice;
+
+  factory PluginNpcGenerator.fromJson(Map<String, dynamic> j) =>
+      PluginNpcGenerator(
+        id: (j['id'] ?? '').toString().trim(),
+        title: (j['title'] ?? j['id'] ?? '').toString(),
+        direction: (j['direction'] ?? '').toString().trim(),
+        notice: (j['notice'] ?? '').toString().trim().isEmpty
+            ? null
+            : (j['notice'] ?? '').toString().trim(),
+      );
+}
 /// 第三方插件清单（plugin.json 解析结果）。
 class PluginManifest {
   PluginManifest({
@@ -173,6 +204,7 @@ class PluginManifest {
     this.settings = const [],
     this.enhancers = const [],
     this.rules = const [],
+    this.npcGenerators = const [],
     this.minAppVersion,
   });
 
@@ -194,6 +226,9 @@ class PluginManifest {
 
   /// 事件 / 条件触发的规则（对标造梦 execution.rules）。
   final List<PluginRule> rules;
+
+  /// 临时角色生成器。
+  final List<PluginNpcGenerator> npcGenerators;
   final String? minAppVersion;
 
   factory PluginManifest.fromJson(Map<String, dynamic> j) => PluginManifest(
@@ -225,6 +260,7 @@ class PluginManifest {
             .where((e) => e.id.isNotEmpty && e.rule.trim().isNotEmpty)
             .toList(),
         rules: _parseRules(j),
+        npcGenerators: _parseNpcs(j),
         minAppVersion: j['minAppVersion'] as String?,
       );
 
@@ -261,6 +297,9 @@ abstract class SongjiangPlugin {
 
   /// 事件 / 条件触发的规则。
   List<PluginRule> get rules => const [];
+
+  /// 临时角色生成器。
+  List<PluginNpcGenerator> get npcGenerators => const [];
 }
 /// 解析规则：兼容 `rules` 顶层写法与造梦的 `execution.rules` 嵌套写法。
 List<PluginRule> _parseRules(Map<String, dynamic> j) {
@@ -276,4 +315,19 @@ List<PluginRule> _parseRules(Map<String, dynamic> j) {
       .whereType<PluginRule>()
       .toList();
 
+
+}
+/// 解析临时角色生成器：顶层 `npcGenerators` 或 `contributes.temporaryNpcGenerators`。
+List<PluginNpcGenerator> _parseNpcs(Map<String, dynamic> j) {
+  var raw = j['npcGenerators'];
+  if (raw == null) {
+    final c = j['contributes'];
+    if (c is Map) raw = c['temporaryNpcGenerators'];
+  }
+  if (raw is! List) return const [];
+  return raw
+      .whereType<Map>()
+      .map((e) => PluginNpcGenerator.fromJson(e.cast<String, dynamic>()))
+      .where((g) => g.id.isNotEmpty && g.direction.isNotEmpty)
+      .toList();
 }

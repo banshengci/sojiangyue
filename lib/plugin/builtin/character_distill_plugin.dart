@@ -53,4 +53,7 @@ class CharacterDistillPlugin implements SongjiangPlugin {
 
   @override
   List<PluginRule> get rules => const [];
+
+  @override
+  List<PluginNpcGenerator> get npcGenerators => const [];
 }

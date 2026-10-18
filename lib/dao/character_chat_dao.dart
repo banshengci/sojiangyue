@@ -1,5 +1,6 @@
 import 'package:songjiang_reader/dao/base_dao.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
+import 'package:songjiang_reader/service/character/character_chat_service.dart';
 
 /// 角色对话会话 / 消息的持久化访问层，写法对齐 CharacterDao。
 class CharacterChatDao extends BaseDao {
@@ -276,6 +277,41 @@ class CharacterChatDao extends BaseDao {
         whereArgs: [sessionId],
       );
 
+  /// 往会话里加一名在场人物（临时角色用）。
+  ///
+  /// 会顺手把会话升级成 group 模式：单人会话里多出一个人，
+  /// 不走群聊路径的话 system prompt 仍然只描述一个角色。
+  /// 重名时什么都不做，返回原值。
+  Future<String> addSessionMember(
+    int sessionId, {
+    required int defaultBookId,
+    required String name,
+  }) async {
+    final session = await getSession(sessionId);
+    if (session == null) return '';
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return session.characterName;
+
+    final refs = CharacterChatService.parseMemberRefs(
+      session.characterName,
+      defaultBookId,
+    );
+    if (refs.any((r) => r.name == trimmed)) return session.characterName;
+
+    refs.add((bookId: defaultBookId, name: trimmed));
+    final encoded = CharacterChatService.encodeMemberRefs(refs);
+    await update(
+      tableSession,
+      {
+        'character_name': encoded,
+        'mode': CharacterChatMode.group.code,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [sessionId],
+    );
+    return encoded;
+  }
   /// 从 [parentId] 分出去的会话（含多层分叉的直接子代）。
   Future<List<CharacterChatSession>> listBranches(int parentId) => queryList(
         tableSession,

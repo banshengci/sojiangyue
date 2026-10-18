@@ -92,6 +92,9 @@ class QuoteCardPlugin implements SongjiangPlugin {
 
   @override
   List<PluginRule> get rules => const [];
+
+  @override
+  List<PluginNpcGenerator> get npcGenerators => const [];
 }
 
 /// 章节回顾：读完一章，用几句话收束。
@@ -160,6 +163,9 @@ class ChapterRecapPlugin implements SongjiangPlugin {
 
   @override
   List<PluginRule> get rules => const [];
+
+  @override
+  List<PluginNpcGenerator> get npcGenerators => const [];
 }
 
 /// 共读提问：给一章出几个能聊起来的问题。
@@ -228,4 +234,7 @@ class DiscussionQuestionsPlugin implements SongjiangPlugin {
 
   @override
   List<PluginRule> get rules => const [];
+
+  @override
+  List<PluginNpcGenerator> get npcGenerators => const [];
 }

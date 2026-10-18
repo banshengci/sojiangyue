@@ -22,6 +22,8 @@ import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 
 import 'characters_page_strings.dart';
+import 'package:songjiang_reader/plugin/plugin_npc_runner.dart';
+import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/plugin/plugin_rule_runner.dart';
 
 /// 与角色对话。
@@ -80,6 +82,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   /// 最近一次用户输入（after_turn 规则要按关键词匹配）。
   String _lastUserInput = '';
 
+  /// 本会话启用的增强规则（按会话开关，不是全局）。
+  List<String> _sessionEnhancerRules = const [];
+
   /// 玩法运行时状态（仅当选了玩法模式时存在）。
   GameplaySession? _gameplay;
   bool _gameplayBusy = false;
@@ -119,6 +124,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         widget.gameplayDirective!.trim(),
       if (widget.opening?.trim().isNotEmpty ?? false)
         '当前情境：${widget.opening!.trim()}',
+      // 本会话开启的增强规则（插件声明、用户按会话开关）
+      ..._sessionEnhancerRules,
+
       if (_ruleInstruction != null && _ruleInstruction!.trim().isNotEmpty)
         _ruleInstruction!.trim(),
     ];
@@ -155,6 +163,10 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       _turn = messages
           .where((m) => m.role == CharacterChatRole.character)
           .length;
+
+      // 会话级增强器：每个会话一份，阅读页 AI 用的是全局开关
+      _sessionEnhancerRules =
+          PluginRegistry.instance.enhancerRulesForSession(session.id!);
       if (!mounted) return;
       setState(() {
         _session = session;
@@ -808,6 +820,158 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     );
   }
 
+  /// 本会话的增强器开关。
+  ///
+  /// 与「设置 → AI → 插件」里的开关分开：那边是全局（阅读页 AI 用），
+  /// 这边只作用于当前会话——同一个插件，这局开、下局关是合理的。
+  /// 引入一名临时角色。
+  ///
+  /// 由插件声明"该来什么样的人"，宿主负责生成、写进在场成员、留一条入场旁白。
+  /// 失败不影响会话——最坏是没加成，不会把对话搞坏。
+  Future<void> _addTemporaryNpc() async {
+    final session = _session;
+    if (session == null || session.id == null) return;
+    final generators = PluginRegistry.instance.availableNpcGenerators;
+    if (generators.isEmpty) {
+      SjToast.show('还没有插件提供临时角色');
+      return;
+    }
+
+    var entry = generators.first;
+    if (generators.length > 1) {
+      final picked = await showModalBottomSheet<int>(
+        context: context,
+        showDragHandle: true,
+        builder: (ctx) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (var i = 0; i < generators.length; i++)
+                ListTile(
+                  title: Text(generators[i].generator.title),
+                  onTap: () => Navigator.pop(ctx, i),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (picked == null || !mounted) return;
+      entry = generators[picked];
+    }
+
+    final sessionId = session.id!;
+    setState(() => _gameplayBusy = true);
+    try {
+      final npc = await generateNpc(
+        generator: entry.generator,
+        bookTitle: widget.bookTitle ?? '这本书',
+        members: onStageNames(session.characterName),
+        scene: widget.opening,
+      );
+      if (!mounted) return;
+      if (npc == null) {
+        SjToast.show('没能生成出合适的角色，可以再试一次');
+        return;
+      }
+
+      await characterChatDao.addSessionMember(
+        sessionId,
+        defaultBookId: session.bookId,
+        name: npc.name,
+      );
+      final notice = entry.generator.notice ??
+          '一名新人物进入了场景：${npc.name}'
+              '${npc.why.isEmpty ? '' : '——${npc.why}'}';
+      await characterChatDao.appendMessage(
+        sessionId: sessionId,
+        role: CharacterChatRole.narrator,
+        content: notice,
+      );
+
+      final fresh = await characterChatDao.getSession(sessionId);
+      final messages = await characterChatDao.listMessages(sessionId);
+      if (!mounted) return;
+      setState(() {
+        if (fresh != null) _session = fresh;
+        _messages = messages;
+      });
+      SjToast.show('「${npc.name}」进入了场景');
+    } catch (e) {
+      SjToast.show('引入临时角色失败：$e');
+    } finally {
+      if (mounted) setState(() => _gameplayBusy = false);
+    }
+  }
+
+  Future<void> _openSessionEnhancers() async {
+    final session = _session;
+    if (session == null || session.id == null) return;
+    // 闭包捕获会让类型提升失效，先取出 id
+    final sessionId = session.id!;
+    final available = PluginRegistry.instance.availableEnhancers;
+    if (available.isEmpty) {
+      SjToast.show('还没有插件声明增强器');
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('本会话的增强规则'),
+                ),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final entry in available)
+                      SwitchListTile(
+                        title: Text(entry.enhancer.title),
+                        subtitle: Text(
+                          entry.enhancer.rule,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        value: PluginRegistry.instance.isEnhancerEnabledIn(
+                          sessionId,
+                          entry.pluginId,
+                          entry.enhancer.id,
+                        ),
+                        onChanged: (v) {
+                          PluginRegistry.instance.setEnhancerEnabledIn(
+                            sessionId,
+                            entry.pluginId,
+                            entry.enhancer.id,
+                            v,
+                          );
+                          setLocal(() {});
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _sessionEnhancerRules =
+          PluginRegistry.instance.enhancerRulesForSession(sessionId);
+    });
+  }
+
   Future<void> _readMind() async {
     final session = _session;
     if (session == null || _sending) return;
@@ -985,6 +1149,16 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
             tooltip: '分支（回到主线 / 切换）',
             icon: const Icon(Icons.alt_route),
             onPressed: _openBranches,
+          ),
+          IconButton(
+            tooltip: '本会话增强规则',
+            icon: const Icon(Icons.tune, size: 20),
+            onPressed: _openSessionEnhancers,
+          ),
+          IconButton(
+            tooltip: '引入临时角色',
+            icon: const Icon(Icons.person_add_alt_1, size: 20),
+            onPressed: _addTemporaryNpc,
           ),
           IconButton(
             tooltip: '另存为分支',
