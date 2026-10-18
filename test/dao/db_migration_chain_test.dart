@@ -151,15 +151,37 @@ void main() {
       // 直接调用迁移：case0 会把表建好，case2 会遍历 file/ 改名
       final d = await openFresh();
       expect(await d.rawQuery('SELECT COUNT(*) FROM tb_books'), isNotEmpty);
-      // `_renameLegacyFilesSync` 的实际算法：把**整个绝对路径**里的空格换成下划线，
-      // 然后把这个**路径**截到 72 字符，最后追加后缀 `.epub`。
-      // 注意它并不识别 `.epub` 是"旧扩展名"，而且截断作用在绝对路径上——
-      // 临时目录前缀已经很长，于是 `a b c.epub` 被从中间切断：
-      //   `...\file\a b c.epub` → `...\file\a_b_c.e` + `.epub` = `...\file\a_b_c.e.epub`
-      // 这是既有实现的真实行为（对超长路径确实会截断文件名本身）。
-      expect(File(p.join(tmp.path, 'file', 'a_b_c.e.epub')).existsSync(), isTrue,
-          reason: '空格→下划线；整个路径截到 72 字符后追加 .epub');
-      expect(f.existsSync(), isFalse, reason: '原文件应已被 rename 掉');
+      // `_renameLegacyFilesSync` 的算法：把**整个绝对路径**里的空格换成下划线，
+      // 再把这条**路径**截到 72 字符，最后追加后缀 `.epub`。
+      //
+      // ⚠️ 那个 72 是作用在「绝对路径」上的，所以**结果的尾部取决于目录前缀有多长**：
+      //   · Linux  /tmp/sj_migration_test_xxx/...       前缀短 → 路径不足 72，
+      //            原样保留后再拼一次后缀 → `a_b_c.epub.epub`
+      //   · Windows C:\Users\...\Temp\sj_migration_xxx  前缀长 → 截断切进文件名
+      //            → `a_b_c.e.epub`
+      // 早期版本把 Windows 下的结果写死成期望值，导致 **Linux CI 必红**，
+      // Windows 上也会随临时目录随机后缀的长度偶发失败（实测见过两种结果）。
+      //
+      // 因此这里不再断言具体文件名，只断言与平台无关的**不变量**——
+      // 具体截到第几个字符是实现怪癖，不该被测试锁死。
+      final fileDir = Directory(p.join(tmp.path, 'file'));
+      final remaining = fileDir.listSync().whereType<File>().toList();
+
+      expect(remaining, hasLength(1),
+          reason: '原文件应已被 rename（目录里只应剩 1 个文件）');
+      expect(f.existsSync(), isFalse, reason: '原文件名（含空格）应已不存在');
+
+      final renamedPath = remaining.single.path;
+      final renamedName = p.basename(renamedPath);
+
+      expect(renamedName.contains(' '), isFalse,
+          reason: '空格应已全部换成下划线：$renamedName');
+      expect(renamedName.startsWith('a_b_c'), isTrue,
+          reason: '截断只发生在尾部，前缀应保留：$renamedName');
+      expect(renamedName.endsWith('.epub'), isTrue,
+          reason: '必须追加 .epub 后缀：$renamedName');
+      expect(renamedPath.length, lessThanOrEqualTo(72 + 5),
+          reason: '先截到 72 再拼 5 字符后缀，总长不应超过 77（实际 ${renamedPath.length}）');
     });
   });
 
