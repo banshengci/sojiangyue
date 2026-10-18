@@ -309,6 +309,16 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
                       style: const TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
+                if (_catalog.isFromPack(mode.id)) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    '已装',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 6),
