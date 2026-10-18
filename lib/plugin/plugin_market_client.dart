@@ -13,7 +13,6 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
@@ -263,6 +262,12 @@ class PluginMarketClient {
         PluginManifest.parse(utf8.decode(bytes)); // 校验通过才解析。
     final plugin = PluginRegistry.instance.loadManifest(manifest);
     await _persist(plugin.id, bytes);
+    // 远程插件一律先禁用：与本地安装、与文档里「第三方插件安装后保持禁用」一致。
+    // 之前这里没设，装完立刻可用——等于绕过了「用户显式启用」这道确认。
+    // 随包 assets 示例不在此列：它们本就由 ensureLoaded 作为可信样例加载。
+    if (!isBundled) {
+      PluginRegistry.instance.setEnabled(plugin.id, false);
+    }
     SjLog.info('PluginMarket: 已安装 ${plugin.id} (sha256=$actual'
         '${isBundled ? '' : ', ed25519=ok'})');
     return PluginInstallResult(plugin: plugin, bytes: bytes, actualSha256: actual);

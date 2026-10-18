@@ -21,6 +21,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
+import 'package:songjiang_reader/utils/share_file.dart';
 
 /// 单步提示链草稿。
 class _StepDraft {
@@ -198,6 +199,9 @@ class _PluginWorkshopPageState extends State<PluginWorkshopPage> {
     try {
       final manifest = PluginManifest.fromJson(_buildManifest());
       PluginRegistry.instance.loadManifest(manifest);
+      // 落盘：loadManifest 只进内存，重启就没了。不落盘的「试用」会让作者
+      // 以为装好了，下次打开却发现插件不见了。
+      await _persistManifest(_buildManifest());
       if (!mounted) return;
       SjToast.show(
           '已安装试用：${manifest.name}（${manifest.tools.length} 个工具）');
@@ -232,11 +236,26 @@ class _PluginWorkshopPageState extends State<PluginWorkshopPage> {
       final file = File('${dir.path}/$safe.plugin.zip');
       await file.writeAsBytes(bytes);
       if (!mounted) return;
-      SjToast.show('已导出：${file.path}');
+      // 导出到应用私有目录，用户在系统文件管理器里根本看不到——
+      // 走系统分享，让用户自己决定存哪儿（下载目录 / 网盘 / 发给自己）。
+      await shareFile(file: file, title: '$safe.plugin.zip');
     } catch (e) {
-      if (!mounted) return;
       SjToast.show('导出失败：$e');
     }
+  }
+
+  /// 把工坊里的插件落盘，重启后仍能被 PluginRegistry 读回。
+  Future<void> _persistManifest(Map<String, dynamic> json) async {
+    final base = await getApplicationSupportDirectory();
+    final dir = Directory('${base.path}/plugins');
+    await dir.create(recursive: true);
+    final id = (json['id'] ?? '').toString();
+    final safe = id.replaceAll(RegExp(r'[^a-zA-Z0-9_.-]'), '_');
+    final file = File('${dir.path}/$safe.plugin.json');
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(json),
+      flush: true,
+    );
   }
 
   @override

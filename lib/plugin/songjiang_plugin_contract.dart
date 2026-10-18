@@ -35,6 +35,7 @@ enum PluginEventType {
   onChapterEnter,
   onSelectText,
   onPageTurn,
+  /// 保留：在 AI 调用里触发会递归回插件工具（工具自身也调 AI），暂不启用。
   onAiQuery;
 
   static PluginEventType? fromJson(String? s) =>

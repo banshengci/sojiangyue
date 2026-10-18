@@ -45,6 +45,14 @@ class PluginEventDispatcher {
         payload: {'text': text},
       );
 
+  /// 同章内翻页（阅读器翻页）。发即弃；payload 携带 cfi。
+  /// 章节切换走 [onChapterEntered]，这里只管"仍在同一章里翻了一页"。
+  void onPageTurned(int bookId, {String? cfi}) => _fire(
+        PluginEventType.onPageTurn,
+        bookId,
+        payload: {'cfi': cfi ?? ''},
+      );
+
   void _fire(
     PluginEventType event,
     int bookId, {

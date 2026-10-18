@@ -142,6 +142,18 @@ class PluginRegistry {
 
   /// 加载第三方 plugin.json 清单：校验 → 编译工具 → 注册。
   /// 返回新注册的插件（已合并进 allToolDefinitions）。
+  /// 是否有任何已启用插件监听了这个事件。
+  ///
+  /// 阅读器每次划词、每次翻页都会调它：没有监听者就不必走分发、
+  /// 也不必打日志——热路径上的无用工作会直接变成卡顿。
+  bool hasHooksFor(PluginEventType event) {
+    for (final p in _dynamic) {
+      if (!isEnabled(p.id)) continue;
+      if (p.hooks.any((h) => h.event == event)) return true;
+    }
+    return false;
+  }
+
   /// 全部可用的临时角色生成器（只取已启用插件的）。
   List<({String pluginId, PluginNpcGenerator generator})>
       get availableNpcGenerators {

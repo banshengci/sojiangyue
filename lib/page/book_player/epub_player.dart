@@ -63,6 +63,8 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'minute_clock.dart';
+import 'package:songjiang_reader/plugin/plugin_registry.dart';
+import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 
 class EpubPlayer extends ConsumerStatefulWidget {
   final Book book;
@@ -651,6 +653,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
         callback: (args) {
           Map<String, dynamic> location = args[0];
           if (cfi == location['cfi']) return;
+          final prevHref = chapterHref;
+          final prevCfi = cfi;
           // if (chapterHref != location['chapterHref']) {
           //   refreshToc();
           // }
@@ -675,6 +679,20 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
               chapterIndex: chapterCurrentPage,
             );
           }
+          // 同一章内翻页才算"翻页"；换章由 onChapterEntered 负责，
+          // 否则一次跳转会同时发两个事件。
+          if (prevHref == chapterHref &&
+              prevCfi.isNotEmpty &&
+              prevCfi != cfi &&
+              PluginRegistry.instance.hasHooksFor(
+                PluginEventType.onPageTurn,
+              )) {
+            PluginEventDispatcher.instance.onPageTurned(
+              widget.book.id,
+              cfi: cfi,
+            );
+          }
+
           ref.read(currentReadingProvider.notifier).update(
                 cfi: cfi,
                 percentage: percentage,
@@ -722,6 +740,18 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
           double top = (location['pos']['top'] as num).toDouble();
           double right = (location['pos']['right'] as num).toDouble();
           double bottom = (location['pos']['bottom'] as num).toDouble();
+          // 划词钩子：只在真的有插件监听时才分发，避免每次选择都白跑一趟。
+          final selected = text.trim();
+          if (selected.length >= 2 &&
+              PluginRegistry.instance.hasHooksFor(
+                PluginEventType.onSelectText,
+              )) {
+            PluginEventDispatcher.instance.onSelectText(
+              widget.book.id,
+              text: selected,
+            );
+          }
+
           showContextMenu(
             context,
             left,
