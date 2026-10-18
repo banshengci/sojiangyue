@@ -26,6 +26,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
+import 'package:songjiang_reader/plugin/plugin_package.dart';
 
 class AISettings extends ConsumerStatefulWidget {
   const AISettings({super.key});
@@ -355,6 +356,27 @@ class _AISettingsState extends ConsumerState<AISettings> {
                           final ctx = context;
                           await showPluginMarketDialog(ctx);
                           if (mounted) setState(() {});
+                        },
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.folder_open_outlined, size: 18),
+                        label: const Text('从文件安装'),
+                        onPressed: () async {
+                          try {
+                            final bytes = await pickPluginPackageBytes();
+                            if (bytes == null || !context.mounted) return;
+                            final manifest = readPluginManifestFromBytes(bytes);
+                            if (!context.mounted) return;
+                            final ok = await confirmPluginInstall(context, manifest);
+                            if (!ok || !mounted) return;
+                            await installPluginPackage(manifest);
+                            if (mounted) setState(() {});
+                            SjToast.show('已安装「${manifest.name}」，默认关闭');
+                          } on PluginPackageException catch (e) {
+                            SjToast.show('安装失败：${e.message}');
+                          } catch (e) {
+                            SjToast.show('安装失败：$e');
+                          }
                         },
                       ),
                       TextButton.icon(
