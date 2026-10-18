@@ -19,7 +19,6 @@ import 'package:songjiang_reader/dao/book.dart';
 import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/dao/character_chat_dao.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
-import 'package:songjiang_reader/service/character/character_chat_service.dart';
 import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/page/character/character_chat_page.dart';
@@ -341,7 +340,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
     final id = await characterChatDao.createSession(
       bookId: book.id,
       characterName: isGroup
-          ? CharacterChatService.encodeMemberRefs(
+          ? encodeMemberRefs(
               picked.map((c) => (bookId: book.id, name: c.name)).toList(),
             )
           : picked.first.name,

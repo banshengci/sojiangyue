@@ -1,6 +1,5 @@
 import 'package:songjiang_reader/dao/base_dao.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
-import 'package:songjiang_reader/service/character/character_chat_service.dart';
 
 /// 角色对话会话 / 消息的持久化访问层，写法对齐 CharacterDao。
 class CharacterChatDao extends BaseDao {
@@ -312,14 +311,14 @@ class CharacterChatDao extends BaseDao {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return session.characterName;
 
-    final refs = CharacterChatService.parseMemberRefs(
+    final refs = parseMemberRefs(
       session.characterName,
       defaultBookId,
     );
     if (refs.any((r) => r.name == trimmed)) return session.characterName;
 
     refs.add((bookId: defaultBookId, name: trimmed));
-    final encoded = CharacterChatService.encodeMemberRefs(refs);
+    final encoded = encodeMemberRefs(refs);
     await update(
       tableSession,
       {

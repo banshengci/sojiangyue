@@ -5,7 +5,7 @@
 // 造梦 feature/crossover 的玩法——把两本（或多本）不相干的书里的角色凑到一张
 // 桌上，看他们怎么互相打量。实现上不做新数据通道：场景只记「谁在场」，
 // 对话复用群聊 prompt，成员的 (bookId, 姓名) 编码进会话的 characterName
-// （见 CharacterChatService.encodeMemberRefs）。
+// （见 encodeMemberRefs）。
 
 import 'package:flutter/material.dart';
 
@@ -18,7 +18,6 @@ import 'package:songjiang_reader/models/book.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
 import 'package:songjiang_reader/models/character_extras.dart';
-import 'package:songjiang_reader/service/character/character_chat_service.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 
@@ -97,7 +96,7 @@ class _CrossoverPageState extends State<CrossoverPage> {
         .toList();
     final id = await characterChatDao.createSession(
       bookId: refs.first.bookId,
-      characterName: CharacterChatService.encodeMemberRefs(refs),
+      characterName: encodeMemberRefs(refs),
       mode: CharacterChatMode.group,
       title: scene.name,
     );

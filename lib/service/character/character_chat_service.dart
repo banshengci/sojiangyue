@@ -42,34 +42,6 @@ class CharacterChatService {
   /// 单轮上下文最多带多少条历史消息（超出取最近的）。
   static const int maxHistoryMessages = 24;
 
-  /// 跨书成员引用格式：`bookId:人物名`，多个以逗号分隔。
-  ///
-  /// 穿越联动场景用这种写法把一个会话的主角挂到多本书上——
-  /// 会话表不必额外加字段，解析时按 bookId 分别取卡即可。
-  static String encodeMemberRefs(
-    List<({int bookId, String name})> refs,
-  ) =>
-      refs.map((r) => '${r.bookId}:${r.name}').join(',');
-
-  /// 解析会话里的成员引用；不是 `bookId:name` 形式时按 [defaultBookId] 兜底。
-  static List<({int bookId, String name})> parseMemberRefs(
-    String raw,
-    int defaultBookId,
-  ) {
-    final out = <({int bookId, String name})>[];
-    for (final token in raw.split(RegExp(r'[,，]'))) {
-      final t = token.trim();
-      if (t.isEmpty) continue;
-      final m = RegExp(r'^(\d+)\s*[:：]\s*(.+)$').firstMatch(t);
-      if (m != null) {
-        out.add((bookId: int.parse(m.group(1)!), name: m.group(2)!.trim()));
-      } else {
-        out.add((bookId: defaultBookId, name: t));
-      }
-    }
-    return out;
-  }
-
   /// 生成玩法开局需要的「暗牌」（剧本杀的真相 / 海龟汤的汤底）。
   ///
   /// 只交给模型，不展示给玩家——玩家要靠对话把它问出来。

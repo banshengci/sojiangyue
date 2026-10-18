@@ -312,3 +312,28 @@ List<String> onStageNames(String characterName) => characterName
   }
   return (speaker: '', text: trimmed);
 }
+/// 跨书成员引用格式：`bookId:人物名`，多个以逗号分隔。
+///
+/// 放在 model 层是因为它同时被 dao（写会话成员）与 service（组 prompt）使用；
+/// 留在 service 里会让 dao 反向依赖 service，触发分层门禁 R5。
+String encodeMemberRefs(List<({int bookId, String name})> refs) =>
+    refs.map((r) => '${r.bookId}:${r.name}').join(',');
+
+/// 解析会话里的成员引用；不是 `bookId:name` 形式时按 [defaultBookId] 兜底。
+List<({int bookId, String name})> parseMemberRefs(
+  String raw,
+  int defaultBookId,
+) {
+  final out = <({int bookId, String name})>[];
+  for (final token in raw.split(RegExp(r'[,，]'))) {
+    final t = token.trim();
+    if (t.isEmpty) continue;
+    final m = RegExp(r'^(\d+)\s*[:：]\s*(.+)$').firstMatch(t);
+    if (m != null) {
+      out.add((bookId: int.parse(m.group(1)!), name: m.group(2)!.trim()));
+    } else {
+      out.add((bookId: defaultBookId, name: t));
+    }
+  }
+  return out;
+}
