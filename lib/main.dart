@@ -59,6 +59,8 @@ Future<void> main() async {
   await HttpProxyPrefs.ensureInitialized();
   await TtsPrefs.ensureInitialized();
   await ThemePrefs.ensureInitialized();
+  // 把已保存的主题模式同步给监听器，否则首屏永远是 system
+  ThemePrefs.syncThemeModeNotifier();
   await BgimgPrefs.ensureInitialized();
   await DeveloperPrefs.ensureInitialized();
   await ExcerptSharePrefs.ensureInitialized();
@@ -219,33 +221,34 @@ class _MyAppState extends ConsumerState<MyApp>
       ],
       child: provider.Consumer<Prefs>(
         builder: (context, prefsNotifier, child) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            scrollBehavior: ScrollConfiguration.of(context).copyWith(
-              physics: const BouncingScrollPhysics(),
-              // dragDevices: {
-              //   PointerDeviceKind.touch,
-              //   PointerDeviceKind.mouse,
-              // },
-            ),
-            navigatorObservers: [
-              FlutterSmartDialog.observer,
-              heroineController
-            ],
-            builder: FlutterSmartDialog.init(),
-            navigatorKey: navigatorKey,
-            locale: AppMiscPrefs.locale,
-            localeListResolutionCallback: _resolveLocale,
-            localizationsDelegates: L10n.localizationsDelegates,
-            supportedLocales: L10n.supportedLocales,
-            title: '松江阅',
-            themeMode: ThemePrefs.themeMode,
-            theme: colorSchema(context, Brightness.light),
-            darkTheme: colorSchema(context, Brightness.dark),
-            home: _needsMigration
-                ? _MigrationWrapper(
-                    migrationCheckResult: _migrationCheckResult!)
-                : const HomePage(),
+          return ValueListenableBuilder<ThemeMode>(
+            valueListenable: ThemePrefs.themeModeNotifier,
+            builder: (context, themeMode, _) {
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                scrollBehavior: ScrollConfiguration.of(context).copyWith(
+                  physics: const BouncingScrollPhysics(),
+                ),
+                navigatorObservers: [
+                  FlutterSmartDialog.observer,
+                  heroineController
+                ],
+                builder: FlutterSmartDialog.init(),
+                navigatorKey: navigatorKey,
+                locale: AppMiscPrefs.locale,
+                localeListResolutionCallback: _resolveLocale,
+                localizationsDelegates: L10n.localizationsDelegates,
+                supportedLocales: L10n.supportedLocales,
+                title: '松江阅',
+                themeMode: themeMode,
+                theme: colorSchema(context, Brightness.light),
+                darkTheme: colorSchema(context, Brightness.dark),
+                home: _needsMigration
+                    ? _MigrationWrapper(
+                        migrationCheckResult: _migrationCheckResult!)
+                    : const HomePage(),
+              );
+            },
           );
         },
       ),

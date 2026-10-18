@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:songjiang_reader/theme/songjiang_theme.dart';
 
@@ -44,6 +44,19 @@ class ThemePrefs {
 
   // ---- theme mode ----
 
+  /// 主题模式的变更通知。
+  ///
+  /// 根 MaterialApp 读的是 `ThemePrefs.themeMode` 这个静态值，改 prefs 不会触发重建——
+  /// 于是「切深色/浅色」点了没反应，必须重启才生效。
+  /// 这里给一个可监听的入口，main 用它包住 MaterialApp。
+  static final ValueNotifier<ThemeMode> themeModeNotifier =
+      ValueNotifier<ThemeMode>(ThemeMode.system);
+
+  /// 从 prefs 读一次并同步到通知器（初始化后调用）。
+  static void syncThemeModeNotifier() {
+    themeModeNotifier.value = themeMode;
+  }
+
   static ThemeMode get themeMode {
     final mode = _require.getString(themeModeKey) ?? 'system';
     switch (mode) {
@@ -58,6 +71,11 @@ class ThemePrefs {
 
   static Future<void> saveThemeMode(String themeMode) async {
     await _require.setString(themeModeKey, themeMode);
+    themeModeNotifier.value = switch (themeMode) {
+      'dark' => ThemeMode.dark,
+      'light' => ThemeMode.light,
+      _ => ThemeMode.system,
+    };
   }
 
   // ---- true dark / e-ink / auto adjust ----

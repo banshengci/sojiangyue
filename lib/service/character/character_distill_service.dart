@@ -211,6 +211,34 @@ class CharacterDistillService {
       pending.add(i);
     }
 
+    // 指定了只抽某几个人时，先按名字筛掉完全没提到他们的切片。
+    //
+    // 这一步能省掉绝大部分调用：一本 80 万字的书，主角可能只在三分之一
+    // 的切片里出现，而原先每一片都要跑一次模型。筛掉之后既快又省 token，
+    // 也顺带减少了"没提到的人被模型顺手编出来"的机会。
+    final focusSet = focusNames
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    var focusSkipped = 0;
+    if (focusSet.isNotEmpty) {
+      for (var i = 0; i < chunks.length; i++) {
+        if (!chunkMentionsAny(chunks[i].text, focusSet)) {
+          focusSkipped++;
+          pending.remove(i);
+        }
+      }
+    }
+
+    if (focusSkipped > 0) {
+      yield DistillProgress(
+        phase: DistillPhase.preparing,
+        totalChunks: chunks.length,
+        message: '只抽 ${focusSet.join('、')}：'
+            '跳过 $focusSkipped 段没提到他们的内容',
+      );
+    }
+
     if (pending.isEmpty) {
       await store.upsert(manifest.copyWith(
         status: LongTaskStatus.done,
@@ -412,6 +440,8 @@ class CharacterDistillService {
         ? '（已按重要度 ≥ $minImportance 收录 $savedCount 人）'
         : '';
     final failedNote = failedIndexes.isEmpty ? '' : '，${failedIndexes.length} 段仍失败';
+    final focusSkipNote =
+        focusSkipped > 0 ? '，跳过 $focusSkipped 段未提到指定人物' : '';
     yield DistillProgress(
       phase: DistillPhase.done,
       processedChunks: chunks.length,
@@ -420,7 +450,7 @@ class CharacterDistillService {
       charactersFound: allCharacters.length,
       message: '完成：识别 ${allCharacters.length} 个人物 / '
           '${allRelations.length} 条关系，收录 $savedCount 人'
-          '$focusNote$filterNote$skippedNote$failedNote',
+          '$focusNote$filterNote$skippedNote$focusSkipNote$failedNote',
     );
   }
 
@@ -590,3 +620,16 @@ List<BookChapter> scopeChapters(
   int? to,
 ) =>
     sliceByChapter(chapters, from, to);
+
+/// 这一段文本是否提到了指定人物中的任意一位。
+///
+/// 蒸馏前用它筛掉无关切片：指定只抽 2~4 位主角时，
+/// 一本长篇里通常有大半章节根本没写他们，跑那些切片纯属浪费。
+bool chunkMentionsAny(String text, List<String> names) {
+  if (names.isEmpty) return true;
+  for (final n in names) {
+    final name = n.trim();
+    if (name.isNotEmpty && text.contains(name)) return true;
+  }
+  return false;
+}

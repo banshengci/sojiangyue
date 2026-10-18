@@ -11,6 +11,10 @@ import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/page/home_page/statistics_page.dart';
 import 'package:songjiang_reader/page/iap_page.dart';
 import 'package:songjiang_reader/page/settings_page/more_settings_page.dart';
+import 'package:songjiang_reader/dao/book.dart';
+import 'package:songjiang_reader/models/book.dart';
+import 'package:songjiang_reader/page/character/character_list_page.dart';
+import 'package:songjiang_reader/page/settings_page/subpage/ai_chat_page.dart';
 import 'package:songjiang_reader/providers/iap.dart';
 import 'package:songjiang_reader/service/iap/iap_service.dart';
 import 'package:songjiang_reader/utils/env_var.dart';
@@ -41,6 +45,48 @@ class _MinePageState extends ConsumerState<MinePage> {
 
   void _push(Widget page) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  }
+
+  /// 选一本书 → 进人物页做蒸馏。
+  ///
+  /// 蒸馏原先只能从「书籍详情 → 右上角按钮」进，藏得太深；
+  /// 这里给一个一步可达的入口，选完书直接落到人物页（蒸馏按钮就在页面上）。
+  Future<void> _openDistillPicker() async {
+    final books = await bookDao.selectNotDeleteBooks();
+    if (!mounted) return;
+    if (books.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('书架还是空的，先导入一本书')),
+      );
+      return;
+    }
+    final picked = await showModalBottomSheet<Book>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final b in books.take(50))
+              ListTile(
+                title: Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: b.author.isEmpty ? null : Text(b.author),
+                onTap: () => Navigator.pop(ctx, b),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CharacterListPage(
+          bookId: picked.id,
+          bookTitle: picked.title,
+        ),
+      ),
+    );
   }
 
   @override
@@ -364,9 +410,16 @@ class _MinePageState extends ConsumerState<MinePage> {
             _MineRow(
               icon: Icons.auto_awesome_outlined,
               title: L10n.of(context).aiChat,
-              onTap: () => _push(const SubMoreSettings()),
+              onTap: () => _push(const AiChatPage()),
             ),
           ],
+          _rowDivider(c),
+          _MineRow(
+            icon: Icons.auto_stories_outlined,
+            title: '人物蒸馏',
+            subtitle: '选一本书，抽出人物、关系与世界观',
+            onTap: _openDistillPicker,
+          ),
           _rowDivider(c),
           _MineRow(
             icon: Icons.settings_outlined,

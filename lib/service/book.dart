@@ -831,9 +831,9 @@ Future<void> getBookMetadata(
 
   await webview.run();
   headlessInAppWebView = webview;
-  // max 30s
+  // 最多等 10s：等再久用户体感就是"卡死"了
   int count = 0;
-  while (count < 300) {
+  while (count < 100) {
     if (headlessInAppWebView == null) {
       // 解析结束：把真实结果抛给上层，不再伪装成功
       if (saveError != null) {

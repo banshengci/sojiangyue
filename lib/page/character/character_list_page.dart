@@ -167,7 +167,8 @@ class _CharacterListPageState extends State<CharacterListPage> {
                         isDense: true,
                         labelText: '只抽这些人物（可空）',
                         hintText: '林黛玉、贾宝玉',
-                        helperText: '留空＝自动找出场最多的；建议先填 2–4 位主要人物',
+                        helperText: '留空＝自动找出场最多的；建议先填 2–4 位主要人物。'
+                        '只影响本次抽取，已有人物不会被删除',
                         helperMaxLines: 2,
                       ),
                       onChanged: (_) => setSheetState(() {}),
