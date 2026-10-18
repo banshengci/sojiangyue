@@ -1,4 +1,4 @@
-﻿{
+{
   "@@locale": "zh_CN",
   "appName": "松江阅",
   "appAbout": "关于 松江阅",
@@ -117,11 +117,11 @@
   "importNBooksNotSupport": "{count, plural, other{{count} 本书暂不支持}}",
   "importImportNBooks": "{count, plural, other{导入 {count} 本书}}",
   "bookshelfTips_1": "书架上没有书",
-  "bookshelfTips_2": "点击添加按钮，添加一本 epub ！",
-  "statisticsTips_1": "选定的时间段里没有阅读过呢",
+  "bookshelfTips_2": "点击右上角添加，导入一本 epub",
+  "statisticsTips_1": "这段时间还没有阅读记录",
   "statisticsTips_2": "问渠哪得清如许，为有源头活水来",
   "notesTips_1": "还没有笔记",
-  "notesTips_2": "在书中划线，记录你的思绪！",
+  "notesTips_2": "在书中划线，记录你的思绪",
   "readingPageChapterPages": "本章页数",
   "readingPageCurrentPage": "当前页",
   "readingPageAutoMarkSelection": "选中即标注",
