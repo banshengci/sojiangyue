@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS tb_gameplay_sessions (
   chat_session_id INTEGER NOT NULL,
   mode_id TEXT NOT NULL,
   stats TEXT,
+  member_stats TEXT,
   turn INTEGER NOT NULL DEFAULT 0,
   phase_index INTEGER NOT NULL DEFAULT 0,
   secret TEXT,

@@ -30,6 +30,7 @@ class GameplayStatDef {
     this.max = 100,
     this.hint = '',
     this.isScore = false,
+    this.perMember = false,
   });
 
   final String key;
@@ -43,6 +44,12 @@ class GameplayStatDef {
 
   /// 是否作为「胜负分」展示（会突出显示）。
   final bool isScore;
+
+  /// 是否**按成员**分别记录（如「好感」：对谁都不同）。
+  ///
+  /// 线索、神志这类天生是集体的值保持 false；
+  /// 群聊场景里，perMember 的值会以「好感|林黛玉」的形式出现在状态块中。
+  final bool perMember;
 }
 
 /// 一场玩法。

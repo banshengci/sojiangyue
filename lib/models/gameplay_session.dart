@@ -28,6 +28,7 @@ class GameplaySession {
     required this.chatSessionId,
     required this.modeId,
     this.stats = const {},
+    this.memberStats = const {},
     this.turn = 0,
     this.phaseIndex = 0,
     this.secret,
@@ -46,6 +47,12 @@ class GameplaySession {
 
   /// 状态量当前值：key → 数值。
   final Map<String, int> stats;
+
+  /// 按成员区分的关系值：状态 key → (成员名 → 数值)。
+  ///
+  /// 线索、神志这类天生是集体的，留在 [stats]；
+  /// 好感这类「对谁」的值必须按人存，否则群里两个角色会共用一个数。
+  final Map<String, Map<String, int>> memberStats;
 
   /// 已进行的回合数。
   final int turn;
@@ -68,6 +75,7 @@ class GameplaySession {
   GameplaySession copyWith({
     int? id,
     Map<String, int>? stats,
+    Map<String, Map<String, int>>? memberStats,
     int? turn,
     int? phaseIndex,
     String? secret,
@@ -81,6 +89,7 @@ class GameplaySession {
         chatSessionId: chatSessionId,
         modeId: modeId,
         stats: stats ?? this.stats,
+        memberStats: memberStats ?? this.memberStats,
         turn: turn ?? this.turn,
         phaseIndex: phaseIndex ?? this.phaseIndex,
         secret: secret ?? this.secret,
@@ -101,6 +110,22 @@ class GameplaySession {
       }
     } catch (_) {}
 
+    Map<String, Map<String, int>> memberStats = const {};
+    try {
+      final raw = jsonDecode(map['member_stats'] as String? ?? '{}');
+      if (raw is Map) {
+        memberStats = raw.map((k, v) {
+          final inner = <String, int>{};
+          if (v is Map) {
+            v.forEach((mk, mv) {
+              inner[mk.toString()] = (mv as num?)?.toInt() ?? 0;
+            });
+          }
+          return MapEntry(k.toString(), inner);
+        });
+      }
+    } catch (_) {}
+
     List<GameplayEvent> log = const [];
     try {
       final raw = jsonDecode(map['log'] as String? ?? '[]');
@@ -116,6 +141,7 @@ class GameplaySession {
       chatSessionId: (map['chat_session_id'] as num?)?.toInt() ?? 0,
       modeId: map['mode_id'] as String? ?? '',
       stats: stats,
+      memberStats: memberStats,
       turn: (map['turn'] as num?)?.toInt() ?? 0,
       phaseIndex: (map['phase_index'] as num?)?.toInt() ?? 0,
       secret: map['secret'] as String?,
@@ -131,6 +157,7 @@ class GameplaySession {
         'chat_session_id': chatSessionId,
         'mode_id': modeId,
         'stats': jsonEncode(stats),
+        'member_stats': jsonEncode(memberStats),
         'turn': turn,
         'phase_index': phaseIndex,
         'secret': secret,

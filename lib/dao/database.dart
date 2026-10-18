@@ -811,6 +811,7 @@ Future<void> ensureSchemaIntegrity(Database db) async {
     );
     await _ensureColumn(db, 'tb_character_chat_sessions', 'user_persona', 'TEXT');
     await _ensureColumn(db, 'tb_character_chat_sessions', 'memory_summary', 'TEXT');
+    await _ensureColumn(db, 'tb_gameplay_sessions', 'member_stats', 'TEXT');
     await _ensureColumn(
       db,
       'tb_character_chat_sessions',

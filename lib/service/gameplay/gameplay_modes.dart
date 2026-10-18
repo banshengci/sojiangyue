@@ -148,6 +148,8 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         hint: '对方说得体贴、做得合你心意就 +5~10；冒犯、轻浮、越界则 -5~15。'
             '早期涨幅要小，越熟越容易涨也越容易伤。',
         isScore: true,
+        // 好感是「对谁」的值：群里两个角色不该共用一个数
+        perMember: true,
       ),
       GameplayStatDef(
         key: 'trust',
@@ -156,6 +158,8 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         min: 0,
         max: 100,
         hint: '对方坦率、说到做到时 +；被敷衍、发现隐瞒时 -。信任比好感涨得慢。',
+        // 信任同样是「对谁」的值
+        perMember: true,
       ),
     ],
     phases: ['初识', '靠近', '试探', '表态'],

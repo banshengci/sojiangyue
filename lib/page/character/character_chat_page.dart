@@ -98,7 +98,13 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     final parts = <String>[
       if (widget.gameplayMode != null && _gameplay != null)
         GameplayRuntime.buildDirective(
-            mode: widget.gameplayMode!, session: _gameplay!),
+          mode: widget.gameplayMode!,
+          session: _gameplay!,
+          // 群聊时告诉规则层有哪些人，好感/信任才能按人展示
+          members: onStageNames(
+            _session?.characterName ?? widget.characterName ?? '',
+          ),
+        ),
       if (widget.gameplayDirective?.trim().isNotEmpty ?? false)
         widget.gameplayDirective!.trim(),
       if (widget.opening?.trim().isNotEmpty ?? false)
@@ -1014,6 +1020,10 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   Widget _buildGameplayBar(SjColors c) {
     final mode = widget.gameplayMode!;
     final state = _gameplay!;
+    // 按成员的状态（好感/信任）需要知道有谁在场
+    final members = onStageNames(
+      _session?.characterName ?? widget.characterName ?? '',
+    );
     final phase = mode.phases.isEmpty
         ? null
         : mode.phases[state.phaseIndex.clamp(0, mode.phases.length - 1)];
@@ -1047,8 +1057,19 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
             ],
             for (final def in mode.stats) ...[
               const SizedBox(width: 12),
-              Text('${def.name} ${state.stats[def.key] ?? def.initial}',
-                  style: SjText.meta(def.isScore ? c.clay : c.inkSoft)),
+              if (def.perMember && members.isNotEmpty)
+                for (final m in members) ...[
+                  Text(
+                    '${def.name}·$m ${state.memberStats[def.key]?[m] ?? def.initial}',
+                    style: SjText.meta(def.isScore ? c.clay : c.inkSoft),
+                  ),
+                  const SizedBox(width: 8),
+                ]
+              else
+                Text(
+                  '${def.name} ${state.stats[def.key] ?? def.initial}',
+                  style: SjText.meta(def.isScore ? c.clay : c.inkSoft),
+                ),
             ],
             if ((state.secret?.isNotEmpty ?? false) && !state.revealed) ...[
               const SizedBox(width: 12),

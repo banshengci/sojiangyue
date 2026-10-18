@@ -12,7 +12,6 @@
 // 这样「好感 +8」「线索 +1」是真实累计的，而不是嘴上说说。
 
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/models/gameplay_session.dart';
@@ -55,6 +54,7 @@ class GameplayRuntime {
   static String buildDirective({
     required GameplayMode mode,
     required GameplaySession session,
+    List<String> members = const [],
   }) {
     final buf = StringBuffer();
 
@@ -65,9 +65,17 @@ class GameplayRuntime {
     if (mode.stats.isNotEmpty) {
       buf.writeln('## 可追踪状态（会随剧情变化）');
       for (final def in mode.stats) {
-        final cur = session.stats[def.key] ?? def.initial;
-        buf.writeln(
-            '- ${def.name}（${def.key}）：当前 $cur，范围 ${def.min}~${def.max}。${def.hint}');
+        if (def.perMember && members.isNotEmpty) {
+          final per = session.memberStats[def.key] ?? const <String, int>{};
+          final detail =
+              members.map((m) => '$m ${per[m] ?? def.initial}').join('，');
+          buf.writeln('- ${def.name}（${def.key}）：**按人分别记**，'
+              '当前 $detail；范围 ${def.min}~${def.max}。${def.hint}');
+        } else {
+          final cur = session.stats[def.key] ?? def.initial;
+          buf.writeln(
+              '- ${def.name}（${def.key}）：当前 $cur，范围 ${def.min}~${def.max}。${def.hint}');
+        }
       }
       buf.writeln();
     }
@@ -111,6 +119,12 @@ class GameplayRuntime {
       buf.writeln('- 变化幅度：普通互动 ±3~8，重要转折 ±10~25');
       buf.writeln('- 这个块会被程序读取并从正文中删掉，读者看不到，所以不要解释它、不要把它写进剧情');
       buf.writeln('- 除最后这一行外，正文里不要再出现任何 `$kStateOpen` 字样');
+      if (members.isNotEmpty && mode.stats.any((d) => d.perMember)) {
+        final who = members.isEmpty ? '人物名' : members.first;
+        buf.writeln(
+            '- **按人分别记的状态**，键写成「状态名|人物名」，例如 `"好感|$who": 5`；'
+            '只写「好感」会被当成全场共享的值');
+      }
     }
     if (mode.endingHint != null && mode.endingHint!.trim().isNotEmpty) {
       buf.writeln(mode.endingHint!.trim());
@@ -190,6 +204,12 @@ class GameplayRuntime {
       stats.putIfAbsent(def.key, () => def.initial);
     }
 
+    // 按成员的关系值：外层 key 是状态，内层是「谁 → 多少」
+    final memberStats = <String, Map<String, int>>{
+      for (final e in session.memberStats.entries)
+        e.key: Map<String, int>.from(e.value),
+    };
+
     // 状态名 → key（模型可能用中文名）
     final nameToKey = {
       for (final d in mode.stats) d.name: d.key,
@@ -197,6 +217,22 @@ class GameplayRuntime {
     };
 
     turn.deltas.forEach((rawKey, delta) {
+      // 「好感|林黛玉」：按成员结算
+      final sep = rawKey.indexOf('|');
+      if (sep > 0) {
+        final statPart = nameToKey[rawKey.substring(0, sep)] ??
+            rawKey.substring(0, sep);
+        final member = rawKey.substring(sep + 1).trim();
+        final def = mode.stats.where((d) => d.key == statPart).firstOrNull;
+        if (def != null && def.perMember && member.isNotEmpty) {
+          final inner = memberStats.putIfAbsent(statPart, () => {});
+          final cur = inner[member] ?? def.initial;
+          inner[member] = (cur + delta).clamp(def.min, def.max);
+          return;
+        }
+        // perMember 状态但没给成员名：落到下面的全场逻辑，至少不丢数据
+      }
+
       final key = nameToKey[rawKey] ?? rawKey;
       final def = mode.stats.where((d) => d.key == key).firstOrNull;
       final current = stats[key] ?? def?.initial ?? 0;
@@ -222,6 +258,7 @@ class GameplayRuntime {
 
     return session.copyWith(
       stats: stats,
+      memberStats: memberStats,
       turn: newTurn,
       phaseIndex: phase,
       log: log,
