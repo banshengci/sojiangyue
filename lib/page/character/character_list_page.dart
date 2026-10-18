@@ -8,6 +8,7 @@ import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_distill_estimate.dart';
+import 'package:songjiang_reader/service/character/distill_chunking.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/character_distill_service.dart';
 import 'package:songjiang_reader/service/character/distill_background.dart';
@@ -72,15 +73,15 @@ class _CharacterListPageState extends State<CharacterListPage> {
 
   /// 预估文案。纯计算，不调模型——所以拖动范围能实时刷新。
   String _estimateText(
-    List<int> chapterLengths,
+    List<String> chapterTexts,
     int from,
     int to,
     int focusCount,
   ) {
-    if (chapterLengths.isEmpty) return '预估不可用（读不到章节）';
-    final scoped = sliceChapterLengths(chapterLengths, from, to);
+    if (chapterTexts.isEmpty) return '预估不可用（读不到章节）';
+    final scoped = sliceByChapter(chapterTexts, from, to);
     final e = estimateDistill(
-      chapterLengths: scoped,
+      chapterTexts: scoped,
       focusNameCount: focusCount,
     );
     return e.describe();
@@ -109,19 +110,19 @@ class _CharacterListPageState extends State<CharacterListPage> {
     var majorOnly = false;
 
     // 章节字数用于预估与范围选择；取不到就退化为"整本、不显示范围"
-    var chapterLengths = <int>[];
+    var chapterTexts = <String>[];
     try {
       final chapters = await CharacterDistillRepository(bookDao: bookDao)
           .getChapters(widget.bookId);
-      chapterLengths = chapters.map((c) => c.text.length).toList();
+      chapterTexts = chapters.map((c) => c.text).toList();
     } catch (e) {
       SjLog.warning('Distill: 读取章节失败（预估不可用）: $e');
     }
     final focusController = TextEditingController();
     var rangeStart = 1.0;
-    var rangeEnd = chapterLengths.isEmpty
+    var rangeEnd = chapterTexts.isEmpty
         ? 1.0
-        : chapterLengths.length.toDouble();
+        : chapterTexts.length.toDouble();
 
     if (!mounted) return;
 
@@ -172,19 +173,19 @@ class _CharacterListPageState extends State<CharacterListPage> {
                       onChanged: (_) => setSheetState(() {}),
                     ),
                   ),
-                  if (chapterLengths.length > 1) ...[
+                  if (chapterTexts.length > 1) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                       child: Text(
                         '章节范围：第 ${rangeStart.toInt()} – ${rangeEnd.toInt()} 章'
-                        '（共 ${chapterLengths.length} 章）',
+                        '（共 ${chapterTexts.length} 章）',
                         style: SjText.meta(c.ink),
                       ),
                     ),
                     RangeSlider(
                       min: 1,
-                      max: chapterLengths.length.toDouble(),
-                      divisions: chapterLengths.length - 1,
+                      max: chapterTexts.length.toDouble(),
+                      divisions: chapterTexts.length - 1,
                       values: RangeValues(rangeStart, rangeEnd),
                       labels: RangeLabels(
                         rangeStart.round().toString(),
@@ -200,7 +201,7 @@ class _CharacterListPageState extends State<CharacterListPage> {
                     padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
                     child: Text(
                       _estimateText(
-                        chapterLengths,
+                        chapterTexts,
                         rangeStart.toInt(),
                         rangeEnd.toInt(),
                         _countNames(focusController.text),
@@ -232,7 +233,7 @@ class _CharacterListPageState extends State<CharacterListPage> {
                             chapterStart: rangeStart <= 1
                                 ? null
                                 : rangeStart.toInt(),
-                            chapterEnd: rangeEnd >= chapterLengths.length
+                            chapterEnd: rangeEnd >= chapterTexts.length
                                 ? null
                                 : rangeEnd.toInt(),
                             incremental: incremental,

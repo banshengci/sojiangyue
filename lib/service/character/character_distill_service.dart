@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/models/character_card.dart';
+import 'package:songjiang_reader/service/character/distill_chunking.dart';
 import 'package:songjiang_reader/service/character/character_distill_repository.dart';
 import 'package:songjiang_reader/service/character/distill_prompt.dart';
 import 'package:songjiang_reader/service/character/distill_snapshot.dart';
@@ -58,25 +59,21 @@ class DistillChunkPlanner {
     final chunks = <DistillChunk>[];
     var idx = 0;
     for (final ch in scoped) {
-      if (ch.text.length <= chapterCharBudget) {
-        chunks.add(DistillChunk(index: idx++, title: ch.title, text: ch.text));
-        continue;
-      }
-      var start = 0;
-      while (start < ch.text.length) {
-        var end = (start + chapterCharBudget).clamp(0, ch.text.length);
-        // 尽量在句末断开，避免截断人物台词
-        if (end < ch.text.length) {
-          final cut = ch.text.lastIndexOf(RegExp(r'[。！？\n]'), end);
-          if (cut > start + (chapterCharBudget * 0.5)) end = cut + 1;
-        }
-        final title = chunks.isEmpty ? ch.title : '${ch.title}（续）';
+      final ranges = splitChapterRanges(
+        ch.text,
+        budget: chapterCharBudget,
+        overlap: overlap,
+      );
+      for (var i = 0; i < ranges.length; i++) {
+        final r = ranges[i];
+        // 每章的第一片用原章节名；续片才加「（续）」。
+        // 早期实现用「全局第一片」判断，导致第二章的第一片也叫「（续）」。
+        final title = i == 0 ? ch.title : '${ch.title}（续）';
         chunks.add(DistillChunk(
           index: idx++,
           title: title,
-          text: ch.text.substring(start, end),
+          text: ch.text.substring(r.start, r.end),
         ));
-        start = end - overlap > start ? end - overlap : end;
       }
     }
     return chunks;
@@ -528,17 +525,10 @@ class CharacterDistillService {
     );
   }
 }
-/// 按 1 基章节区间截取（含两端）。范围非法时退化为全部，而不是返回空。
+/// 按 1 基章节区间截取（委托 sliceByChapter，语义只有一份实现）。
 List<BookChapter> scopeChapters(
   List<BookChapter> chapters,
   int? from,
   int? to,
-) {
-  if (chapters.isEmpty) return const [];
-  var start = (from ?? 1) - 1;
-  var end = (to ?? chapters.length) - 1;
-  if (start < 0) start = 0;
-  if (end >= chapters.length) end = chapters.length - 1;
-  if (start > end) return chapters;
-  return chapters.sublist(start, end + 1);
-}
+) =>
+    sliceByChapter(chapters, from, to);

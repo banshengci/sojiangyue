@@ -1,12 +1,17 @@
-// lib/service/character/distill_estimate.dart
+// lib/service/character/character_distill_estimate.dart
 //
 // 蒸馏开跑前的预估：会调用几次、大概烧多少 Token、要等多久。
 //
 // 为什么需要：长篇小说整本蒸馏是"先付费后看见结果"的操作，
 // 只告诉用户"会消耗较多 Token"等于什么都没说。
-// 预估本身是纯计算，不花任何模型调用——所以可以随范围拖动实时刷新。
+//
+// **切片数不在这里重新算**：直接调用 `distill_chunking.dart` 里规划器
+// 用的同一个函数。预估与真跑必须是同一个数字，否则用户会觉得被坑，
+// 而这种偏差不会报错——它只会悄悄变贵。
 
 import 'dart:math' as math;
+
+import 'package:songjiang_reader/service/character/distill_chunking.dart';
 
 /// 一次蒸馏的预估结果。
 class DistillEstimate {
@@ -18,7 +23,7 @@ class DistillEstimate {
     required this.chapters,
   });
 
-  /// 切片数（也就是模型调用次数）。
+  /// 切片数（= 模型调用次数）。
   final int chunks;
 
   /// 送进去的 Token 估算。
@@ -36,6 +41,7 @@ class DistillEstimate {
 
   /// 例如「约 12 次调用 · 约 4.8 万 Token · 预计 1 分 30 秒」。
   String describe() {
+    if (chunks == 0) return '没有可蒸馏的章节';
     final t = totalTokens >= 10000
         ? '${(totalTokens / 10000).toStringAsFixed(1)} 万'
         : '$totalTokens';
@@ -63,25 +69,21 @@ const int kPerCallOutputTokens = 700;
 /// 每次调用平均耗时（秒）——刻意取保守值，估短了用户会觉得卡住。
 const double kSecondsPerCall = 12;
 
-/// 计算一个章节在给定预算下会被切成几片。
-int chunksForChapter(int chapterChars, int budget) {
-  if (budget <= 0) return 1;
-  if (chapterChars <= 0) return 1;
-  return math.max(1, (chapterChars / budget).ceil());
-}
+/// 与 `DistillChunkPlanner` 的默认重叠保持一致。
+const int kDefaultOverlap = 800;
 
 /// 预估。
 ///
-/// [chapterLengths] 是**已按范围过滤后**的章节字数列表——
-/// 范围选择的效果因此会自动反映到预估里，不需要额外同步。
+/// [chapterTexts] 是**已按范围过滤后**的正文——
+/// 范围选择的效果因此自动反映到预估里，不需要额外同步。
 DistillEstimate estimateDistill({
-  required List<int> chapterLengths,
+  required List<String> chapterTexts,
   int chapterCharBudget = 12000,
+  int overlap = kDefaultOverlap,
   int concurrency = 4,
   int focusNameCount = 0,
 }) {
-  final chapters = chapterLengths.length;
-  if (chapters == 0) {
+  if (chapterTexts.isEmpty) {
     return const DistillEstimate(
       chunks: 0,
       inputTokens: 0,
@@ -93,17 +95,21 @@ DistillEstimate estimateDistill({
 
   var chunks = 0;
   var chars = 0;
-  for (final len in chapterLengths) {
-    chunks += chunksForChapter(len, chapterCharBudget);
-    chars += len;
+  for (final text in chapterTexts) {
+    chunks += chunkCountFor(
+      text,
+      budget: chapterCharBudget,
+      overlap: overlap,
+    );
+    chars += text.length;
   }
 
   // 输入：正文 + 每次调用的固定开销
-  var input = (chars * kTokensPerChineseChar).round() +
+  final input = (chars * kTokensPerChineseChar).round() +
       chunks * kPerCallPromptOverheadTokens;
 
-  // 指定了人物名时，模型要读的上下文没变，但要写的内容变少，
-  // 反过来也会因为「只看这几个人」而少扫一遍——预估上按输出打八折。
+  // 指定了人物名时：读的上下文一样，但要写的内容变少，
+  // 也不会被龙套带偏，输出按八折估。
   final outputFactor = focusNameCount > 0 ? 0.8 : 1.0;
   final output = (chunks * kPerCallOutputTokens * outputFactor).round();
 
@@ -115,26 +121,6 @@ DistillEstimate estimateDistill({
     inputTokens: input,
     outputTokens: output,
     duration: Duration(seconds: seconds.round()),
-    chapters: chapters,
+    chapters: chapterTexts.length,
   );
-}
-
-/// 从「1 基的章节区间」截取字数列表；越界自动收敛。
-///
-/// [from] / [to] 都按用户看到的 1 基章节号传入；返回的列表供
-/// [estimateDistill] 使用。范围非法时退化为全部章节，而不是返回空。
-List<int> sliceChapterLengths(
-  List<int> all,
-  int? from,
-  int? to,
-) {
-  if (all.isEmpty) return const [];
-  var start = (from ?? 1) - 1;
-  var end = (to ?? all.length) - 1;
-  if (start < 0) start = 0;
-  if (end >= all.length) end = all.length - 1;
-  if (start > end) {
-    return all;
-  }
-  return all.sublist(start, end + 1);
 }
