@@ -196,6 +196,68 @@ class CharacterChatDao extends BaseDao {
     return list.isEmpty ? null : list.first;
   }
 
+  /// 从某个位置分出一个新会话（快照式分支）。
+  ///
+  /// 做成**快照**而不是消息树：改动集中、可回滚，先用最小代价把交互验证出来。
+  /// 将来要升级成真正的分支树，迁移路径是给会话加 `parent_session_id` /
+  /// `parent_message_id`，再把这里换成"只记录分叉点"。
+  ///
+  /// [atMessageId] 为空表示整段复制到当前末尾；否则只复制 id ≤ 它的消息。
+  Future<int> forkSession(int sourceSessionId, {int? atMessageId}) async {
+    final src = await getSession(sourceSessionId);
+    if (src == null) {
+      throw StateError('源会话不存在: $sourceSessionId');
+    }
+
+    final all = await listMessages(sourceSessionId);
+    final kept = atMessageId == null
+        ? all
+        : all.where((m) => (m.id ?? 0) <= atMessageId).toList();
+
+    final now = DateTime.now();
+    // 记忆先不写：它的 memory_upto 指向的是**旧会话**的消息 id，
+    // 必须等消息复制完、拿到新会话里的最后一条 id 再回填。
+    final newSessionId = await insert(
+      tableSession,
+      CharacterChatSession(
+        bookId: src.bookId,
+        characterName: src.characterName,
+        mode: src.mode,
+        participation: src.participation,
+        userPersona: src.userPersona,
+        title: '${src.displayTitle} · 分支',
+        createdAt: now,
+        updatedAt: now,
+      ).toMap(),
+    );
+
+    int? newLastId;
+    for (final m in kept) {
+      newLastId = await insert(tableMessage, {
+        'session_id': newSessionId,
+        'role': m.role.code,
+        'speaker': m.speaker,
+        'content': m.content,
+        'created_at': m.createdAt.toIso8601String(),
+      });
+    }
+
+    final carried = memoryForFork(
+      summary: src.memorySummary,
+      upto: src.memoryUptoMessageId,
+      atMessageId: atMessageId,
+    );
+    if (carried != null && newLastId != null) {
+      await updateMemory(
+        newSessionId,
+        summary: carried,
+        uptoMessageId: newLastId,
+      );
+    }
+
+    return newSessionId;
+  }
+
   Future<void> clearMessages(int sessionId) => delete(
         tableMessage,
         where: 'session_id = ?',

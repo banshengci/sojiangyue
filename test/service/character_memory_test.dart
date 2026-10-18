@@ -122,4 +122,44 @@ void main() {
       expect(updated.characterName, '林黛玉');
     });
   });
-}
+
+  group('memoryForFork（分支时能否沿用记忆）', () {
+    test('没有记忆 → 不带', () {
+      expect(
+        memoryForFork(summary: null, upto: 10, atMessageId: 20),
+        isNull,
+      );
+      expect(
+        memoryForFork(summary: '   ', upto: 10, atMessageId: 20),
+        isNull,
+      );
+    });
+
+    test('整段复制（不指定分叉点）→ 沿用', () {
+      expect(
+        memoryForFork(summary: '旧事', upto: 99, atMessageId: null),
+        '旧事',
+      );
+    });
+
+    test('分叉点晚于已压范围 → 沿用', () {
+      expect(
+        memoryForFork(summary: '旧事', upto: 10, atMessageId: 20),
+        '旧事',
+      );
+    });
+
+    test('分叉点早于已压范围 → 丢弃（否则新分支会记得没经历的事）', () {
+      expect(
+        memoryForFork(summary: '旧事', upto: 30, atMessageId: 20),
+        isNull,
+      );
+    });
+
+    test('不知道压到哪 → 保守丢弃', () {
+      expect(
+        memoryForFork(summary: '旧事', upto: null, atMessageId: 20),
+        isNull,
+      );
+    });
+  });}

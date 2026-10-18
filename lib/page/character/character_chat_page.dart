@@ -504,6 +504,37 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   }
 
   /// 读心：生成一条旁白，写出角色此刻没说出口的念头。
+  /// 另存为分支：把当前这段对话复制成一个新会话，此后两条线各走各的。
+  ///
+  /// 为什么需要：现在选错一句话只能清空重来，玩家因此**不敢做选择**。
+  /// 能分支，"试一条路"才变得安全——试完还能回到原来的时间线上。
+  Future<void> _fork() async {
+    final session = _session;
+    if (session?.id == null || _sending) return;
+    final at = _messages.isEmpty ? null : _messages.last.id;
+    try {
+      final newId = await characterChatDao.forkSession(
+        session!.id!,
+        atMessageId: at,
+      );
+      final fresh = await characterChatDao.getSession(newId);
+      if (!mounted || fresh == null) return;
+      SjToast.show('已分出分支，接下来走的是新的时间线');
+      await Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CharacterChatPage(
+            session: fresh,
+            bookTitle: widget.bookTitle,
+            gameplayMode: widget.gameplayMode,
+          ),
+        ),
+      );
+    } catch (e) {
+      SjToast.show('分支失败：$e');
+    }
+  }
+
   Future<void> _readMind() async {
     final session = _session;
     if (session == null || _sending) return;
@@ -651,6 +682,11 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
               )
             : null,
         actions: [
+          IconButton(
+            tooltip: '另存为分支',
+            icon: const Icon(Icons.call_split),
+            onPressed: (_sending || _messages.isEmpty) ? null : _fork,
+          ),
           IconButton(
             tooltip: '读心',
             icon: const Icon(Icons.psychology_outlined),

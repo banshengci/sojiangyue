@@ -55,6 +55,25 @@ enum CharacterParticipation {
       );
 }
 
+/// 分支时能否沿用源会话的记忆。
+///
+/// 记忆是「压到某条消息为止」的摘要。若分叉点**早于**已压范围，
+/// 新分支就会"记得"它其实还没经历过的后续——必须丢掉，让它重新累积。
+/// 返回 null 表示这条分支不该带记忆。
+String? memoryForFork({
+  required String? summary,
+  required int? upto,
+  required int? atMessageId,
+}) {
+  final text = summary?.trim() ?? '';
+  if (text.isEmpty) return null;
+  // 从头分叉（或不指定位置）：记忆覆盖的就是已发生的一切，可以沿用
+  if (atMessageId == null) return text;
+  // 不知道压到哪，无法判断，保守丢弃
+  if (upto == null) return null;
+  return upto <= atMessageId ? text : null;
+}
+
 /// 一条对话消息的发言方。
 enum CharacterChatRole {
   /// 读者。
