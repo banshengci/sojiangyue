@@ -149,6 +149,41 @@ class CharacterChatDao extends BaseDao {
       );
 
   /// 供会话列表展示「最后一句话」。
+  /// 取 id 大于 [afterId] 的消息（升序），用于增量折叠记忆。
+  ///
+  /// 记忆是"压到某条消息为止"的：`memory_upto_message_id` 记录了上次压到哪，
+  /// 下次只处理它之后的，避免把同一段对话反复压缩。
+  Future<List<CharacterChatMessage>> listMessagesAfter(
+    int sessionId, {
+    int afterId = 0,
+    int? limit,
+  }) =>
+      queryList(
+        tableMessage,
+        mapper: CharacterChatMessage.fromMap,
+        where: 'session_id = ? AND id > ?',
+        whereArgs: [sessionId, afterId],
+        orderBy: 'id ASC',
+        limit: limit,
+      );
+
+  /// 写入折叠后的记忆，以及"已压到哪条消息"。
+  Future<void> updateMemory(
+    int sessionId, {
+    required String summary,
+    required int uptoMessageId,
+  }) =>
+      update(
+        tableSession,
+        {
+          'memory_summary': summary,
+          'memory_upto_message_id': uptoMessageId,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [sessionId],
+      );
+
   Future<CharacterChatMessage?> lastMessage(int sessionId) async {
     final list = await queryList(
       tableMessage,

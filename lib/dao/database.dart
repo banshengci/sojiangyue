@@ -810,6 +810,13 @@ Future<void> ensureSchemaIntegrity(Database db) async {
       "TEXT NOT NULL DEFAULT 'spectator'",
     );
     await _ensureColumn(db, 'tb_character_chat_sessions', 'user_persona', 'TEXT');
+    await _ensureColumn(db, 'tb_character_chat_sessions', 'memory_summary', 'TEXT');
+    await _ensureColumn(
+      db,
+      'tb_character_chat_sessions',
+      'memory_upto_message_id',
+      'INTEGER',
+    );
 
     // 放在最后：本步骤包含"无损去重 + 建唯一索引"，万一失败也不该拖累上面的补列/补表。
     await _ensureFileMd5Unique(db);

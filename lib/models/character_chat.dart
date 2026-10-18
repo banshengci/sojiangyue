@@ -87,6 +87,8 @@ class CharacterChatSession {
     this.mode = CharacterChatMode.single,
     this.participation = CharacterParticipation.spectator,
     this.userPersona,
+    this.memorySummary,
+    this.memoryUptoMessageId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -110,6 +112,12 @@ class CharacterChatSession {
   ///  - 旁观时为 null
   final String? userPersona;
 
+  /// 更早对话的折叠记忆（由 CharacterChatService.refreshMemory 生成）。
+  final String? memorySummary;
+
+  /// 记忆已覆盖到哪条消息（含）；更早的消息不必再压。
+  final int? memoryUptoMessageId;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -132,6 +140,8 @@ class CharacterChatSession {
     CharacterChatMode? mode,
     CharacterParticipation? participation,
     String? userPersona,
+    String? memorySummary,
+    int? memoryUptoMessageId,
     DateTime? updatedAt,
   }) =>
       CharacterChatSession(
@@ -142,6 +152,8 @@ class CharacterChatSession {
         mode: mode ?? this.mode,
         participation: participation ?? this.participation,
         userPersona: userPersona ?? this.userPersona,
+        memorySummary: memorySummary ?? this.memorySummary,
+        memoryUptoMessageId: memoryUptoMessageId ?? this.memoryUptoMessageId,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -156,6 +168,8 @@ class CharacterChatSession {
         participation:
             CharacterParticipation.fromCode(map['participation'] as String?),
         userPersona: map['user_persona'] as String?,
+        memorySummary: map['memory_summary'] as String?,
+        memoryUptoMessageId: map['memory_upto_message_id'] as int?,
         createdAt: DateTime.tryParse(map['created_at'] as String? ?? '') ??
             DateTime.now(),
         updatedAt: DateTime.tryParse(map['updated_at'] as String? ?? '') ??
@@ -169,6 +183,8 @@ class CharacterChatSession {
         'mode': mode.code,
         'participation': participation.code,
         'user_persona': userPersona,
+        'memory_summary': memorySummary,
+        'memory_upto_message_id': memoryUptoMessageId,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };

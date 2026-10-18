@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS tb_character_chat_sessions (
   mode TEXT NOT NULL DEFAULT 'single',
   participation TEXT NOT NULL DEFAULT 'spectator',
   user_persona TEXT,
+  memory_summary TEXT,
+  memory_upto_message_id INTEGER,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 )

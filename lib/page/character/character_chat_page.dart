@@ -1,3 +1,4 @@
+import 'dart:async';
 // lib/page/character/character_chat_page.dart
 //
 // 角色对话页：与某位书中人物聊天。
@@ -350,6 +351,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       );
       await _service.touch(session.id!);
       await _applyGameplayTurn(turn);
+      // 记忆折叠：后台进行，不阻塞本次对话，失败也不影响展示
+      unawaited(_service.refreshMemory(session.id!));
       if (!mounted) return;
       setState(() {
         _messages = [
@@ -471,6 +474,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
           session.id!, session.characterName, reply);
       await _service.touch(session.id!);
       await _applyGameplayTurn(turn);
+      // 记忆折叠：后台进行，不阻塞本次对话，失败也不影响展示
+      unawaited(_service.refreshMemory(session.id!));
       if (!mounted) return;
       setState(() {
         _messages = [

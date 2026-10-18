@@ -226,3 +226,54 @@ $characterName：$firstReply
 请为这段对话起一个 6 到 12 个字的中文短标题。
 只输出标题本身，不要引号、不要解释、不要标点结尾。
 '''.trim();
+/// 记忆段落：把之前压缩过的前情注回 system prompt。
+///
+/// 起因：`maxHistoryMessages = 24`，超出窗口的消息会被**静默丢弃**，
+/// 于是长对话里角色会"忘事"——刚发生过的约定、刚说过的秘密都会蒸发。
+/// 这里把更早的对话压成一段摘要，每轮都带上，代价是几十个 token。
+String buildMemorySection(String? summary) {
+  final text = summary?.trim() ?? '';
+  if (text.isEmpty) return '';
+  return '## 你还记得（更早之前的经过）\n$text\n';
+}
+
+/// 生成「把这段对话压成记忆」的提示词。
+///
+/// 要求写成**人物视角的第一人称备忘**，而不是客观摘要：
+/// 角色复述自己的经历时，语气和立场本身也是人设的一部分。
+String buildMemorySummaryPrompt({
+  required String characterName,
+  required String previousSummary,
+  required String dialogue,
+}) {
+  final buf = StringBuffer();
+  buf.writeln('你在帮「$characterName」整理记忆。');
+  buf.writeln('把下面这段对话压缩成一段备忘，用第一人称、不超过 200 字。');
+  buf.writeln('保留：发生的事、彼此说过的关键话、态度与关系上的变化、未了的约定。');
+  buf.writeln('丢掉：寒暄、重复、与后续无关的枝节。');
+  buf.writeln();
+  if (previousSummary.trim().isNotEmpty) {
+    buf.writeln('## 已有的记忆（新备忘要接得上，不要重复它）');
+    buf.writeln(previousSummary.trim());
+    buf.writeln();
+  }
+  buf.writeln('## 这段新发生的对话');
+  buf.writeln(dialogue.trim());
+  buf.writeln();
+  buf.writeln('只输出备忘正文，不要标题、不要解释。');
+  return buf.toString();
+}
+
+/// 把消息列表拼成给摘要用的文本（说话人 + 内容）。
+String buildMemoryDialogue(
+  List<({String speaker, String content})> messages,
+) {
+  final buf = StringBuffer();
+  for (final m in messages) {
+    final who = m.speaker.trim().isEmpty ? '旁白' : m.speaker.trim();
+    final text = m.content.trim();
+    if (text.isEmpty) continue;
+    buf.writeln('$who：$text');
+  }
+  return buf.toString();
+}

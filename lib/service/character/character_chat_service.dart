@@ -124,7 +124,15 @@ class CharacterChatService {
       world: ctx.world,
     );
     final messages = <ChatMessage>[
-      ChatMessage.system(system),
+      // 更早对话的折叠记忆接在 system 末尾：
+      // 历史窗口只有 maxHistoryMessages 条，超出会被静默丢弃，
+      // 不补这段的话长对话里角色会"忘事"。
+      ChatMessage.system(
+        () {
+          final memory = buildMemorySection(session.memorySummary);
+          return memory.isEmpty ? system : '$system\n$memory';
+        }(),
+      ),
       ..._historyToMessages(history),
       ChatMessage.humanText(
         '（现在不要说出口：写下你此刻心里真正翻腾的念头。'
@@ -246,7 +254,15 @@ class CharacterChatService {
           );
 
     final messages = <ChatMessage>[
-      ChatMessage.system(system),
+      // 更早对话的折叠记忆接在 system 末尾：
+      // 历史窗口只有 maxHistoryMessages 条，超出会被静默丢弃，
+      // 不补这段的话长对话里角色会"忘事"。
+      ChatMessage.system(
+        () {
+          final memory = buildMemorySection(session.memorySummary);
+          return memory.isEmpty ? system : '$system\n$memory';
+        }(),
+      ),
       ..._historyToMessages(history),
       ChatMessage.humanText(input),
     ];
@@ -298,6 +314,71 @@ class CharacterChatService {
       buffer.write(event.output.content);
     }
     return buffer.toString().trim();
+  }
+
+  /// 待折叠消息达到这个数量才触发一次压缩（避免每轮都多烧一次调用）。
+  static const int memoryTriggerMessages = 40;
+
+  /// 每次压缩多少条（压完记下压到哪条，下次从它之后继续）。
+  static const int memoryChunkMessages = 20;
+
+  /// 把更早的对话折叠进记忆。
+  ///
+  /// 为什么需要：`maxHistoryMessages = 24`，超出窗口的消息会被直接丢弃，
+  /// 于是长对话里角色会忘记刚发生过的约定与秘密。这里把超出部分压成一段
+  /// 第一人称备忘存进会话，以后每轮都带上（见 [buildMemorySection]）。
+  ///
+  /// 设计约束：
+  /// * **失败绝不抛出**——记忆是增强，不能因为它断了对话
+  /// * 增量折叠：`memory_upto_message_id` 记录已压到哪，不重复压同一段
+  /// * 在后台跑（调用方不 await），用户不该等它
+  Future<void> refreshMemory(int sessionId) async {
+    try {
+      final model = resolveCurrentModel();
+      if (model == null) return;
+
+      final session = await characterChatDao.getSession(sessionId);
+      if (session == null) return;
+
+      final pending = await characterChatDao.listMessagesAfter(
+        sessionId,
+        afterId: session.memoryUptoMessageId ?? 0,
+      );
+      if (pending.length < memoryTriggerMessages) return;
+
+      final chunk = pending.take(memoryChunkMessages).toList();
+      final lastId = chunk.last.id;
+      if (lastId == null) return;
+
+      final dialogue = buildMemoryDialogue(
+        chunk
+            .map((m) => (speaker: m.speaker ?? '', content: m.content))
+            .toList(),
+      );
+      if (dialogue.trim().isEmpty) return;
+
+      final prompt = buildMemorySummaryPrompt(
+        characterName: session.characterName,
+        previousSummary: session.memorySummary ?? '',
+        dialogue: dialogue,
+      );
+
+      final buffer = StringBuffer();
+      await for (final event
+          in model.stream(PromptValue.chat([ChatMessage.humanText(prompt)]))) {
+        buffer.write(event.output.content);
+      }
+      final summary = buffer.toString().trim();
+      if (summary.isEmpty) return;
+
+      await characterChatDao.updateMemory(
+        sessionId,
+        summary: summary,
+        uptoMessageId: lastId,
+      );
+    } catch (e) {
+      SjLog.warning('CharacterChat: 记忆折叠失败（已忽略）: $e');
+    }
   }
 
   /// 为首轮对话自动生成标题；失败时返回 null（调用方保持原样，不打断主流程）。
