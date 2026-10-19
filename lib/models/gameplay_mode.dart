@@ -220,6 +220,9 @@ class GameplayMode {
     this.thresholds = const [],
     this.judged = false,
     this.accusation = false,
+    this.accusationLabel = '指认',
+    this.accusationSuspectLabel = '凶手是谁',
+    this.accusationMethodLabel = '手法（可以留空）',
   });
 
   final String id;
@@ -273,6 +276,15 @@ class GameplayMode {
 
   /// 是否支持「指认」：玩家提交凶手与手法，由判官对照暗牌判定。
   final bool accusation;
+
+  /// 指认动作的名字（剧本杀＝「指认」，海龟汤＝「说出真相」）。
+  final String accusationLabel;
+
+  /// 指认里第一个输入框的标题（凶手是谁 / 真相是什么）。
+  final String accusationSuspectLabel;
+
+  /// 指认里第二个输入框的标题。
+  final String accusationMethodLabel;
 
   bool get hasRuntime =>
       stats.isNotEmpty || phases.isNotEmpty || setupPrompt != null;
@@ -334,6 +346,17 @@ class GameplayMode {
           .toList(),
       judged: j['judged'] == true,
       accusation: j['accusation'] == true,
+      accusationLabel: (j['accusationLabel'] ?? '').toString().trim().isEmpty
+          ? '指认'
+          : j['accusationLabel'].toString(),
+      accusationSuspectLabel:
+          (j['accusationSuspectLabel'] ?? '').toString().trim().isEmpty
+              ? '凶手是谁'
+              : j['accusationSuspectLabel'].toString(),
+      accusationMethodLabel:
+          (j['accusationMethodLabel'] ?? '').toString().trim().isEmpty
+              ? '手法（可以留空）'
+              : j['accusationMethodLabel'].toString(),
     );
   }
 
@@ -357,5 +380,10 @@ class GameplayMode {
           'thresholds': thresholds.map((e) => e.toJson()).toList(),
         if (judged) 'judged': true,
         if (accusation) 'accusation': true,
+        if (accusationLabel != '指认') 'accusationLabel': accusationLabel,
+        if (accusationSuspectLabel != '凶手是谁')
+          'accusationSuspectLabel': accusationSuspectLabel,
+        if (accusationMethodLabel != '手法（可以留空）')
+          'accusationMethodLabel': accusationMethodLabel,
       };
 }

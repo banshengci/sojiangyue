@@ -105,6 +105,18 @@ const List<GameplayMode> kBuiltinGameplayModes = [
     secretLabel: '汤底',
     endingHint: '当玩家把真相完整说出来（关键因果都对）时，可以宣布揭晓。',
     judged: true,
+    accusation: true,
+    accusationLabel: '说出真相',
+    accusationSuspectLabel: '你猜的真相是什么',
+    accusationMethodLabel: '补充（可以留空）',
+    endings: [
+      GameplayEnding(
+        statKey: 'closeness',
+        atLeast: 100,
+        win: true,
+        text: '汤底说对了，这一碗汤总算见底。',
+      ),
+    ],
     thresholds: [
       GameplayThreshold(
         statKey: 'closeness',
@@ -223,6 +235,19 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         '4. 三个以后可以自然展开的相处契机',
     endingHint: '当好感与信任都足够高，且玩家明确表态时，可以给这段关系一个结果；'
         '若好感长期低迷，也要有自然的收场（不是惩罚，只是没成）。',
+    endings: [
+      GameplayEnding(
+        statKey: 'affection',
+        atLeast: 90,
+        win: true,
+        text: '这段关系走成了。',
+      ),
+      GameplayEnding(
+        statKey: 'affection',
+        atMost: 0,
+        text: '没成，但也没有谁欠谁。',
+      ),
+    ],
     thresholds: [
       GameplayThreshold(
         statKey: 'affection',
@@ -259,6 +284,26 @@ const List<GameplayMode> kBuiltinGameplayModes = [
     ],
     phases: ['提笔', '绕路', '写到痛处', '落款'],
     endingHint: '当坦白度足够高、信写到该收的地方（落款）时，本场结束。',
+    endings: [
+      GameplayEnding(
+        statKey: 'candor',
+        atLeast: 90,
+        win: true,
+        text: '信写到了该收的地方，落款也写完了。',
+      ),
+    ],
+    thresholds: [
+      GameplayThreshold(
+        statKey: 'candor',
+        atLeast: 40,
+        text: '笔停了很久，你绕不开了。',
+      ),
+      GameplayThreshold(
+        statKey: 'candor',
+        atLeast: 70,
+        text: '最难说的那一句已经在纸上了。',
+      ),
+    ],
   ),
 
   // ── 思辨 / 创作 ───────────────────────────────────────
@@ -334,6 +379,21 @@ const List<GameplayMode> kBuiltinGameplayModes = [
     ],
     phases: ['起疑', '试探', '觉醒', '抉择'],
     endingHint: '觉醒度足够高时，让角色做出选择：接受、反抗、或与作者谈判。',
+    endings: [
+      GameplayEnding(
+        statKey: 'awareness',
+        atLeast: 90,
+        win: true,
+        text: '他做出了选择——接受、反抗，或者跟作者谈条件。',
+      ),
+    ],
+    thresholds: [
+      GameplayThreshold(
+        statKey: 'awareness',
+        atLeast: 50,
+        text: '他已经分不清哪句话是自己想说的了。',
+      ),
+    ],
   ),
 
   // ── 趣味 ──────────────────────────────────────────────
@@ -366,6 +426,21 @@ const List<GameplayMode> kBuiltinGameplayModes = [
       '雪夜的山道，前方有火光',
     ],
     endingHint: '悬念解开时，本场结束。',
+    endings: [
+      GameplayEnding(
+        statKey: 'clue',
+        atLeast: 5,
+        win: true,
+        text: '悬念解开了：谁来过、少了什么、外面为什么这么安静，都有了答案。',
+      ),
+    ],
+    thresholds: [
+      GameplayThreshold(
+        statKey: 'clue',
+        atLeast: 2,
+        text: '有件事对不上：这里的东西，不该是这个样子。',
+      ),
+    ],
   ),
   GameplayMode(
     id: 'crossover-chat',
@@ -391,6 +466,26 @@ const List<GameplayMode> kBuiltinGameplayModes = [
       '一间不知名的茶馆，窗外街景陌生',
       '渡口的凉亭，等同一班船',
       '深山的破庙里，各自避雨',
+    ],
+    // 这一档没有输赢（本来就是坐下来聊），但场面会真的冷掉。
+    endings: [
+      GameplayEnding(
+        statKey: 'rapport',
+        atMost: 0,
+        text: '场面彻底僵了，这桌人各自散了。',
+      ),
+    ],
+    thresholds: [
+      GameplayThreshold(
+        statKey: 'rapport',
+        atLeast: 75,
+        text: '话头接上了，几个人开始主动讲自己的事。',
+      ),
+      GameplayThreshold(
+        statKey: 'rapport',
+        atMost: 25,
+        text: '没人再接话，茶凉了也没人喝。',
+      ),
     ],
   ),
 ];

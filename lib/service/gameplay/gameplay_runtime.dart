@@ -335,10 +335,7 @@ class GameplayRuntime {
     // 结局：程序按状态阈值判，不看模型脸色
     GameplayEnding? ending;
     for (final e in mode.endings) {
-      if (e.matches(stats, initial: (key) {
-        final def = mode.stats.where((d) => d.key == key).firstOrNull;
-        return def?.initial ?? 0;
-      })) {
+      if (_endingHit(e, mode, stats, memberStats)) {
         ending = e;
         break;
       }
@@ -379,8 +376,31 @@ class GameplayRuntime {
     );
   }
 
-  /// 合并两次解析结果（模型正文一轮 + 判官判定一轮）。
+  /// 结局条件是否命中。
   ///
+  /// 「按人对谁」的状态（恋爱里的好感）不能只看集体值——那种值本身恒为初始值，
+  /// 按它判结局永远不会触发。这里改成：任一人到线就算。
+  static bool _endingHit(
+    GameplayEnding ending,
+    GameplayMode mode,
+    Map<String, int> stats,
+    Map<String, Map<String, int>> memberStats,
+  ) {
+    final def = mode.stats.where((d) => d.key == ending.statKey).firstOrNull;
+    if (def != null && def.perMember) {
+      final inner = memberStats[ending.statKey] ?? const <String, int>{};
+      if (inner.isEmpty) return false;
+      return inner.values.any(
+        (v) => ending.matches({ending.statKey: v}, initial: (_) => def.initial),
+      );
+    }
+    return ending.matches(
+      stats,
+      initial: (_) => def?.initial ?? 0,
+    );
+  }
+
+  /// 合并两次解析结果（模型正文一轮 + 判官判定一轮）。  ///
   /// 判官在生成回复**之前**跑，结论要先结算进本局，但回合数只该加一次，
   /// 所以把判官的 deltas 并进模型那一轮再一起 apply。
   static GameplayTurn merge(GameplayTurn base, {Map<String, int> deltas = const {}, String? note}) {

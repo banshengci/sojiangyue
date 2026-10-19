@@ -87,6 +87,26 @@ const GameplayMode _jianghu = GameplayMode(
   secretLabel: '旧怨真相',
   secretScope: '当年的当事人与知情者（由你依据暗牌确定具体是谁）',
   endingHint: '当旧怨被当面了断（和解、清算或被清算）时，把这一局收尾。',
+  judged: true,
+  endings: [
+    GameplayEnding(
+      statKey: 'grudge',
+      atLeast: 90,
+      text: '仇怨到头，来找你的人不再讲规矩。',
+    ),
+  ],
+  thresholds: [
+    GameplayThreshold(
+      statKey: 'fame',
+      atLeast: 50,
+      text: '名号传出去了，连不相干的人都开始拿你说事。',
+    ),
+    GameplayThreshold(
+      statKey: 'grudge',
+      atLeast: 60,
+      text: '有人在打听你的行踪，而且不止一拨。',
+    ),
+  ],
 );
 
 // ── 2. 朝堂权谋 ────────────────────────────────────────────
@@ -142,6 +162,37 @@ const GameplayMode _court = GameplayMode(
   secretLabel: '密档',
   secretScope: '持有密档的人与其主使',
   endingHint: '当密档公诸于世或被彻底压下时，收尾这一局。',
+  judged: true,
+  endings: [
+    GameplayEnding(
+      statKey: 'leverage',
+      atLeast: 90,
+      text: '把柄攒够了，你成了别人手里的一把刀。',
+    ),
+    GameplayEnding(
+      statKey: 'favor',
+      atMost: 0,
+      text: '失了圣眷，这一步走塌了。',
+    ),
+    GameplayEnding(
+      statKey: 'favor',
+      atLeast: 95,
+      win: true,
+      text: '圣眷正隆，这一局你站住了。',
+    ),
+  ],
+  thresholds: [
+    GameplayThreshold(
+      statKey: 'favor',
+      atLeast: 60,
+      text: '宫里传话的人开始先问你一句了。',
+    ),
+    GameplayThreshold(
+      statKey: 'leverage',
+      atLeast: 50,
+      text: '有份东西落在了别人手里，你还不知道是谁。',
+    ),
+  ],
 );
 
 // ── 3. 末世求生 ────────────────────────────────────────────
@@ -191,6 +242,37 @@ const GameplayMode _wasteland = GameplayMode(
   ],
   phases: ['爆发', '撤离', '据点', '抉择'],
   endingHint: '当据点守住或被放弃、感染度到顶、或同伴全部离散时，收尾这一局。',
+  judged: true,
+  endings: [
+    GameplayEnding(
+      statKey: 'infection',
+      atLeast: 100,
+      text: '感染到顶，你不再站在"人"这一边。',
+    ),
+    GameplayEnding(
+      statKey: 'supply',
+      atMost: 0,
+      text: '物资见底，据点守不住了。',
+    ),
+    GameplayEnding(
+      statKey: 'supply',
+      atLeast: 95,
+      win: true,
+      text: '撑到了救援来，据点算是守住了。',
+    ),
+  ],
+  thresholds: [
+    GameplayThreshold(
+      statKey: 'supply',
+      atMost: 10,
+      text: '水只够一天了，得有人出去一趟。',
+    ),
+    GameplayThreshold(
+      statKey: 'trust',
+      atMost: 25,
+      text: '没人再跟你对眼神，话都只说半句。',
+    ),
+  ],
 );
 
 // ── 4. 修仙渡劫 ────────────────────────────────────────────
@@ -239,6 +321,32 @@ const GameplayMode _xianxia = GameplayMode(
   secretLabel: '你这一世的执念',
   secretScope: '只有你自己知道执念的全貌',
   endingHint: '当心魔被化解或彻底吞没玩家时，收尾这一局。',
+  judged: true,
+  endings: [
+    GameplayEnding(
+      statKey: 'demon',
+      atLeast: 100,
+      text: '心魔吞了你，这一世的修行到此为止。',
+    ),
+    GameplayEnding(
+      statKey: 'cultivation',
+      atLeast: 100,
+      win: true,
+      text: '劫云散了，你飞升了。',
+    ),
+  ],
+  thresholds: [
+    GameplayThreshold(
+      statKey: 'demon',
+      atLeast: 50,
+      text: '打坐时有个声音在替你说话，语气和你一模一样。',
+    ),
+    GameplayThreshold(
+      statKey: 'cultivation',
+      atLeast: 60,
+      text: '经脉通了半截，你能感觉到雷云在头顶聚。',
+    ),
+  ],
 );
 
 // ── 5. 校园青春 ────────────────────────────────────────────
@@ -281,6 +389,32 @@ const GameplayMode _campus = GameplayMode(
   ],
   phases: ['开学', '社团', '误会', '毕业'],
   endingHint: '当误会解开或彻底错过、或到了毕业那天时，收尾这一局。',
+  judged: true,
+  endings: [
+    GameplayEnding(
+      statKey: 'affection',
+      atLeast: 90,
+      win: true,
+      text: '误会解开了，你们没有错过。',
+    ),
+    GameplayEnding(
+      statKey: 'affection',
+      atMost: 0,
+      text: '到最后谁也没先开口，就这样毕业了。',
+    ),
+  ],
+  thresholds: [
+    GameplayThreshold(
+      statKey: 'affection',
+      atLeast: 70,
+      text: '对方开始主动找你了，走廊上会等你一起走。',
+    ),
+    GameplayThreshold(
+      statKey: 'reputation',
+      atMost: 20,
+      text: '走廊里的话头在你进门时断了。',
+    ),
+  ],
 );
 
 // ── 6. 商战 ────────────────────────────────────────────────
@@ -322,6 +456,32 @@ const GameplayMode _business = GameplayMode(
   ],
   phases: ['立项', '融资', '围猎', '上市'],
   endingHint: '当公司上市、被收购、或资金链断裂时，收尾这一局。',
+  judged: true,
+  endings: [
+    GameplayEnding(
+      statKey: 'capital',
+      atMost: 0,
+      text: '资金链断了，这一局到此为止。',
+    ),
+    GameplayEnding(
+      statKey: 'capital',
+      atLeast: 95,
+      win: true,
+      text: '敲钟了，你把它做成了。',
+    ),
+  ],
+  thresholds: [
+    GameplayThreshold(
+      statKey: 'capital',
+      atMost: 20,
+      text: '财务把账推过来，只说了句「下个月」。',
+    ),
+    GameplayThreshold(
+      statKey: 'reputation',
+      atMost: 25,
+      text: '对方开始绕开你谈事了。',
+    ),
+  ],
 );
 
 /// 官方玩法包（每个包一个玩法，可单独安装）。

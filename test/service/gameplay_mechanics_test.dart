@@ -4,6 +4,7 @@ import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/models/gameplay_session.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_judge.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_modes.dart';
+import 'package:songjiang_reader/service/gameplay/official_gameplay_packs.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_setup.dart';
 
@@ -299,15 +300,18 @@ void main() {
       expect(m.judged, isTrue);
     });
 
-    test('只有剧本杀有「指认」，并且指认成功算赢', () {
-      final withAccusation =
+    test('指认：剧本杀与海龟汤（后者叫「说出真相」）', () {
+      final accusing =
           kBuiltinGameplayModes.where((m) => m.accusation).toList();
-      expect(withAccusation.map((m) => m.id), ['murder-mystery']);
+      expect(accusing.map((m) => m.id), containsAll(['murder-mystery', 'haigui-soup']));
 
-      final mm = withAccusation.first;
+      final mm = kBuiltinGameplayModes.firstWhere((m) => m.id == 'murder-mystery');
       final win = mm.endings.firstWhere((e) => e.win);
       expect(win.statKey, 'suspicion');
       expect(win.atLeast, 100);
+
+      final soup = kBuiltinGameplayModes.firstWhere((m) => m.id == 'haigui-soup');
+      expect(soup.accusationLabel, '说出真相');
     });
 
     test('辩论的收局条件在两端', () {
@@ -327,7 +331,74 @@ void main() {
       final mm = kBuiltinGameplayModes.firstWhere((m) => m.id == 'murder-mystery');
       final mmBack = GameplayMode.fromJson(mm.toJson());
       expect(mmBack.accusation, isTrue);
+      expect(mmBack.accusationLabel, '指认');
       expect(mmBack.endings.first.atLeast, 100);
+    });
+  });
+
+  // 这条是给「玩法只是聊天」这个反馈兜底的：
+  // 以后新增玩法如果只写 directive，没有收局也没有门槛，这里会红。
+  group('每个玩法都不是纯提示词', () {
+    final modes = <GameplayMode>[
+      ...kBuiltinGameplayModes,
+      for (final pack in kOfficialGameplayPacks)
+        ...pack.gameplayModesJson.map(GameplayMode.fromJson),
+    ];
+
+    test('内置 + 官方包，每个都有收局或门槛', () {
+      expect(modes, isNotEmpty);
+      for (final m in modes) {
+        expect(
+          m.endings.isNotEmpty || m.thresholds.isNotEmpty,
+          isTrue,
+          reason: '「${m.name}」既没有收局条件也没有门槛事件',
+        );
+      }
+    });
+
+    test('有状态量的玩法，状态必须能影响点什么', () {
+      for (final m in modes.where((m) => m.stats.isNotEmpty)) {
+        final touched = <String>{
+          ...m.endings.map((e) => e.statKey),
+          ...m.thresholds.map((e) => e.statKey),
+        };
+        expect(
+          m.stats.any((s) => touched.contains(s.key)),
+          isTrue,
+          reason: '「${m.name}」的状态量涨跌不产生任何后果',
+        );
+      }
+    });
+
+    test('每个官方包至少有一个能赢的结局', () {
+      for (final pack in kOfficialGameplayPacks) {
+        final m = GameplayMode.fromJson(pack.gameplayModesJson.first);
+        expect(
+          m.endings.any((e) => e.win) || m.thresholds.any((e) => e.atLeast != null),
+          isTrue,
+          reason: '「${m.name}」没有可追求的目标',
+        );
+      }
+    });
+  });
+
+  group('按人记的状态也能触发结局', () {
+    test('某一个人的好感到 90 就收局（恋爱模拟）', () {
+      final dating =
+          kBuiltinGameplayModes.firstWhere((m) => m.id == 'dating-sim');
+      final s = GameplaySession(
+        chatSessionId: 1,
+        modeId: dating.id,
+        stats: {for (final d in dating.stats) d.key: d.initial},
+      );
+      final result = GameplayRuntime.apply(
+        mode: dating,
+        session: s,
+        turn: const GameplayTurn(displayText: '', deltas: {'好感|林黛玉': 80}),
+      );
+      // 初始 10 + 80 = 90 → 命中「这段关系走成了」
+      expect(result.session.ended, isTrue);
+      expect(result.ending?.win, isTrue);
     });
   });
 

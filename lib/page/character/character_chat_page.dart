@@ -373,18 +373,20 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('指认'),
+        title: Text(mode.accusationLabel),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: suspectCtrl,
-              decoration: const InputDecoration(labelText: '凶手是谁'),
+              decoration:
+                  InputDecoration(labelText: mode.accusationSuspectLabel),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: methodCtrl,
-              decoration: const InputDecoration(labelText: '手法（可以留空）'),
+              decoration:
+                  InputDecoration(labelText: mode.accusationMethodLabel),
             ),
           ],
         ),
@@ -395,7 +397,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('指认'),
+            child: Text(mode.accusationLabel),
           ),
         ],
       ),
@@ -421,11 +423,15 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
             ? '【指认】${result.feedback.isEmpty ? '你说对了。' : result.feedback}'
             : '【指认】${result.feedback.isEmpty ? '不对。' : result.feedback}',
       );
-      // 对：逼近真相拉满，交给收局条件判胜负；错：退一步，还有机会
+      // 说对了：把「胜负分」直接推到赢的阈值，交给收局条件判；
+      // 说错了：退一步，还有机会。胜负分取这一档玩法里那条赢的结局。
+      final winEnding = mode.endings.where((e) => e.win).firstOrNull;
+      final verdictStat = winEnding?.statKey ?? 'suspicion';
+      final winTarget = winEnding?.atLeast ?? 100;
       await _applyGameplayTurn(
         GameplayTurn(
           displayText: '',
-          deltas: {'suspicion': result.correct ? 100 : -15},
+          deltas: {verdictStat: result.correct ? winTarget : -15},
           note: result.correct ? '指认正确：$suspect' : '指认错误：$suspect',
         ),
       );
@@ -1861,7 +1867,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                   enabled: !_sending &&
                       _gameplay != null &&
                       !(_gameplay?.ended ?? false),
-                  child: const Text('指认凶手…'),
+                  child: Text('${widget.gameplayMode?.accusationLabel ?? '指认'}…'),
                 ),
               if (widget.gameplayMode?.setupPrompt != null)
                 const PopupMenuItem<String>(
