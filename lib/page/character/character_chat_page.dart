@@ -995,6 +995,52 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     );
   }
 
+  /// 「我的位置」的图标：旁观＝看着，扮演＝戴面具，入场＝推门进去。
+  IconData _participationIcon(CharacterParticipation? participation) =>
+      switch (participation) {
+        CharacterParticipation.roleplay => Icons.theater_comedy_outlined,
+        CharacterParticipation.join => Icons.login_outlined,
+        _ => Icons.visibility_outlined,
+      };
+
+  /// 标题右边那枚「我现在是谁」的胶囊：常驻可见，点一下换姿态。
+  Widget _participationChip(CharacterChatSession session, SjColors c) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _changeParticipation,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: c.inkSoft.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _participationIcon(session.participation),
+              size: 12,
+              color: c.inkSoft,
+            ),
+            const SizedBox(width: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 96),
+              child: Text(
+                participationLabel(
+                  session.participation,
+                  session.userPersona,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SjText.meta(c.inkSoft),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 中途改姿态：这一局你是旁观、扮演谁、还是以自己的身份入场。
   ///
   /// 姿态原先只能在开局时定，改主意就得重开一局。它本质上是"我在场上的位置"，
@@ -1403,38 +1449,38 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     final c = SjColors.of(context);
     final session = _session;
     final title = widget.titleOverride ??
-        session?.characterName ??
+        session?.displayTitle ??
         widget.characterName ??
         CharactersPageText.chatTitle;
 
     return Scaffold(
       appBar: AppBar(
+        // 标题栏只留两行：标题；下面一行是「我现在是谁」的胶囊 + 书名。
+        // 姿态原先埋在一行 12px 小字里，被 6 个动作按钮一挤就没了。
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title),
-            if (widget.bookTitle != null)
-              Text(
-                widget.bookTitle!,
-                style: SjText.meta(c.inkSoft),
-              ),
-            if (_session != null)
-              GestureDetector(
-                onTap: _changeParticipation,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      participationLabel(
-                        _session!.participation,
-                        _session!.userPersona,
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (session != null || widget.bookTitle != null)
+              Row(
+                children: [
+                  if (session != null) _participationChip(session, c),
+                  if (session != null && widget.bookTitle != null)
+                    const SizedBox(width: 8),
+                  if (widget.bookTitle != null)
+                    Flexible(
+                      child: Text(
+                        widget.bookTitle!,
+                        style: SjText.meta(c.inkSoft),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      style: SjText.meta(c.inkSoft),
                     ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.edit_outlined, size: 12, color: c.inkSoft),
-                  ],
-                ),
+                ],
               ),
           ],
         ),
@@ -1444,36 +1490,58 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                 child: _buildGameplayBar(c),
               )
             : null,
+        // 动作按钮从 6 个收到 2 个（读心 + 更多）。
+        //
+        // 原先 6 个按钮（6×48dp）把 360dp 宽屏幕剩下的十几 dp 全给了标题，
+        // 标题和「旁观 / 扮演 / 入场」那行被挤成 0 宽——等于没有入口，
+        // 用户只能去猜哪个图标是切换身份（图里都以为是那个分叉）。
         actions: [
-          IconButton(
-            tooltip: '分支（回到主线 / 切换）',
-            icon: const Icon(Icons.alt_route),
-            onPressed: _openBranches,
-          ),
-          IconButton(
-            tooltip: '本会话增强规则',
-            icon: const Icon(Icons.tune, size: 20),
-            onPressed: _openSessionEnhancers,
-          ),
-          IconButton(
-            tooltip: '引入临时角色',
-            icon: const Icon(Icons.person_add_alt_1, size: 20),
-            onPressed: _addTemporaryNpc,
-          ),
-          IconButton(
-            tooltip: '另存为分支',
-            icon: const Icon(Icons.call_split),
-            onPressed: (_sending || _messages.isEmpty) ? null : _fork,
-          ),
           IconButton(
             tooltip: '读心',
             icon: const Icon(Icons.psychology_outlined),
             onPressed: (_sending || _messages.isEmpty) ? null : _readMind,
           ),
-          IconButton(
-            tooltip: CharactersPageText.chatClear,
-            icon: const Icon(Icons.delete_sweep_outlined),
-            onPressed: _messages.isEmpty ? null : _clear,
+          PopupMenuButton<String>(
+            tooltip: '更多',
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              switch (value) {
+                case 'branches':
+                  await _openBranches();
+                case 'fork':
+                  await _fork();
+                case 'enhancers':
+                  await _openSessionEnhancers();
+                case 'npc':
+                  await _addTemporaryNpc();
+                case 'clear':
+                  await _clear();
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem<String>(
+                value: 'branches',
+                child: Text('分支…'),
+              ),
+              PopupMenuItem<String>(
+                value: 'fork',
+                enabled: !_sending && _messages.isNotEmpty,
+                child: const Text('另存为分支'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'enhancers',
+                child: Text('本会话增强规则'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'npc',
+                child: Text('引入临时角色'),
+              ),
+              PopupMenuItem<String>(
+                value: 'clear',
+                enabled: _messages.isNotEmpty,
+                child: const Text(CharactersPageText.chatClear),
+              ),
+            ],
           ),
         ],
       ),

@@ -146,17 +146,20 @@ class CharacterChatSession {
   final DateTime updatedAt;
 
   /// 展示名：没有标题时回退为人物名。
-  String get displayTitle =>
-      (title == null || title!.trim().isEmpty)
-          ? characterName
-          : title!.trim();
+  ///
+  /// 群聊会话的 `characterName` 是 `bookId:姓名,...` 的内部编码，
+  /// 直接当标题用会显示成「1:姬动,1:烈焰,…」，而且长得把标题栏撑爆。
+  String get displayTitle {
+    final t = title?.trim() ?? '';
+    if (t.isNotEmpty) return t;
+    final names = onStageNames(characterName);
+    if (names.isEmpty) return characterName.trim();
+    if (names.length <= 3) return names.join('、');
+    return '${names.take(3).join('、')} 等 ${names.length} 人';
+  }
 
-  /// 群聊 / 单人：按逗号拆分姓名。
-  List<String> get characterNames => characterName
-      .split(RegExp(r'[,，]'))
-      .map((e) => e.trim())
-      .where((e) => e.isNotEmpty)
-      .toList();
+  /// 群聊 / 单人：按逗号拆分姓名（剥掉 `bookId:` 前缀）。
+  List<String> get characterNames => onStageNames(characterName);
 
   CharacterChatSession copyWith({
     int? id,

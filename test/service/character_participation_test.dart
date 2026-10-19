@@ -125,6 +125,43 @@ void main() {
       expect(CharacterParticipation.fromCode('???'),
           CharacterParticipation.spectator);
     });
+
+    test('没标题时用可读名单，不把 bookId 编码当标题', () {
+      // 标题栏、会话列表、分支选择器都用 displayTitle；
+      // 群聊直接回退成 characterName 会显示「1:姬动,1:烈焰,…」。
+      final group = CharacterChatSession(
+        bookId: 1,
+        characterName: '1:姬动,1:烈焰,1:黑暗天机',
+        mode: CharacterChatMode.group,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+      expect(group.displayTitle, '姬动、烈焰、黑暗天机');
+      expect(group.characterNames, ['姬动', '烈焰', '黑暗天机']);
+    });
+
+    test('人多时标题收成「前三位 等 N 人」', () {
+      final big = CharacterChatSession(
+        bookId: 1,
+        characterName: '1:姬动,1:烈焰,1:黑暗天机,1:弗瑞,1:李永昊',
+        mode: CharacterChatMode.group,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+      expect(big.displayTitle, '姬动、烈焰、黑暗天机 等 5 人');
+    });
+
+    test('有标题就用标题', () {
+      final s = CharacterChatSession(
+        bookId: 1,
+        characterName: '1:姬动,1:烈焰',
+        mode: CharacterChatMode.group,
+        title: '圣邪岛之约',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+      expect(s.displayTitle, '圣邪岛之约');
+    });
   });
 
   group('participationLabel（会话页显示用）', () {
