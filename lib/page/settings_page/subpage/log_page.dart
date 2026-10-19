@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/utils/save_file_to_download.dart';
@@ -54,6 +54,20 @@ class _LogPageState extends State<LogPage> {
     );
   }
 
+  /// 弹出菜单里的一行：图标 + 文案。
+  ///
+  /// 不用 ListTile 是有原因的——PopupMenuItem 自带带底色的 DecoratedBox，
+  /// 套 ListTile 会盖住水波纹，debug 下每次打开菜单都报一条断言。
+  Widget _menuRow({required IconData icon, required String label}) {
+    return Row(
+      children: <Widget>[
+        Icon(icon, size: 20),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label)),
+      ],
+    );
+  }
+
   void showMoreAction(BuildContext context) {
     showMenu(
       context: context,
@@ -64,31 +78,35 @@ class _LogPageState extends State<LogPage> {
         0.0,
       ),
       items: [
-        PopupMenuItem(
-          child: ListTile(
-            leading: const Icon(Icons.delete),
-            title: Text(L10n.of(context).settingsAdvancedLogClearLog),
-            onTap: () => clearLog(),
+        // 不要在 PopupMenuItem 里套 ListTile：PopupMenuItem 内部是带底色的
+        // DecoratedBox，ListTile 的水波纹会被盖住，debug 下每次打开菜单都会报
+        // 「ListTile background color or ink splashes may be invisible」。
+        PopupMenuItem<VoidCallback>(
+          value: clearLog,
+          onTap: clearLog,
+          child: _menuRow(
+            icon: Icons.delete,
+            label: L10n.of(context).settingsAdvancedLogClearLog,
           ),
         ),
-        PopupMenuItem(
-            child: ListTile(
-          leading: const Icon(Icons.file_upload_outlined),
-          title: Text(L10n.of(context).settingsAdvancedLogExportLog),
-          onTap: () => exportLog(),
-        ))
+        PopupMenuItem<VoidCallback>(
+          value: exportLog,
+          onTap: exportLog,
+          child: _menuRow(
+            icon: Icons.file_upload_outlined,
+            label: L10n.of(context).settingsAdvancedLogExportLog,
+          ),
+        ),
       ],
     );
   }
 
   Future<void> clearLog() async {
-    Navigator.pop(context);
     SjLog.clear();
     initData();
   }
 
   Future<void> exportLog() async {
-    Navigator.pop(context);
     File logFile = await getLogFile();
     // SaveFileDialogParams params = SaveFileDialogParams(
     //   sourceFilePath: logFile.path,
