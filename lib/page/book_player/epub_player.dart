@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -178,6 +178,14 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
         backgroundColor: '#$bc',
         fontColor: '#$tc',
       })
+      // 把整页（含视口里没有正文的空白区）也铺成纸色。
+      // WebView 是透明平台视图，页面没有绘制到的地方在部分机型上会露成黑块——
+      // 阅读页底部那条黑边就是这么来的。
+      document.documentElement.style.backgroundColor = '#$bc';
+      if (document.body) {
+        document.body.style.backgroundColor = '#$bc';
+        document.body.style.minHeight = '100vh';
+      }
       ''');
   }
 

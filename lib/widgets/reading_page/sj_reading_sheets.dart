@@ -206,7 +206,11 @@ class _SjNotesSheetState extends State<SjNotesSheet> {
           widget.onBookDetail();
         },
         onSeeAllNotes: _openAllNotes,
-        child: BookNotesList(book: widget.book, reading: true),
+        // 必须给滚动容器：BookNotesList 里的吸顶头需要 Scrollable 祖先，
+        // 面板本身是 Column，直接塞进去会让 StickyHeader 抛异常（表现为整页红屏）。
+        child: SingleChildScrollView(
+          child: BookNotesList(book: widget.book, reading: true),
+        ),
       ),
     );
   }

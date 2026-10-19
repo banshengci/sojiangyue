@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/config/bgimg_prefs.dart';
@@ -443,8 +443,9 @@ class _BgimgSelectorState extends ConsumerState<BgimgSelector> {
       child: Column(
         children: [
           _buildBgimgFitSelector(context),
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.5,
+          // 用 Expanded 而不是「屏幕高的一半」：这个选择器嵌在阅读面板里，
+          // 面板高度受顶栏/底栏挤压，写死半屏会溢出（实测 1.9px 黄黑条）。
+          Expanded(
             child: ListView.builder(
               itemCount: bgimgList.length + 1,
               itemBuilder: (context, index) {

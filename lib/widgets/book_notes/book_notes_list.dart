@@ -16,7 +16,7 @@ import 'package:songjiang_reader/widgets/tips/notes_tips.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:sticky_headers/sticky_headers.dart';
+import 'package:songjiang_reader/widgets/common/sj_sticky_header.dart';
 
 class BookNotesList extends ConsumerWidget {
   const BookNotesList({
@@ -51,7 +51,7 @@ class BookNotesList extends ConsumerWidget {
       BuildContext context, WidgetRef ref, BookNotesState state) {
     return Column(
       children: [
-        StickyHeader(
+        SjStickyHeader(
           header: _header(context, ref, state),
           content: state.visibleNotes.isEmpty
               ? const Column(
