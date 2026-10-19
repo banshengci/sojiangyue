@@ -1,4 +1,4 @@
-﻿{
+{
   "@@locale": "zh_TW",
   "appName": "松江閱",
   "appAbout": "關於 松江閱",
@@ -160,6 +160,10 @@
   "readingPageReadingInfoBatteryAndTime": "電量與時間",
   "readingPageReadingInfoChapterProgress": "章節進度",
   "readingPageReadingInfoBookProgress": "書籍進度",
+  "readingPageReadingInfoBookName": "書名",
+  "readingPageReadingInfoPage": "頁碼",
+  "readingPageReadingInfoTimeBattery": "時間+電量",
+  "readingPageReadingInfoTimeBatteryPercent": "時間+電量%",
   "bookshelfDragging": "放開即可匯入",
   "bookshelfSort": "排序",
   "bookshelfTitle": "書名",

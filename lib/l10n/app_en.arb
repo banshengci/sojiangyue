@@ -1,4 +1,4 @@
-﻿{
+{
   "@@locale": "en",
   "appName": "SongJiang Reader",
   "appAbout": "About SongJiang Reader",
@@ -111,6 +111,8 @@
   "noAnimation": "No Animation",
   "slide": "Slide",
   "scroll": "Scroll",
+  "pageTurnCover": "Cover",
+  "pageTurnSimulation": "Page Flip",
   "bookDeleted": "Book deleted",
   "importNBooksSelected": "{count, plural, one{1 book selected} other{{count} books selected}}",
   "importSupportTypes": "Support types: {types}",
@@ -160,6 +162,10 @@
   "readingPageReadingInfoBatteryAndTime": "Battery and Time",
   "readingPageReadingInfoChapterProgress": "Chapter Progress",
   "readingPageReadingInfoBookProgress": "Book Progress",
+  "readingPageReadingInfoBookName": "Book Title",
+  "readingPageReadingInfoPage": "Page",
+  "readingPageReadingInfoTimeBattery": "Time + Battery",
+  "readingPageReadingInfoTimeBatteryPercent": "Time + Battery %",
   "bookshelfDragging": "Release to import",
   "bookshelfSort": "Sort",
   "bookshelfTitle": "Title",

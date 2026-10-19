@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
+import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/config/bgimg_prefs.dart';
 import 'package:songjiang_reader/config/theme_prefs.dart';
 import 'package:songjiang_reader/models/book_style.dart';
+import 'package:songjiang_reader/models/reading_info.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
 import 'package:songjiang_reader/service/book_player/book_player_server.dart';
 import 'package:songjiang_reader/utils/js/convert_dart_color_to_js.dart';
@@ -71,6 +73,10 @@ String generateUrl(
   //   bionicReadingMode: ${ReadingStylePrefs.readingRules.bionicReading},
   // }
 
+  // 页眉 / 页脚是 Flutter 侧浮在 WebView 上面的，引擎并不知道它们存在，
+  // 所以必须在这里替它把上下边距撑开，否则第一行字会被压住。
+  final readingInfo = Prefs().readingInfo;
+
   Map<String, dynamic> style = {
     'fontSize': bookStyle.fontSize,
     'fontName': fontName,
@@ -83,9 +89,11 @@ String generateUrl(
     'fontColor': '#$textColor',
     'backgroundColor': '#$backgroundColor',
     'topMargin': bookStyle.topMargin +
-        (safeTop > 0 ? safeTop + (safeTop >= 47 ? 12 : 8) : 0),
+        (safeTop > 0 ? safeTop + (safeTop >= 47 ? 12 : 8) : 0) +
+        readingInfo.reservedTop,
     'bottomMargin': bookStyle.bottomMargin +
-        (safeBottom > 0 ? safeBottom + (safeBottom >= 20 ? 10 : 6) : 0),
+        (safeBottom > 0 ? safeBottom + (safeBottom >= 20 ? 10 : 6) : 0) +
+        readingInfo.reservedBottom,
     'sideMargin': bookStyle.sideMargin,
     'justify': true,
     'hyphenate': false,
@@ -99,8 +107,11 @@ String generateUrl(
     'bgimgOpacity': BgimgPrefs.bgimg.opacity,
     'bgimgFit': BgimgPrefs.fit.code,
     'allowScript': ReadingUiPrefs.enableJsForEpub,
-    'customCSS': ReadingUiPrefs.customCss,
-    'customCSSEnabled': ReadingUiPrefs.customCssEnabled,
+    'customCSS': [ReadingUiPrefs.customCss, ReadingStylePrefs.headingCss]
+        .where((s) => s.trim().isNotEmpty)
+        .join('\n'),
+    'customCSSEnabled': ReadingUiPrefs.customCssEnabled ||
+        ReadingStylePrefs.headingCss.isNotEmpty,
     'useBookStyles': ReadingStylePrefs.useBookStyles,
     'headingFontSize': bookStyle.headingFontSize,
     'codeHighlightTheme': ReadingUiPrefs.codeHighlightTheme.code,

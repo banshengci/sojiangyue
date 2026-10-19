@@ -141,4 +141,30 @@ class ReadingStylePrefs {
   static set customPageTurnConfig(List<int> config) {
     _require.setString(customPageTurnConfigKey, config.join(','));
   }
+  // ---- 正文标题（章标题）的对齐与显隐 ----
+  //
+  // 引擎只暴露一个全局 textAlign，改它会连正文一起变——所以要单独做：
+  // 把标题规则拼成一小段 CSS 交给 customCSS 通道注入，正文不受影响。
+
+  static const String headingAlignKey = 'headingAlign';
+
+  /// inherit（跟书走）/ left / center / hide。
+  static String get headingAlign =>
+      _require.getString(headingAlignKey) ?? 'inherit';
+
+  static set headingAlign(String v) => _require.setString(headingAlignKey, v);
+
+  /// 由 [headingAlign] 生成的标题 CSS；inherit 时返回空串。
+  static String get headingCss {
+    switch (headingAlign) {
+      case 'left':
+        return 'h1, h2, h3, h4, .title, .chapter-title { text-align: left !important; }';
+      case 'center':
+        return 'h1, h2, h3, h4, .title, .chapter-title { text-align: center !important; }';
+      case 'hide':
+        return 'h1, h2, h3, h4, .title, .chapter-title { display: none !important; }';
+      default:
+        return '';
+    }
+  }
 }

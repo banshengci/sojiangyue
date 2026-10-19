@@ -1703,6 +1703,14 @@ const setStyle = (oldStyle) => {
       turn.scroll = false
       turn.animated = false
       break
+    case 'cover':
+    case 'simulation':
+      // 覆盖 / 仿真：引擎自己只能滚动画布，做不出两页同场的层次，
+      // 真正的过渡由 Flutter 侧接管（见 epub_player.dart 的 _turnPage）。
+      // 这里保持「分页 + 动画」，作为截图不可用时的兜底。
+      turn.scroll = false
+      turn.animated = true
+      break
   }
 
   reader.view.renderer.setAttribute('flow', turn.scroll ? 'scrolled' : 'paginated')

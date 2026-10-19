@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
@@ -24,6 +25,7 @@ import 'package:songjiang_reader/models/bookmark.dart';
 import 'package:songjiang_reader/models/font_model.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
 import 'package:songjiang_reader/models/reading_rules.dart';
+import 'package:songjiang_reader/models/reading_info.dart';
 import 'package:songjiang_reader/models/search_result_model.dart';
 import 'package:songjiang_reader/models/toc_item.dart';
 import 'package:songjiang_reader/page/book_player/image_viewer.dart';
@@ -114,6 +116,20 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   bool _selectionClearLocked = false;
   bool _selectionClearPending = false;
 
+  // 覆盖 / 仿真两档需要 Flutter 参与：
+  //
+  // 引擎那边整本书是**一张连续的画布**，翻页就是把画布横向滚一格，
+  // 没有「两页同时在场」的图层，所以「旧页停住、新页压上来」这件事
+  // 它做不到。这里的做法是：翻页前抓一张旧页的截图盖在最上面，
+  // 让引擎瞬间翻到新页，再把截图演走——用户看到的就是真正的覆盖/翻页。
+  //
+  // 抓不到截图时（桌面端没实现、视图还没画出来）直接退回引擎动画，
+  // 不能因为动画把翻页本身弄坏。
+  AnimationController? _turnController;
+  Uint8List? _turnShot;
+  bool _turnForward = true;
+  bool _turnBusy = false;
+
   // Scroll wheel debounce
   Timer? _scrollDebounceTimer;
   double _accumulatedScrollDelta = 0;
@@ -124,11 +140,93 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       ModalRoute.of(context)?.isCurrent ?? false;
 
   void prevPage() {
-    webViewController.evaluateJavascript(source: 'prevPage()');
+    _turnPage(forward: false);
   }
 
   void nextPage() {
-    webViewController.evaluateJavascript(source: 'nextPage()');
+    _turnPage(forward: true);
+  }
+
+  /// 翻一页。覆盖 / 仿真走 Flutter 过渡，其余三档交给引擎。
+  Future<void> _turnPage({required bool forward}) async {
+    final js = forward ? 'nextPage()' : 'prevPage()';
+    final mode = ReadingStylePrefs.pageTurnStyle;
+    // 抓图到动画结束之间不接受第二次翻页：连点两下会叠两层过渡。
+    if (!mode.isFlutterDriven || _turnBusy) {
+      await webViewController.evaluateJavascript(source: js);
+      return;
+    }
+
+    // 1) 先抓旧页。抓不到就老老实实用引擎自己的动画。
+    Uint8List? shot;
+    _turnBusy = true;
+    try {
+      shot = await webViewController.takeScreenshot();
+    } catch (_) {
+      shot = null;
+    }
+    if (shot == null || !mounted) {
+      _turnBusy = false;
+      await webViewController.evaluateJavascript(source: js);
+      return;
+    }
+
+    // 2) 盖上去：这一帧的像素和当前页一致，用户看不出发生了什么。
+    setState(() {
+      _turnShot = shot;
+      _turnForward = forward;
+    });
+
+    // 3) 让引擎「瞬间」翻页：临时摘掉 animated，翻完再装回去。
+    await webViewController.evaluateJavascript(source: '''
+      (function () {
+        var r = globalThis.reader && reader.view && reader.view.renderer;
+        var had = r ? r.hasAttribute('animated') : false;
+        if (had) r.removeAttribute('animated');
+        $js;
+        setTimeout(function () { if (had) r.setAttribute('animated', 'true'); }, 150);
+      })();
+    ''');
+
+    if (!mounted) return;
+
+    // 4) 截图演走，露出下面已经翻好的新页。
+    final controller = _turnController;
+    if (controller == null) {
+      _turnBusy = false;
+      setState(() => _turnShot = null);
+      return;
+    }
+    await controller.forward(from: 0);
+    _turnBusy = false;
+    if (!mounted) return;
+    setState(() => _turnShot = null);
+  }
+
+  /// 翻页过渡的一帧。[child] 是翻页前的截图。
+  Widget _turnFrame(BuildContext context, Widget child) {
+    final controller = _turnController;
+    if (controller == null) return child;
+    final t = Curves.easeOutCubic.transform(controller.value.clamp(0.0, 1.0));
+
+    if (ReadingStylePrefs.pageTurnStyle == PageTurn.simulation) {
+      // 仿真：旧页像一张纸一样绕书脊转走，带一点透视。
+      final angle = (_turnForward ? -1 : 1) * (math.pi / 2) * t;
+      return Transform(
+        alignment: _turnForward ? Alignment.centerLeft : Alignment.centerRight,
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.0012)
+          ..rotateY(angle),
+        child: child,
+      );
+    }
+
+    // 覆盖：旧页整体滑出屏幕，新页在下面露出来。
+    final width = MediaQuery.sizeOf(context).width;
+    return Transform.translate(
+      offset: Offset((_turnForward ? -1 : 1) * width * t, 0),
+      child: child,
+    );
   }
 
   void prevChapter() {
@@ -212,8 +310,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
         spacing: ${style.lineHeight},
         fontWeight: ${style.fontWeight},
         paragraphSpacing: ${style.paragraphSpacing},
-        topMargin: ${style.topMargin + insets.top},
-        bottomMargin: ${style.bottomMargin + insets.bottom},
+        topMargin: ${style.topMargin + insets.top + Prefs().readingInfo.reservedTop},
+        bottomMargin: ${style.bottomMargin + insets.bottom + Prefs().readingInfo.reservedBottom},
         sideMargin: ${style.sideMargin},
         letterSpacing: ${style.letterSpacing},
         textIndent: ${style.indent},
@@ -225,8 +323,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
         bgimgBlur: ${BgimgPrefs.bgimg.blur},
         bgimgOpacity: ${BgimgPrefs.bgimg.opacity},
         bgimgFit: '${BgimgPrefs.fit.code}',
-        customCSS: `${ReadingUiPrefs.customCss.replaceAll('`', '\\`')}`,
-        customCSSEnabled: ${ReadingUiPrefs.customCssEnabled},
+        customCSS: `${[ReadingUiPrefs.customCss, ReadingStylePrefs.headingCss].where((s) => s.trim().isNotEmpty).join(' ').replaceAll('`', '\\`')}`,
+        customCSSEnabled: ${ReadingUiPrefs.customCssEnabled || ReadingStylePrefs.headingCss.isNotEmpty},
         useBookStyles: ${ReadingStylePrefs.useBookStyles},
         headingFontSize: ${style.headingFontSize},
         codeHighlightTheme: '${ReadingUiPrefs.codeHighlightTheme.code}',
@@ -1015,6 +1113,10 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
         _animationController!.forward();
       });
     }
+    _turnController = AnimationController(
+      duration: const Duration(milliseconds: 260),
+      vsync: this,
+    );
     super.initState();
   }
 
@@ -1038,6 +1140,7 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   void dispose() {
     _scrollDebounceTimer?.cancel();
     _animationController?.dispose();
+    _turnController?.dispose();
     saveReadingProgress();
     removeOverlay();
     super.dispose();
@@ -1166,6 +1269,18 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       final bookProgressWidget =
           Text('${(percentage * 100).toStringAsFixed(2)}%', style: textStyle);
 
+      final bookNameWidget = Text(widget.book.title, style: textStyle);
+
+      // 只显示页码本身：窄格子里「3/12」常常被截断，只留数字更稳。
+      final pageWidget = Text('$chapterCurrentPage', style: textStyle);
+
+      final batteryPercentWidget = FutureBuilder(
+          future: Battery().batteryLevel,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const SizedBox();
+            return Text('${snapshot.data}%', style: textStyle);
+          });
+
       final timeWidget = MinuteClock(textStyle: textStyle);
 
       final batteryWidget = FutureBuilder(
@@ -1201,7 +1316,34 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
             ],
           );
 
+      // 「时间+电量」与「时间+电量%」的区别只在电量画成图标还是数字。
+      Widget timeAndBatteryWidget() => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              timeWidget,
+              const SizedBox(width: 5),
+              batteryWidget,
+            ],
+          );
+
+      Widget timeAndBatteryPercentWidget() => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              timeWidget,
+              const SizedBox(width: 5),
+              batteryPercentWidget,
+            ],
+          );
+
       switch (readingInfoEnum) {
+        case ReadingInfoEnum.bookName:
+          return bookNameWidget;
+        case ReadingInfoEnum.page:
+          return pageWidget;
+        case ReadingInfoEnum.timeBattery:
+          return timeAndBatteryWidget();
+        case ReadingInfoEnum.timeBatteryPercent:
+          return timeAndBatteryPercentWidget();
         case ReadingInfoEnum.chapterTitle:
           return chapterTitleWidget;
         case ReadingInfoEnum.chapterProgress:
@@ -1252,8 +1394,28 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
             right: readingInfo.header.rightMargin,
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: headerWidgets,
+            // 三格各自对齐，中间那格才是真的居中——
+            // 原来用 spaceBetween，只开「中」时它会贴在左边，看起来像设错了。
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: headerWidgets[0],
+                ),
+              ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.center,
+                  child: headerWidgets[1],
+                ),
+              ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: headerWidgets[2],
+                ),
+              ),
+            ],
           ),
         ),
         const Spacer(),
@@ -1264,8 +1426,26 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
             right: readingInfo.footer.rightMargin,
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: footerWidgets,
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: footerWidgets[0],
+                ),
+              ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.center,
+                  child: footerWidgets[1],
+                ),
+              ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: footerWidgets[2],
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -1330,6 +1510,21 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
         body: Stack(
           children: [
             buildWebviewWithIOSWorkaround(context, url, initialCfi),
+            // 覆盖 / 仿真的过渡层：翻页前那一页的截图，演完即撤。
+            if (_turnShot != null && _turnController != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _turnController!,
+                    builder: (context, child) => _turnFrame(context, child!),
+                    child: Image.memory(
+                      _turnShot!,
+                      fit: BoxFit.fill,
+                      gaplessPlayback: true,
+                    ),
+                  ),
+                ),
+              ),
             readingInfoWidget(),
             if (showHistory) _buildHistoryCapsule(),
             if (BookshelfPrefs.openBookAnimation)

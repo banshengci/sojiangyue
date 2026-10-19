@@ -1,6 +1,12 @@
 {
   "ar": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -75,6 +81,12 @@
 
   "de": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -149,6 +161,12 @@
 
   "es": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -223,6 +241,12 @@
 
   "fr": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -297,6 +321,12 @@
 
   "it": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -371,6 +401,12 @@
 
   "ja": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -445,6 +481,12 @@
 
   "ko": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -519,6 +561,12 @@
 
   "pt": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -593,6 +641,12 @@
 
   "ro": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -667,6 +721,12 @@
 
   "ru": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -741,6 +801,12 @@
 
   "tr": [
     "navBarGameplay",
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -872,7 +938,18 @@
     "batchSelectBook"
   ],
 
+  "zh_CN": [
+    "pageTurnCover",
+    "pageTurnSimulation"
+  ],
+
   "zh_LZH": [
+    "pageTurnCover",
+    "pageTurnSimulation",
+    "readingPageReadingInfoBookName",
+    "readingPageReadingInfoPage",
+    "readingPageReadingInfoTimeBattery",
+    "readingPageReadingInfoTimeBatteryPercent",
     "settingsAiProviderReasoningEffort",
     "settingsAiProviderReasoningEffortHelp",
     "settingsAiProviderReasoningEffortAuto",
@@ -943,5 +1020,10 @@
     "batchCoverApplied",
     "batchNoTags",
     "batchSelectBook"
+  ],
+
+  "zh_TW": [
+    "pageTurnCover",
+    "pageTurnSimulation"
   ]
 }
