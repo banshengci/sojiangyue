@@ -110,6 +110,57 @@ class GameplayStatDef {
       };
 }
 
+/// 结局条件。
+///
+/// 由**程序**判定，而不是模型在状态块里写一句 `"ended": true`——
+/// 后者等于让演员自己宣布散场，玩家永远赢不了也输不了。
+class GameplayEnding {
+  const GameplayEnding({
+    required this.statKey,
+    this.atLeast,
+    this.atMost,
+    this.win = false,
+    required this.text,
+  });
+
+  final String statKey;
+
+  /// 达到这个值及以上就触发。
+  final int? atLeast;
+
+  /// 降到这个值及以下就触发。
+  final int? atMost;
+
+  /// 这是不是「赢」的结局。
+  final bool win;
+
+  /// 收局时给玩家看的一句话。
+  final String text;
+
+  bool matches(Map<String, int> stats, {required int Function(String) initial}) {
+    final value = stats[statKey] ?? initial(statKey);
+    if (atLeast != null && value >= atLeast!) return true;
+    if (atMost != null && value <= atMost!) return true;
+    return false;
+  }
+
+  factory GameplayEnding.fromJson(Map<String, dynamic> j) => GameplayEnding(
+        statKey: (j['statKey'] ?? '').toString(),
+        atLeast: (j['atLeast'] as num?)?.toInt(),
+        atMost: (j['atMost'] as num?)?.toInt(),
+        win: j['win'] == true,
+        text: (j['text'] ?? '').toString(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'statKey': statKey,
+        if (atLeast != null) 'atLeast': atLeast,
+        if (atMost != null) 'atMost': atMost,
+        if (win) 'win': true,
+        'text': text,
+      };
+}
+
 /// 一场玩法。
 class GameplayMode {
   const GameplayMode({
@@ -126,6 +177,7 @@ class GameplayMode {
     this.endingHint,
     this.secretLabel,
     this.secretScope,
+    this.endings = const [],
   });
 
   final String id;
@@ -165,6 +217,11 @@ class GameplayMode {
 
   /// 结局判定说明（何时算结束、怎么算赢）。
   final String? endingHint;
+
+  /// 由程序判定的收局条件（状态量到阈值就结束）。
+  ///
+  /// 比 [endingHint] 硬：那条只是写给模型看的建议，模型可以永远不认账。
+  final List<GameplayEnding> endings;
 
   bool get hasRuntime =>
       stats.isNotEmpty || phases.isNotEmpty || setupPrompt != null;
@@ -214,6 +271,11 @@ class GameplayMode {
       endingHint: (j['endingHint'] as String?)?.trim().isEmpty ?? true
           ? null
           : j['endingHint'] as String?,
+      endings: ((j['endings'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => GameplayEnding.fromJson(e.cast<String, dynamic>()))
+          .where((e) => e.statKey.isNotEmpty)
+          .toList(),
     );
   }
 
@@ -231,5 +293,7 @@ class GameplayMode {
         if (secretLabel != null) 'secretLabel': secretLabel,
         if (secretScope != null) 'secretScope': secretScope,
         if (endingHint != null) 'endingHint': endingHint,
+        if (endings.isNotEmpty)
+          'endings': endings.map((e) => e.toJson()).toList(),
       };
 }

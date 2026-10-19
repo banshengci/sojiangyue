@@ -45,7 +45,7 @@ void main() {
         displayText: '',
         deltas: {'好感|林黛玉': 5},
       ),
-    );
+    ).session;
     expect(next.memberStats['affection']?['林黛玉'], 15); // 初始 10 + 5
     expect(next.stats['affection'], 10, reason: '集体值不该被改');
     expect(next.memberStats['affection']?['贾宝玉'], isNull);
@@ -56,12 +56,12 @@ void main() {
       mode: dating,
       session: fresh(),
       turn: const GameplayTurn(displayText: '', deltas: {'好感|林黛玉': 5}),
-    );
+    ).session;
     s = GameplayRuntime.apply(
       mode: dating,
       session: s,
       turn: const GameplayTurn(displayText: '', deltas: {'好感|贾宝玉': 12}),
-    );
+    ).session;
     expect(s.memberStats['affection']?['林黛玉'], 15);
     expect(s.memberStats['affection']?['贾宝玉'], 22);
   });
@@ -71,7 +71,7 @@ void main() {
       mode: dating,
       session: fresh(),
       turn: const GameplayTurn(displayText: '', deltas: {'好感|林黛玉': 999}),
-    );
+    ).session;
     expect(next.memberStats['affection']?['林黛玉'], dating.stats
         .firstWhere((d) => d.key == 'affection')
         .max);
@@ -82,7 +82,7 @@ void main() {
       mode: dating,
       session: fresh(),
       turn: const GameplayTurn(displayText: '', deltas: {'好感|王熙凤': -5}),
-    );
+    ).session;
     expect(next.memberStats['affection']?['王熙凤'], 5);
   });
 
@@ -91,7 +91,7 @@ void main() {
       mode: dating,
       session: fresh(),
       turn: const GameplayTurn(displayText: '', deltas: {'好感': 7}),
-    );
+    ).session;
     expect(next.stats['affection'], 17);
     expect(next.memberStats['affection'], isNull);
   });

@@ -14,6 +14,7 @@ import 'package:songjiang_reader/dao/gameplay_dao.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/models/gameplay_session.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
+import 'package:songjiang_reader/service/gameplay/gameplay_setup.dart';
 import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
 import 'package:songjiang_reader/service/character/character_chat_service.dart';
@@ -275,8 +276,12 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
   /// 揭晓暗牌（对局后的复盘）。
   Future<void> _revealSecret() async {
-    final secret = _gameplay?.secret;
-    if (secret == null || secret.isEmpty) return;
+    final raw = _gameplay?.secret;
+    if (raw == null || raw.isEmpty) return;
+    // 开局设定现在分三段，这里只该给玩家看「暗牌」那段，
+    // 否则会把【公开】【规则】的标记一起甩到脸上。
+    final setup = GameplaySetup.parse(raw);
+    final secret = setup.secret.isNotEmpty ? setup.secret : raw;
     await showDialog<void>(
       context: context,
       builder: (ctx) {
@@ -301,19 +306,131 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     setState(() {});
   }
 
+  /// 本场规则：公开信息 + 玩家必须遵守的硬规则（暗牌只在已揭晓时出现）。
+  ///
+  /// 这一屏是「玩法」和「普通聊天」的分界线：规则怪谈的乐趣全在于
+  /// 玩家拿着规则去试探，规则不在玩家手里，玩法就只剩氛围描写。
+  Future<void> _showRules() async {
+    final raw = _gameplay?.secret;
+    if (raw == null || raw.trim().isEmpty) return;
+    final setup = GameplaySetup.parse(raw);
+    final revealed = _gameplay?.revealed ?? false;
+    final c = SjColors.of(context);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${widget.gameplayMode?.name ?? '本场'} · 规则',
+                style: SjText.cardTitle(c.ink),
+              ),
+              if (setup.publicBrief.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(setup.publicBrief, style: SjText.body(c.ink)),
+              ],
+              if (setup.rules.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                Text('必须遵守', style: SjText.meta(c.inkSoft)),
+                const SizedBox(height: 6),
+                for (var i = 0; i < setup.rules.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${i + 1}. ',
+                            style: SjText.meta(c.inkSoft)),
+                        Expanded(
+                          child: Text(
+                            setup.rules[i],
+                            style: SjText.body(c.ink),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+              if (revealed && setup.secret.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                Text(
+                  widget.gameplayMode?.secretLabel ?? '真相',
+                  style: SjText.meta(c.inkSoft),
+                ),
+                const SizedBox(height: 6),
+                Text(setup.secret, style: SjText.body(c.ink)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 玩法对回复格式的硬约束。
+  ///
+  /// 海龟汤的全部难度在于「只能回答是 / 否 / 与此无关」——模型只要多解释一句，
+  /// 玩家就不用猜了，这一局也就废了。所以这里不靠提示词自律，直接切。
+  String _enforceGameplayReply(String text) {
+    if (widget.gameplayMode?.id != 'haigui-soup') return text;
+    return parseYesNo(text) ?? text;
+  }
+
   /// 结算本回合：把状态变化累加进本局。
+  ///
+  /// 结局由运行时按状态阈值判定（不是模型说了算）；真收局了就补一条旁白，
+  /// 并顺手把暗牌揭开——不然玩家只看到「结束了」，却不知道自己错过了什么。
   Future<void> _applyGameplayTurn(GameplayTurn turn) async {
     final mode = widget.gameplayMode;
     final session = _gameplay;
     if (mode == null || session == null) return;
-    if (!turn.hasChanges && !turn.ended && turn.note == null) return;
-    _gameplay = GameplayRuntime.apply(
+    if (!turn.hasChanges &&
+        !turn.ended &&
+        !turn.advancePhase &&
+        turn.note == null) {
+      return;
+    }
+    final result = GameplayRuntime.apply(
       mode: mode,
       session: session,
       turn: turn,
     );
+    _gameplay = result.session;
     await gameplayDao.save(_gameplay!);
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+
+    final ending = result.ending;
+    if (ending == null) return;
+    if (!_gameplay!.revealed) {
+      _gameplay = _gameplay!.copyWith(revealed: true);
+      await gameplayDao.save(_gameplay!);
+    }
+    await characterChatDao.appendMessage(
+      sessionId: _gameplay!.chatSessionId,
+      role: CharacterChatRole.narrator,
+      content: '【本局结束】${ending.text}',
+    );
+    if (!mounted) return;
+    setState(() {
+      _messages = [
+        ..._messages,
+        CharacterChatMessage(
+          sessionId: _gameplay!.chatSessionId,
+          role: CharacterChatRole.narrator,
+          content: '【本局结束】${ending.text}',
+          createdAt: DateTime.now(),
+        ),
+      ];
+    });
+    _scrollToEnd();
   }
 
   Future<void> _generateGreeting() async {
@@ -426,7 +543,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
       // 从原始文本里解析状态块，正文用于展示与落库
       final turn = GameplayRuntime.parse(_streamingRaw);
-      final reply = turn.displayText;
+      final reply = _enforceGameplayReply(turn.displayText);
       if (reply.isEmpty) {
         throw StateError('模型没有返回内容');
       }
@@ -823,7 +940,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
       // 从原始文本里解析状态块，正文用于展示与落库
       final turn = GameplayRuntime.parse(_streamingRaw);
-      final reply = turn.displayText;
+      final reply = _enforceGameplayReply(turn.displayText);
       if (reply.isEmpty) throw StateError('模型没有返回内容');
       final spoken = _speakerOf(session, reply);
       final id = await _service.saveCharacterMessage(
@@ -1615,6 +1732,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     final phase = mode.phases.isEmpty
         ? null
         : mode.phases[state.phaseIndex.clamp(0, mode.phases.length - 1)];
+    final rules = GameplaySetup.parse(state.secret).rules;
 
     return Container(
       height: 32,
@@ -1642,6 +1760,22 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
               const SizedBox(width: 10),
               Text('第 ${state.phaseIndex + 1}/${mode.phases.length} 幕 · $phase',
                   style: SjText.meta(c.inkSoft)),
+            ],
+            // 规则一直摆在玩家手边：这是玩法能不能玩起来的关键。
+            if (rules.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: _showRules,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.rule_outlined, size: 12, color: c.pine),
+                    const SizedBox(width: 3),
+                    Text('规则 ${rules.length} 条',
+                        style: SjText.meta(c.pine)),
+                  ],
+                ),
+              ),
             ],
             for (final def in mode.stats) ...[
               const SizedBox(width: 12),
