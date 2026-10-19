@@ -11,16 +11,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
-import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/dao/book_note.dart';
 import 'package:songjiang_reader/dao/reading_time.dart';
 import 'package:songjiang_reader/design/songjiang/reader/sj_reader_controls.dart';
 import 'package:songjiang_reader/design/songjiang/reader/sj_reader_panels.dart';
+import 'package:songjiang_reader/design/songjiang/reader/sj_style_panel.dart';
 import 'package:songjiang_reader/design/songjiang/reader/sj_reader_tokens.dart';
-import 'package:songjiang_reader/l10n/generated/L10n.dart';
 import 'package:songjiang_reader/models/book.dart';
-import 'package:songjiang_reader/models/book_style.dart';
 import 'package:songjiang_reader/models/read_theme.dart';
 import 'package:songjiang_reader/page/book_notes_page.dart';
 import 'package:songjiang_reader/page/book_player/epub_player.dart';
@@ -28,7 +26,6 @@ import 'package:songjiang_reader/service/notes/export_notes.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/book_notes/book_notes_list.dart';
 import 'package:songjiang_reader/widgets/bookshelf/book_cover.dart';
-import 'package:songjiang_reader/widgets/reading_page/style_widget.dart';
 import 'package:songjiang_reader/widgets/reading_page/toc_widget.dart';
 
 // ---------------------------------------------------------------------------
@@ -434,118 +431,18 @@ class SjTypographySheet extends StatefulWidget {
 }
 
 class _SjTypographySheetState extends State<SjTypographySheet> {
-  /// 边距档位对应的左右留白。
-  static const List<double> _margins = <double>[4, 12, 20];
-
-  /// 行距档位。
-  static const List<double> _lineHeights = <double>[1.5, 1.8, 2.1];
-
-  /// foliate 的 fontSize 是 em 倍数，1em ≈ 16px。
-  static const double _emToPx = 16;
-
-  late final BookStyle _style = ReadingStylePrefs.bookStyle;
-
-  void _apply() {
-    widget.epubPlayerKey.currentState?.changeStyle(_style);
-    ReadingStylePrefs.saveBookStyle(_style);
-    setState(() {});
-  }
-
-  int get _marginIndex {
-    var best = 0;
-    for (var i = 0; i < _margins.length; i++) {
-      if ((_margins[i] - _style.sideMargin).abs() <
-          (_margins[best] - _style.sideMargin).abs()) {
-        best = i;
-      }
-    }
-    return best;
-  }
-
-  int get _lineHeightIndex {
-    var best = 0;
-    for (var i = 0; i < _lineHeights.length; i++) {
-      if ((_lineHeights[i] - _style.lineHeight).abs() <
-          (_lineHeights[best] - _style.lineHeight).abs()) {
-        best = i;
-      }
-    }
-    return best;
-  }
-
-  Future<void> _pickPageTurn() async {
-    final labels = <PageTurn, String>{
-      PageTurn.noAnimation: L10n.of(context).noAnimation,
-      PageTurn.slide: L10n.of(context).slide,
-      PageTurn.scroll: L10n.of(context).scroll,
-    };
-    final current = ReadingStylePrefs.pageTurnStyle;
-    final picked = await showModalBottomSheet<PageTurn>(
-      context: context,
-      backgroundColor: widget.palette.surface,
-      builder: (BuildContext context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            for (final entry in labels.entries)
-              ListTile(
-                title: Text(
-                  entry.value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: entry.key == current
-                        ? widget.palette.accent
-                        : widget.palette.foreground,
-                  ),
-                ),
-                trailing: entry.key == current
-                    ? Icon(Icons.check_rounded,
-                        size: 18, color: widget.palette.accent)
-                    : null,
-                onTap: () => Navigator.pop(context, entry.key),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (picked == null) return;
-    ReadingStylePrefs.pageTurnStyle = picked;
-    widget.epubPlayerKey.currentState?.changePageTurnStyle(picked);
-    setState(() {});
-  }
-
   @override
   Widget build(BuildContext context) {
+    // 一级排页面板：直接就是完整面板（字重 / 四行滑块 / 翻页 / 底色），
+    // 不再需要「再点一次更多设置」才能改字距、段距。
     return SjReaderSheet(
       palette: widget.palette,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: SjTypographyPanel(
+      child: SjStylePanel(
         palette: widget.palette,
-        fontSize: (_style.fontSize * _emToPx).clamp(12.0, 30.0),
-        marginIndex: _marginIndex,
-        lineHeightIndex: _lineHeightIndex,
-        onMore: widget.onOpenMoreSettings,
-        moreLabel: '更多设置',
-        onFontSize: (double px) {
-          _style.fontSize = px / _emToPx;
-          _apply();
-        },
-        onFontSizeEnd: () => ReadingStylePrefs.saveBookStyle(_style),
-        onMargin: (int index) {
-          _style.sideMargin = _margins[index];
-          _apply();
-        },
-        onLineHeight: (int index) {
-          _style.lineHeight = _lineHeights[index];
-          _apply();
-        },
-        onFontFamily: widget.onOpenMoreSettings,
-        onIndent: () {
-          _style.indent = _style.indent > 0 ? 0 : 2;
-          _apply();
-          SjToast.show(_style.indent > 0 ? '已开启首行缩进' : '已关闭首行缩进');
-        },
-        onPageTurn: _pickPageTurn,
+        epubPlayerKey: widget.epubPlayerKey,
+        onOpenBgImage: widget.onOpenMoreSettings,
+        onOpenFonts: widget.onOpenMoreSettings,
       ),
     );
   }
