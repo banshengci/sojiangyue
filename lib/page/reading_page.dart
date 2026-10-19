@@ -803,6 +803,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
           palette: palette,
           epubPlayerKey: epubPlayerKey,
           onOpenMoreSettings: styleHandler,
+          // 面板里的纸张圆点改了主题，调色板得跟着重建。
+          onThemeChanged: () => setState(() {}),
         );
       case null:
         return null;

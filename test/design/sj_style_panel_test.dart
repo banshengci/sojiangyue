@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
@@ -24,6 +25,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await ReadingStylePrefs.ensureInitialized();
     await ReadingUiPrefs.ensureInitialized();
+    await AppMiscPrefs.ensureInitialized();
     await Prefs().initPrefs();
   });
 
@@ -127,5 +129,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ReadingStylePrefs.pageTurnStyle.name, 'simulation');
+  });
+
+  testWidgets('点纸张圆点真的会换主题', (tester) async {
+    // 这排圆点曾经是个空动作（`x = x`），点了没反应也不报错。
+    await pumpPanel(tester);
+
+    final paper = SjReaderPaper.presets[1];
+    await tester.tap(find.byKey(ValueKey<String>('sj-paper-${paper.id}')));
+    await tester.pumpAndSettle();
+
+    final saved = AppMiscPrefs.readTheme;
+    expect(saved.backgroundColor, hasLength(8));
+    // 存的是 8 位 ARGB，取后 6 位比颜色就够（不受 alpha 影响）。
+    expect(
+      saved.backgroundColor.substring(2).toUpperCase(),
+      paper.background.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase(),
+    );
   });
 }

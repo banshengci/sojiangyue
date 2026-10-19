@@ -418,6 +418,7 @@ class SjTypographySheet extends StatefulWidget {
     required this.palette,
     required this.epubPlayerKey,
     required this.onOpenMoreSettings,
+    this.onThemeChanged,
   });
 
   final SjReaderPalette palette;
@@ -425,6 +426,9 @@ class SjTypographySheet extends StatefulWidget {
 
   /// 打开完整排版设置（既有 StyleWidget）。
   final VoidCallback onOpenMoreSettings;
+
+  /// 面板里换了纸张后通知上层（调色板要重建）。
+  final VoidCallback? onThemeChanged;
 
   @override
   State<SjTypographySheet> createState() => _SjTypographySheetState();
@@ -443,6 +447,7 @@ class _SjTypographySheetState extends State<SjTypographySheet> {
         epubPlayerKey: widget.epubPlayerKey,
         onOpenBgImage: widget.onOpenMoreSettings,
         onOpenFonts: widget.onOpenMoreSettings,
+        onThemeChanged: widget.onThemeChanged,
       ),
     );
   }

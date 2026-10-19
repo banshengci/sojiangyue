@@ -10,13 +10,14 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/reading_style_prefs.dart';
-import 'package:songjiang_reader/config/reading_ui_prefs.dart';
 import 'package:songjiang_reader/config/shared_preference_provider.dart';
 import 'package:songjiang_reader/design/songjiang/reader/sj_reader_tokens.dart';
 import 'package:songjiang_reader/enums/page_turn.dart';
 import 'package:songjiang_reader/enums/reading_info.dart';
 import 'package:songjiang_reader/models/book_style.dart';
+import 'package:songjiang_reader/models/read_theme.dart';
 import 'package:songjiang_reader/models/reading_info.dart';
 import 'package:songjiang_reader/page/book_player/epub_player.dart';
 
@@ -28,12 +29,16 @@ class SjStylePanel extends StatefulWidget {
     required this.epubPlayerKey,
     this.onOpenBgImage,
     this.onOpenFonts,
+    this.onThemeChanged,
   });
 
   final SjReaderPalette palette;
   final GlobalKey<EpubPlayerState> epubPlayerKey;
   final VoidCallback? onOpenBgImage;
   final VoidCallback? onOpenFonts;
+
+  /// 换纸张后通知上层重建（调色板要跟着变）。
+  final VoidCallback? onThemeChanged;
 
   @override
   State<SjStylePanel> createState() => _SjStylePanelState();
@@ -112,6 +117,34 @@ class _SjStylePanelState extends State<SjStylePanel> {
           child: Text(label, style: const TextStyle(fontSize: 13)),
         ),
       );
+
+  /// 换纸张（底色 + 字色）。
+  ///
+  /// 之前这里是个空动作（`x = x`），点了没反应；实际要走主题那条路：
+  /// 存进 AppMiscPrefs + 通知 WebView 换色 + 让上层重建调色板。
+  Future<void> _applyPaper(SjReaderPaper paper) async {
+    final theme = ReadTheme(
+      name: paper.label,
+      backgroundColor: _hex(paper.background),
+      textColor: _hex(paper.foreground),
+      backgroundImagePath: '',
+    );
+    AppMiscPrefs.saveReadTheme(theme);
+    widget.epubPlayerKey.currentState?.changeTheme(theme);
+    widget.onThemeChanged?.call();
+    if (mounted) setState(() {});
+  }
+
+  /// Color → 主题表里存的 8 位 ARGB 字符串。
+  String _hex(Color color) =>
+      color.toARGB32().toRadixString(16).toUpperCase().padLeft(8, '0');
+
+  /// 当前纸张的底色，用来给选中的那个圆点描边。
+  Color get _currentPaperColor {
+    final hex = AppMiscPrefs.readTheme.backgroundColor;
+    final value = int.tryParse('0x$hex');
+    return value == null ? widget.palette.background : Color(value);
+  }
 
   /// 翻页动画的一档。
   Widget _turnChip(PageTurn turn) {
@@ -395,18 +428,25 @@ class _SjStylePanelState extends State<SjStylePanel> {
                 Padding(
                   padding: const EdgeInsets.only(right: 10),
                   child: GestureDetector(
-                    onTap: () {
-                      ReadingUiPrefs.readerBrightness =
-                          ReadingUiPrefs.readerBrightness;
-                      setState(() {});
-                    },
+                    key: ValueKey<String>('sj-paper-${paper.id}'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _applyPaper(paper),
                     child: Container(
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
                         color: paper.background,
                         shape: BoxShape.circle,
-                        border: Border.all(color: palette.divider),
+                        border: Border.all(
+                          color: paper.background.toARGB32() ==
+                                  _currentPaperColor.toARGB32()
+                              ? palette.accent
+                              : palette.divider,
+                          width: paper.background.toARGB32() ==
+                                  _currentPaperColor.toARGB32()
+                              ? 2
+                              : 1,
+                        ),
                       ),
                     ),
                   ),
