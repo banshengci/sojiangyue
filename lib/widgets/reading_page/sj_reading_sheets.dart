@@ -12,8 +12,7 @@ import 'package:flutter/material.dart';
 
 import 'package:songjiang_reader/config/app_misc_prefs.dart';
 import 'package:songjiang_reader/config/reading_ui_prefs.dart';
-import 'package:songjiang_reader/dao/book_note.dart';
-import 'package:songjiang_reader/dao/reading_time.dart';
+import 'package:songjiang_reader/service/reading/reading_history_service.dart';
 import 'package:songjiang_reader/design/songjiang/reader/sj_reader_controls.dart';
 import 'package:songjiang_reader/design/songjiang/reader/sj_reader_panels.dart';
 import 'package:songjiang_reader/design/songjiang/reader/sj_style_panel.dart';
@@ -104,7 +103,7 @@ class _SjNotesSheetState extends State<SjNotesSheet> {
   Future<void> _loadReadingTime() async {
     try {
       final seconds =
-          await readingTimeDao.selectTotalReadingTimeByBookId(widget.book.id);
+          await totalReadingSecondsOf(widget.book.id);
       if (!mounted) return;
       setState(() {
         _readingTimeText = _formatDuration(seconds);
@@ -130,7 +129,7 @@ class _SjNotesSheetState extends State<SjNotesSheet> {
   }
 
   Future<void> _export() async {
-    final notes = await bookNoteDao.selectBookNotesByBookId(widget.book.id);
+    final notes = await bookNotesOf(widget.book.id);
     if (!mounted) return;
     if (notes.isEmpty) {
       SjToast.show('本书还没有笔记可以导出');
@@ -258,9 +257,9 @@ class _SjProgressSheetState extends State<SjProgressSheet> {
 
   Future<void> _loadStats() async {
     try {
-      final notes = await bookNoteDao.selectBookNotesByBookId(widget.book.id);
+      final notes = await bookNotesOf(widget.book.id);
       final seconds =
-          await readingTimeDao.selectTotalReadingTimeByBookId(widget.book.id);
+          await totalReadingSecondsOf(widget.book.id);
       if (!mounted) return;
       setState(() {
         _noteCount = notes.length;
