@@ -69,5 +69,63 @@ void main() {
       expect(r.speaker, '林黛玉');
       expect(r.text, '');
     });
+
+    test('台词被引号包着也能认出说话人（正文保留引号）', () {
+      // 实测里模型很爱这样写：「弗瑞：……」。以前认不出，
+      // 整段就落到"第一个在场者"头上，群聊里满屏张冠李戴。
+      final r = splitSpokenLine('「弗瑞：黑暗天机，三日内你的大军撤出去。」', const [
+        '姬动',
+        '弗瑞',
+      ]);
+      expect(r.speaker, '弗瑞');
+      expect(r.text, '「黑暗天机，三日内你的大军撤出去。」');
+    });
+
+    test('几种常见引号都认', () {
+      for (final open in ['「', '『', '“', '"']) {
+        final close = switch (open) {
+          '「' => '」',
+          '『' => '』',
+          '“' => '”',
+          _ => '"',
+        };
+        final r = splitSpokenLine('$open姬动：你说什么？$close', const ['姬动']);
+        expect(r.speaker, '姬动', reason: '开引号 $open 没认出来');
+        expect(r.text, '$open你说什么？$close');
+      }
+    });
+
+    test('引号里不是在场者的名字，仍然不猜', () {
+      final r = splitSpokenLine('「王熙凤：都散了吧。」', names);
+      expect(r.speaker, '');
+      expect(r.text, '「王熙凤：都散了吧。」');
+    });
+  });
+
+  group('旁白要显示的名字', () {
+    test('群聊不把内部编码印出来', () {
+      const raw = '1:姬动,1:烈焰,1:黑暗天机';
+      // 读心这类块：一个具体的"谁"
+      expect(displayCharacterName(raw), '姬动');
+      // 提示词/列表这类地方：整份名单，用顿号
+      expect(displayCastNames(raw), '姬动、烈焰、黑暗天机');
+    });
+
+    test('有主人物时优先用主人物名', () {
+      expect(
+        displayCharacterName('1:姬动,1:烈焰', primary: '烈焰'),
+        '烈焰',
+      );
+    });
+
+    test('单人会话原样返回', () {
+      expect(displayCharacterName('林黛玉'), '林黛玉');
+      expect(displayCastNames('林黛玉'), '林黛玉');
+    });
+
+    test('空串不炸', () {
+      expect(displayCharacterName(''), '');
+      expect(displayCastNames(''), '');
+    });
   });
 }

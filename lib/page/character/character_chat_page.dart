@@ -1271,14 +1271,17 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     }
     setState(() => _sending = true);
     try {
-      final text = await _service.readMind(
+      final mind = await _service.readMind(
         session: session,
         history: _messages,
       );
+      // 标签由 service 给：群聊的 characterName 是内部编码，
+      // 这里自己拼会印出「（1:姬动,1:烈焰,... 心里）」。
+      final content = '（${mind.name} 心里）${mind.text}';
       final id = await characterChatDao.appendMessage(
         sessionId: session.id!,
         role: CharacterChatRole.narrator,
-        content: '（${session.characterName} 心里）$text',
+        content: content,
       );
       if (!mounted) return;
       setState(() {
@@ -1288,7 +1291,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
             id: id,
             sessionId: session.id!,
             role: CharacterChatRole.narrator,
-            content: '（${session.characterName} 心里）$text',
+            content: content,
             createdAt: DateTime.now(),
           ),
         ];

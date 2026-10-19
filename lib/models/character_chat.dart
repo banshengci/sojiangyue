@@ -294,23 +294,81 @@ List<String> onStageNames(String characterName) => characterName
 ///
 /// 只在回复**以在场某个名字开头**时才认；认不出来就返回空 speaker，
 /// 由调用方回退——猜错说话人比不猜更糟，会把台词安到别人头上。
+///
+/// 「开头」允许被一层引号包着：模型很爱把整句台词写成
+/// `「弗瑞：黑暗天机，三日内……」`，直接按字符串开头匹配会认不出，
+/// 于是整段落到"第一个在场者"头上（群聊里就是满屏张冠李戴）。
+/// 跳过开引号再认一次，但正文里仍保留那对引号——这是它的文体，不是噪音。
 ({String speaker, String text}) splitSpokenLine(
   String reply,
   List<String> onStage,
 ) {
   final trimmed = reply.trim();
+  final direct = _matchSpeakerPrefix(trimmed, onStage);
+  if (direct != null) return direct;
+
+  final quote = _leadingQuote(trimmed);
+  if (quote.isNotEmpty) {
+    final hit = _matchSpeakerPrefix(trimmed.substring(quote.length), onStage);
+    if (hit != null) {
+      return (
+        speaker: hit.speaker,
+        text: quote + hit.text,
+      );
+    }
+  }
+  return (speaker: '', text: trimmed);
+}
+
+/// 开头若是开引号，返回它；否则空串。
+String _leadingQuote(String text) {
+  const opens = ['「', '『', '“', '‘', '"', '（', '《'];
+  for (final q in opens) {
+    if (text.startsWith(q)) return q;
+  }
+  return '';
+}
+
+/// `名字 + 冒号` 开头时拆开；否则返回 null。
+({String speaker, String text})? _matchSpeakerPrefix(
+  String text,
+  List<String> onStage,
+) {
   for (final name in onStage) {
     for (final sep in const [':', '：']) {
       final prefix = '$name$sep';
-      if (trimmed.startsWith(prefix)) {
+      if (text.startsWith(prefix)) {
         return (
           speaker: name,
-          text: trimmed.substring(prefix.length).trim(),
+          text: text.substring(prefix.length).trim(),
         );
       }
     }
   }
-  return (speaker: '', text: trimmed);
+  return null;
+}
+
+/// 旁白/读心这类块要显示的「这是谁」。
+///
+/// 群聊会话的 `characterName` 是 `bookId:姓名,...` 的内部编码，
+/// 直接印到界面上就是 `（1:姬动,1:烈焰,... 心里）`。优先用主人物名，
+/// 没有主人物时退回在场第一位——总比露出一串编码强。
+String displayCharacterName(String characterName, {String? primary}) {
+  final p = (primary ?? '').trim();
+  if (p.isNotEmpty) return p;
+  final names = onStageNames(characterName);
+  if (names.isNotEmpty) return names.first;
+  return characterName.trim();
+}
+
+/// 给提示词用的在场名单：「姬动、烈焰、黑暗天机」。
+///
+/// 提示词里塞 `1:姬动,1:烈焰` 会让模型跟着学这个格式，
+/// 有时它就把 `1:` 原样写进正文。
+String displayCastNames(String characterName) {
+  final names = onStageNames(characterName);
+  if (names.isEmpty) return characterName.trim();
+  return names.join('、');
 }
 /// 跨书成员引用格式：`bookId:人物名`，多个以逗号分隔。
 ///

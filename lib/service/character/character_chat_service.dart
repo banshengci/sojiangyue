@@ -109,7 +109,9 @@ class CharacterChatService {
     ].join('\n');
 
     final prompt = buildReviewPrompt(
-      characterName: last.speaker ?? card?.name ?? session.characterName,
+      characterName: last.speaker ??
+          card?.name ??
+          displayCastNames(session.characterName),
       replies: last.content,
       personaSummary: persona,
     );
@@ -174,7 +176,11 @@ class CharacterChatService {
   ///
   /// 与正常回复共用同一份人物设定，但指令要求它写内心活动而非台词，
   /// 结果以旁白（narrator）落库，既不给角色看，也不进后续上下文。
-  Future<String> readMind({
+  ///
+  /// 返回里带上「这是谁的心里话」：群聊会话的 `characterName` 是
+  /// `bookId:姓名,...` 的内部编码，由界面自己拼标签就会印出
+  /// `（1:姬动,1:烈焰,... 心里）`——所以标签统一在这里定。
+  Future<({String name, String text})> readMind({
     required CharacterChatSession session,
     required List<CharacterChatMessage> history,
   }) async {
@@ -232,7 +238,10 @@ class CharacterChatService {
         text.replaceAll(RegExp(r'[（）()\s]'), '') == '无') {
       throw CharacterChatException('TA 此刻没有特别在想什么。');
     }
-    return text;
+    return (
+      name: displayCharacterName(session.characterName, primary: ctx.main?.name),
+      text: text,
+    );
   }
 
   /// 历史消息 → langchain 消息（跳过旁白）。
@@ -321,7 +330,7 @@ class CharacterChatService {
     final ctx = await _buildContext(session, extraDirective: extraDirective);
     if (ctx.main == null && session.mode == CharacterChatMode.single) {
       throw CharacterChatException(
-          '没有找到「${session.characterName}」的人物数据，请先对全书做一次人物蒸馏。');
+          '没有找到「${displayCastNames(session.characterName)}」的人物数据，请先对全书做一次人物蒸馏。');
     }
 
     final system = session.mode == CharacterChatMode.group
@@ -466,7 +475,7 @@ class CharacterChatService {
       if (dialogue.trim().isEmpty) return;
 
       final prompt = buildMemorySummaryPrompt(
-        characterName: session.characterName,
+        characterName: displayCastNames(session.characterName),
         previousSummary: session.memorySummary ?? '',
         dialogue: dialogue,
       );
@@ -499,7 +508,7 @@ class CharacterChatService {
     if (model == null) return null;
     try {
       final prompt = buildTitlePrompt(
-        characterName: session.characterName,
+        characterName: displayCastNames(session.characterName),
         firstUserMessage: firstUserMessage,
         firstReply: firstReply,
       );

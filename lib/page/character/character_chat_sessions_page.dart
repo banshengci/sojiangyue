@@ -358,8 +358,12 @@ class _CharacterChatSessionsPageState
                                 : CircleAvatar(
                                     backgroundColor: c.frost,
                                     child: Text(
+                                      // 群聊的 characterName 是 `1:姬动,...` 编码，
+                                      // 直接取第一个字符会显示成「1」。
                                       s.characterName.isNotEmpty
-                                          ? s.characterName[0]
+                                          ? displayCharacterName(
+                                              s.characterName,
+                                            )[0]
                                           : '?',
                                       style: TextStyle(color: c.ink),
                                     ),
@@ -371,7 +375,7 @@ class _CharacterChatSessionsPageState
                               overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Text(
-                              '${s.parentSessionId != null ? '分支 · ' : ''}${last?.content ?? s.characterName}',
+                              '${s.parentSessionId != null ? '分支 · ' : ''}${last?.content ?? displayCastNames(s.characterName)}',
                               style: SjText.meta(c.inkSoft),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
