@@ -112,6 +112,26 @@ class GameplayRuntime {
       buf.writeln();
     }
 
+    // 已跨过的门槛：让模型知道关系/局势已经变了，别再按开局演。
+    final unlocked = <String>[];
+    for (var i = 0; i < mode.thresholds.length; i++) {
+      if (session.stats['@t$i'] == 1) unlocked.add(mode.thresholds[i].text);
+    }
+    if (unlocked.isNotEmpty) {
+      buf.writeln('## 已经发生的转折（不可撤回，后续按这个演）');
+      for (final t in unlocked) {
+        buf.writeln('- $t');
+      }
+      buf.writeln();
+    }
+
+    if (mode.judged) {
+      buf.writeln('## 判定说明');
+      buf.writeln('玩家有没有违规，由独立的判官系统判定，结论会直接结算；'
+          '你**不要**在状态块里写「违规」「识破」这类判定结果，只管把后果演出来。');
+      buf.writeln();
+    }
+
     final secret = session.secret;
     if (secret != null && secret.trim().isNotEmpty) {
       buf.writeln('## 暗牌（只有你知道，绝对不能直接说出来）');
@@ -229,10 +249,15 @@ class GameplayRuntime {
 
   /// 把本回合的变化结算进会话状态并推进。
   ///
-  /// 返回结算后的会话，以及**由程序判定**的结局（如果这一回合撞上了结局条件）。
+  /// 返回结算后的会话、**由程序判定**的结局（如果这一回合撞上了结局条件），
+  /// 以及这一回合新触发的门槛事件旁白。
   /// 结局一定要在这里定：模型在状态块里写 `"ended": true` 只是建议，
   /// 它可以一直不写，玩家就永远赢不了也输不了。
-  static ({GameplaySession session, GameplayEnding? ending}) apply({
+  static ({
+    GameplaySession session,
+    GameplayEnding? ending,
+    List<String> events,
+  }) apply({
     required GameplayMode mode,
     required GameplaySession session,
     required GameplayTurn turn,
@@ -288,6 +313,25 @@ class GameplayRuntime {
       phase = phase.clamp(0, mode.phases.length - 1);
     }
 
+    // 门槛事件：跨线就补一段旁白，并把「已解锁」记在 stats 的 @t 标记里，
+    // 这样下一轮的设定能让模型知道关系/局势已经变了。
+    final events = <String>[];
+    for (var i = 0; i < mode.thresholds.length; i++) {
+      final t = mode.thresholds[i];
+      if (stats['@t$i'] == 1) continue;
+      var hit = false;
+      final def = mode.stats.where((d) => d.key == t.statKey).firstOrNull;
+      if (def != null && def.perMember) {
+        final inner = memberStats[t.statKey] ?? const <String, int>{};
+        hit = inner.values.any(t.crossed);
+      } else {
+        hit = t.crossed(stats[t.statKey] ?? def?.initial ?? 0);
+      }
+      if (!hit) continue;
+      stats['@t$i'] = 1;
+      events.add(t.text);
+    }
+
     // 结局：程序按状态阈值判，不看模型脸色
     GameplayEnding? ending;
     for (final e in mode.endings) {
@@ -309,6 +353,10 @@ class GameplayRuntime {
     if (turn.note != null && turn.note!.isNotEmpty) {
       log.add(GameplayEvent(turn: newTurn, text: turn.note!));
     }
+    // 先记过程（门槛转折），再记结果（收局）——日志读起来才是时间顺序
+    for (final e in events) {
+      log.add(GameplayEvent(turn: newTurn, text: e));
+    }
     if (ending != null) {
       log.add(GameplayEvent(turn: newTurn, text: '本局结束：${ending.text}'));
     }
@@ -316,7 +364,6 @@ class GameplayRuntime {
     while (log.length > 20) {
       log.removeAt(0);
     }
-
     return (
       session: session.copyWith(
         stats: stats,
@@ -328,6 +375,24 @@ class GameplayRuntime {
         updatedAt: DateTime.now(),
       ),
       ending: ending,
+      events: events,
+    );
+  }
+
+  /// 合并两次解析结果（模型正文一轮 + 判官判定一轮）。
+  ///
+  /// 判官在生成回复**之前**跑，结论要先结算进本局，但回合数只该加一次，
+  /// 所以把判官的 deltas 并进模型那一轮再一起 apply。
+  static GameplayTurn merge(GameplayTurn base, {Map<String, int> deltas = const {}, String? note}) {
+    if (deltas.isEmpty && (note == null || note.isEmpty)) return base;
+    final merged = Map<String, int>.from(base.deltas);
+    deltas.forEach((k, v) => merged[k] = (merged[k] ?? 0) + v);
+    return GameplayTurn(
+      displayText: base.displayText,
+      deltas: merged,
+      note: (note != null && note.isNotEmpty) ? note : base.note,
+      ended: base.ended,
+      advancePhase: base.advancePhase,
     );
   }
 

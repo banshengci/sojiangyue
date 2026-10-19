@@ -56,6 +56,23 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         '三条线索（一条直指真相，两条干扰）、每个相关人物各自在隐瞒什么',
     secretLabel: '本案真相',
     endingHint: '当玩家明确指出凶手与手法（且判断无误）时，可以在正文里让局面收束。',
+    judged: true,
+    accusation: true,
+    endings: [
+      GameplayEnding(
+        statKey: 'suspicion',
+        atLeast: 100,
+        win: true,
+        text: '凶手与手法都对上了，这桩案子结了。',
+      ),
+    ],
+    thresholds: [
+      GameplayThreshold(
+        statKey: 'clue',
+        atLeast: 3,
+        text: '手上的实证已经能连成一条线了。',
+      ),
+    ],
   ),
   GameplayMode(
     id: 'haigui-soup',
@@ -87,6 +104,14 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         '逻辑自洽，不含超自然。',
     secretLabel: '汤底',
     endingHint: '当玩家把真相完整说出来（关键因果都对）时，可以宣布揭晓。',
+    judged: true,
+    thresholds: [
+      GameplayThreshold(
+        statKey: 'closeness',
+        atLeast: 60,
+        text: '你已经摸到这件事的骨架了，只差最后一块。',
+      ),
+    ],
   ),
   GameplayMode(
     id: 'horror-rule',
@@ -127,6 +152,7 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         '致命的那条单独写清，再写这个场景里唯一的安全做法',
     secretLabel: '规则真相',
     endingHint: '当玩家识破致命规则并做出正确应对时，可以收束到天亮。',
+    judged: true,
     endings: [
       GameplayEnding(
         statKey: 'sanity',
@@ -137,6 +163,18 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         statKey: 'violations',
         atLeast: 3,
         text: '第三次违规，规则不再给你机会。',
+      ),
+    ],
+    thresholds: [
+      GameplayThreshold(
+        statKey: 'sanity',
+        atMost: 50,
+        text: '走廊比刚才长，你听见自己的心跳。',
+      ),
+      GameplayThreshold(
+        statKey: 'violations',
+        atLeast: 1,
+        text: '已经破过一次规矩了，那些东西开始注意到你。',
       ),
     ],
   ),
@@ -185,6 +223,18 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         '4. 三个以后可以自然展开的相处契机',
     endingHint: '当好感与信任都足够高，且玩家明确表态时，可以给这段关系一个结果；'
         '若好感长期低迷，也要有自然的收场（不是惩罚，只是没成）。',
+    thresholds: [
+      GameplayThreshold(
+        statKey: 'affection',
+        atLeast: 60,
+        text: '对方开始主动了，愿意多留一会儿。',
+      ),
+      GameplayThreshold(
+        statKey: 'affection',
+        atLeast: 85,
+        text: '这一步已经不能再装作不知道了。',
+      ),
+    ],
   ),
   GameplayMode(
     id: 'letter',
@@ -235,6 +285,31 @@ const List<GameplayMode> kBuiltinGameplayModes = [
     ],
     phases: ['立论', '交锋', '收束'],
     endingHint: '当一方明显占据上风（说服力接近 0 或 100）时，可以收束并各自表态。',
+    endings: [
+      GameplayEnding(
+        statKey: 'persuasion',
+        atLeast: 100,
+        win: true,
+        text: '对方被你说服了，这一场你赢了。',
+      ),
+      GameplayEnding(
+        statKey: 'persuasion',
+        atMost: 0,
+        text: '你被驳倒了——不过输得明白，也算有收获。',
+      ),
+    ],
+    thresholds: [
+      GameplayThreshold(
+        statKey: 'persuasion',
+        atMost: 25,
+        text: '气势被压过去了，你得换个打法。',
+      ),
+      GameplayThreshold(
+        statKey: 'persuasion',
+        atLeast: 75,
+        text: '对方开始重复自己的观点了，这是松动的迹象。',
+      ),
+    ],
   ),
   GameplayMode(
     id: 'meta-fiction',

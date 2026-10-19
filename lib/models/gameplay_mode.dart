@@ -161,6 +161,45 @@ class GameplayEnding {
       };
 }
 
+/// 门槛事件：某个状态量跨过阈值时，由程序补一段旁白，并给模型新的许可。
+///
+/// 没有它，好感 90 和好感 10 在机制上毫无区别——数字只涨不产生任何后果，
+/// 玩家也就不会为数字做选择。
+class GameplayThreshold {
+  const GameplayThreshold({
+    required this.statKey,
+    this.atLeast,
+    this.atMost,
+    required this.text,
+  });
+
+  final String statKey;
+  final int? atLeast;
+  final int? atMost;
+
+  /// 跨过时给玩家看的旁白（同时会作为「已解锁」喂回模型）。
+  final String text;
+
+  bool crossed(int value) =>
+      (atLeast != null && value >= atLeast!) ||
+      (atMost != null && value <= atMost!);
+
+  factory GameplayThreshold.fromJson(Map<String, dynamic> j) =>
+      GameplayThreshold(
+        statKey: (j['statKey'] ?? '').toString(),
+        atLeast: (j['atLeast'] as num?)?.toInt(),
+        atMost: (j['atMost'] as num?)?.toInt(),
+        text: (j['text'] ?? '').toString(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'statKey': statKey,
+        if (atLeast != null) 'atLeast': atLeast,
+        if (atMost != null) 'atMost': atMost,
+        'text': text,
+      };
+}
+
 /// 一场玩法。
 class GameplayMode {
   const GameplayMode({
@@ -178,6 +217,9 @@ class GameplayMode {
     this.secretLabel,
     this.secretScope,
     this.endings = const [],
+    this.thresholds = const [],
+    this.judged = false,
+    this.accusation = false,
   });
 
   final String id;
@@ -222,6 +264,15 @@ class GameplayMode {
   ///
   /// 比 [endingHint] 硬：那条只是写给模型看的建议，模型可以永远不认账。
   final List<GameplayEnding> endings;
+
+  /// 门槛事件（状态量跨线时补旁白）。
+  final List<GameplayThreshold> thresholds;
+
+  /// 规则是否交给判官系统判定（违规次数不再由模型自报）。
+  final bool judged;
+
+  /// 是否支持「指认」：玩家提交凶手与手法，由判官对照暗牌判定。
+  final bool accusation;
 
   bool get hasRuntime =>
       stats.isNotEmpty || phases.isNotEmpty || setupPrompt != null;
@@ -276,6 +327,13 @@ class GameplayMode {
           .map((e) => GameplayEnding.fromJson(e.cast<String, dynamic>()))
           .where((e) => e.statKey.isNotEmpty)
           .toList(),
+      thresholds: ((j['thresholds'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => GameplayThreshold.fromJson(e.cast<String, dynamic>()))
+          .where((e) => e.statKey.isNotEmpty)
+          .toList(),
+      judged: j['judged'] == true,
+      accusation: j['accusation'] == true,
     );
   }
 
@@ -295,5 +353,9 @@ class GameplayMode {
         if (endingHint != null) 'endingHint': endingHint,
         if (endings.isNotEmpty)
           'endings': endings.map((e) => e.toJson()).toList(),
+        if (thresholds.isNotEmpty)
+          'thresholds': thresholds.map((e) => e.toJson()).toList(),
+        if (judged) 'judged': true,
+        if (accusation) 'accusation': true,
       };
 }

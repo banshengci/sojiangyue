@@ -13,6 +13,7 @@ import 'package:songjiang_reader/dao/character_chat_dao.dart';
 import 'package:songjiang_reader/dao/gameplay_dao.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/models/gameplay_session.dart';
+import 'package:songjiang_reader/service/gameplay/gameplay_judge.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_setup.dart';
 import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
@@ -90,6 +91,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   /// 本轮「继续演出」使用的导演指令（推进/放缓/冲突/视角/破第四面墙）。
   String? _advanceInstruction;
 
+  /// 判官对本轮的结论（违规了就把后果要求塞进这一轮的设定）。
+  String? _judgeDirective;
+
   /// 自动连播：开启后每轮结束自动再推进一幕，到上限或被打断即停。
   bool _autoPlay = false;
   int _autoTurns = 0;
@@ -145,6 +149,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
       if (_ruleInstruction != null && _ruleInstruction!.trim().isNotEmpty)
         _ruleInstruction!.trim(),
+
+      if (_judgeDirective != null && _judgeDirective!.trim().isNotEmpty)
+        _judgeDirective!.trim(),
     ];
     return parts.isEmpty ? null : parts.join('\n\n');
   }
@@ -274,6 +281,161 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     }
   }
 
+  /// 往对话里插一条旁白（落库 + 上屏）。
+  ///
+  /// 门槛事件、收局、指认结果都走这里：它们是**程序**说的话，
+  /// 不该混进角色的气泡里，否则玩家分不清"谁在说"。
+  Future<void> _appendNarrator(String text) async {
+    final state = _gameplay;
+    if (state == null) return;
+    final id = await characterChatDao.appendMessage(
+      sessionId: state.chatSessionId,
+      role: CharacterChatRole.narrator,
+      content: text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _messages = [
+        ..._messages,
+        CharacterChatMessage(
+          id: id,
+          sessionId: state.chatSessionId,
+          role: CharacterChatRole.narrator,
+          content: text,
+          createdAt: DateTime.now(),
+        ),
+      ];
+    });
+    _scrollToEnd();
+  }
+
+  /// 重新生成本局设定（老存档没有分段标记时用得上）。
+  Future<void> _regenerateSetup() async {
+    final mode = widget.gameplayMode;
+    final state = _gameplay;
+    if (mode == null || state == null || mode.setupPrompt == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重新生成本局设定'),
+        content: const Text('会换一套规则/真相，对话记录保留。确定吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(CharactersPageText.chatCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('重新生成'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    setState(() => _gameplayBusy = true);
+    try {
+      final raw = _session?.characterName ?? widget.characterName ?? '主角';
+      final names = onStageNames(raw);
+      final secret = await _service.generateGameplaySecret(
+        mode: mode,
+        characterName: names.isEmpty ? raw : names.join('、'),
+        bookTitle: widget.bookTitle,
+        scene: widget.opening,
+      );
+      _gameplay = state.copyWith(secret: secret, revealed: false);
+      await gameplayDao.save(_gameplay!);
+      if (!mounted) return;
+      setState(() {});
+      SjToast.show('本局设定已重新生成');
+    } catch (e) {
+      SjLog.warning('Gameplay: 重新生成开局失败: $e');
+      if (mounted) SjToast.show('生成失败：$e');
+    } finally {
+      if (mounted) setState(() => _gameplayBusy = false);
+    }
+  }
+
+  /// 指认：玩家提交凶手与手法，判官对照暗牌判定。
+  ///
+  /// 这是剧本杀真正的「动作」——没有它，玩家说什么都只是聊天。
+  Future<void> _accuse() async {
+    final mode = widget.gameplayMode;
+    final state = _gameplay;
+    if (mode == null || state == null || state.ended) return;
+    if (state.secret == null || state.secret!.trim().isEmpty) {
+      SjToast.show('这一局还没有可对照的真相');
+      return;
+    }
+
+    final suspectCtrl = TextEditingController();
+    final methodCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('指认'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: suspectCtrl,
+              decoration: const InputDecoration(labelText: '凶手是谁'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: methodCtrl,
+              decoration: const InputDecoration(labelText: '手法（可以留空）'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(CharactersPageText.chatCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('指认'),
+          ),
+        ],
+      ),
+    );
+    final suspect = suspectCtrl.text.trim();
+    suspectCtrl.dispose();
+    final method = methodCtrl.text.trim();
+    methodCtrl.dispose();
+    if (confirmed != true || suspect.isEmpty || !mounted) return;
+
+    setState(() => _gameplayBusy = true);
+    try {
+      final setup = GameplaySetup.parse(state.secret);
+      final result = await GameplayJudge.accuse(
+        setup: setup,
+        suspect: suspect,
+        method: method,
+      );
+      // 先说判定结果，再结算——对错要在收局旁白之前出现，读着才顺
+      if (!mounted) return;
+      await _appendNarrator(
+        result.correct
+            ? '【指认】${result.feedback.isEmpty ? '你说对了。' : result.feedback}'
+            : '【指认】${result.feedback.isEmpty ? '不对。' : result.feedback}',
+      );
+      // 对：逼近真相拉满，交给收局条件判胜负；错：退一步，还有机会
+      await _applyGameplayTurn(
+        GameplayTurn(
+          displayText: '',
+          deltas: {'suspicion': result.correct ? 100 : -15},
+          note: result.correct ? '指认正确：$suspect' : '指认错误：$suspect',
+        ),
+      );
+    } catch (e) {
+      if (mounted) SjToast.show('判定失败：$e');
+    } finally {
+      if (mounted) setState(() => _gameplayBusy = false);
+    }
+  }
+
   /// 揭晓暗牌（对局后的复盘）。
   Future<void> _revealSecret() async {
     final raw = _gameplay?.secret;
@@ -387,6 +549,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   ///
   /// 结局由运行时按状态阈值判定（不是模型说了算）；真收局了就补一条旁白，
   /// 并顺手把暗牌揭开——不然玩家只看到「结束了」，却不知道自己错过了什么。
+  /// 门槛跨线时也会补旁白：数字变化必须有后果，否则状态栏只是装饰。
   Future<void> _applyGameplayTurn(GameplayTurn turn) async {
     final mode = widget.gameplayMode;
     final session = _gameplay;
@@ -407,30 +570,20 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     if (!mounted) return;
     setState(() {});
 
+    // 门槛事件先播（它是过程），结局最后播（它是收尾）
+    for (final event in result.events) {
+      if (!mounted) return;
+      await _appendNarrator('【转折】$event');
+    }
+
     final ending = result.ending;
     if (ending == null) return;
     if (!_gameplay!.revealed) {
       _gameplay = _gameplay!.copyWith(revealed: true);
       await gameplayDao.save(_gameplay!);
     }
-    await characterChatDao.appendMessage(
-      sessionId: _gameplay!.chatSessionId,
-      role: CharacterChatRole.narrator,
-      content: '【本局结束】${ending.text}',
-    );
     if (!mounted) return;
-    setState(() {
-      _messages = [
-        ..._messages,
-        CharacterChatMessage(
-          sessionId: _gameplay!.chatSessionId,
-          role: CharacterChatRole.narrator,
-          content: '【本局结束】${ending.text}',
-          createdAt: DateTime.now(),
-        ),
-      ];
-    });
-    _scrollToEnd();
+    await _appendNarrator('【本局结束】${ending.text}');
   }
 
   Future<void> _generateGreeting() async {
@@ -481,6 +634,44 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     final isFirstRound = history.isEmpty;
     _statsBeforeTurn =
         _gameplay == null ? null : Map<String, int>.from(_gameplay!.stats);
+
+    // 判官：在生成回复**之前**判定玩家这一句有没有违规。
+    // 放在之后就没用了——后果要这一轮就发生，而不是下一轮补一句"你刚才违规了"。
+    var judgeDeltas = <String, int>{};
+    String? judgeNote;
+    _judgeDirective = null;
+    final judgeMode = widget.gameplayMode;
+    if (judgeMode != null &&
+        judgeMode.judged &&
+        !advancing &&
+        text.isNotEmpty &&
+        _gameplay != null) {
+      final setup = GameplaySetup.parse(_gameplay!.secret);
+      if (setup.rules.isNotEmpty) {
+        setState(() => _gameplayBusy = true);
+        try {
+          final verdict = await GameplayJudge.checkViolation(
+            mode: judgeMode,
+            setup: setup,
+            playerAction: text,
+          );
+          if (verdict.violated) {
+            final rule = setup.rules[verdict.violatedRule! - 1];
+            judgeDeltas = {
+              'violations': 1,
+              'sanity': verdict.fatal ? -25 : -8,
+            };
+            judgeNote = '违反规则 ${verdict.violatedRule}：$rule';
+            _judgeDirective = '【判官】玩家刚刚违反了第 ${verdict.violatedRule} 条规则'
+                '（$rule）${verdict.fatal ? '，而且是致命的那条' : ''}。'
+                '本回合必须让后果立刻发生（不合常理的异象、环境变化、旁人的反应），'
+                '不要只是口头提醒，也不要写出"违反了规则"这几个字。';
+          }
+        } finally {
+          if (mounted) setState(() => _gameplayBusy = false);
+        }
+      }
+    }
 
     setState(() {
       _sending = true;
@@ -541,8 +732,13 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         _scrollToEnd();
       }
 
-      // 从原始文本里解析状态块，正文用于展示与落库
-      final turn = GameplayRuntime.parse(_streamingRaw);
+      // 从原始文本里解析状态块，正文用于展示与落库。
+      // 判官的结算（违规 +1、神志受损）并进这一轮，回合数只加一次。
+      final turn = GameplayRuntime.merge(
+        GameplayRuntime.parse(_streamingRaw),
+        deltas: judgeDeltas,
+        note: judgeNote,
+      );
       final reply = _enforceGameplayReply(turn.displayText);
       if (reply.isEmpty) {
         throw StateError('模型没有返回内容');
@@ -898,6 +1094,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     }
 
     final prompt = _messages[userIndex].content;
+    // 判官结论只属于那一轮，重走这一轮时不能带过来
+    _judgeDirective = null;
     final toDelete = _messages
         .sublist(userIndex + 1)
         .where((m) => m.id != null)
@@ -1631,6 +1829,10 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                   await _openSessionEnhancers();
                 case 'npc':
                   await _addTemporaryNpc();
+                case 'accuse':
+                  await _accuse();
+                case 'regen':
+                  await _regenerateSetup();
                 case 'clear':
                   await _clear();
               }
@@ -1653,6 +1855,19 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                 value: 'npc',
                 child: Text('引入临时角色'),
               ),
+              if (widget.gameplayMode?.accusation ?? false)
+                PopupMenuItem<String>(
+                  value: 'accuse',
+                  enabled: !_sending &&
+                      _gameplay != null &&
+                      !(_gameplay?.ended ?? false),
+                  child: const Text('指认凶手…'),
+                ),
+              if (widget.gameplayMode?.setupPrompt != null)
+                const PopupMenuItem<String>(
+                  value: 'regen',
+                  child: Text('重新生成本局设定'),
+                ),
               PopupMenuItem<String>(
                 value: 'clear',
                 enabled: _messages.isNotEmpty,
@@ -1732,7 +1947,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     final phase = mode.phases.isEmpty
         ? null
         : mode.phases[state.phaseIndex.clamp(0, mode.phases.length - 1)];
-    final rules = GameplaySetup.parse(state.secret).rules;
+    final setup = GameplaySetup.parse(state.secret);
 
     return Container(
       height: 32,
@@ -1762,7 +1977,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                   style: SjText.meta(c.inkSoft)),
             ],
             // 规则一直摆在玩家手边：这是玩法能不能玩起来的关键。
-            if (rules.isNotEmpty) ...[
+            // 没有规则但有公开信息（海龟汤的汤面）时，也要能点开看。
+            if (setup.hasVisible) ...[
               const SizedBox(width: 12),
               GestureDetector(
                 onTap: _showRules,
@@ -1771,8 +1987,10 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                   children: [
                     Icon(Icons.rule_outlined, size: 12, color: c.pine),
                     const SizedBox(width: 3),
-                    Text('规则 ${rules.length} 条',
-                        style: SjText.meta(c.pine)),
+                    Text(
+                      setup.rules.isEmpty ? '须知' : '规则 ${setup.rules.length} 条',
+                      style: SjText.meta(c.pine),
+                    ),
                   ],
                 ),
               ),
