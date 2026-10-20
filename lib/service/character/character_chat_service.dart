@@ -9,6 +9,8 @@
 // - 设定只从本地库读（人物卡 / 关系 / 世界观），对话过程不再消耗蒸馏额度。
 // - 历史按轮数截断，避免长会话把上下文撑爆。
 
+import 'dart:async';
+
 import 'package:langchain/langchain.dart';
 
 import 'package:songjiang_reader/dao/character_chat_dao.dart';
@@ -43,6 +45,13 @@ class CharacterChatService {
 
   /// 单轮上下文最多带多少条历史消息（超出取最近的）。
   static const int maxHistoryMessages = 24;
+
+  /// 流式回复两段内容之间允许的最长静默。
+  ///
+  /// 慢模型的首字可能要等十几秒，但一旦开始吐字，90 秒还没有新内容
+  /// 基本就是连接死了。有这个上限，卡住的那一回合能在 90 秒内报错，
+  /// 而不是拖到 socket 自己的超时（实测 80 秒以上）才把错误甩给全局。
+  static const Duration replyStallTimeout = Duration(seconds: 90);
 
   /// 生成玩法开局需要的「暗牌」（剧本杀的真相 / 海龟汤的汤底）。
   ///
@@ -342,6 +351,9 @@ class CharacterChatService {
             // 读者姿态（旁观/扮演/入场）决定模型怎么对待读者的发言
             participation: session.participation,
             userPersona: session.userPersona,
+            // 玩法规则 / 分幕 / 状态量 / 暗牌 / 增强规则都走这条路。
+            // 少传这一行，群聊里的玩法就只剩一个名字——元叙事那局就是这么废的。
+            extraDirective: extraDirective,
           )
         : buildCharacterSystemPrompt(
             character: ctx.main!,
@@ -371,18 +383,25 @@ class CharacterChatService {
             ? (continueInstruction ?? continueNudge)
             : [input, if (rewriteInstruction != null) rewriteInstruction]
                 .where((s) => s.trim().isNotEmpty)
-                .join('\\n\\n'),
+                .join('\n\n'),
       ),
     ];
 
     final buffer = StringBuffer();
     try {
-      await for (final event in model.stream(PromptValue.chat(messages))) {
+      // 两段之间的静默超过这个时长就算卡死。
+      // 不给上限的话，底层 socket 会挂到 80 秒才报错，而且那会儿用户
+      // 可能已经退出页面，错误就没人接了（日志里表现为一条 SEVERE）。
+      await for (final event
+          in model.stream(PromptValue.chat(messages)).timeout(replyStallTimeout)) {
         final delta = event.output.content;
         if (delta.isEmpty) continue;
         buffer.write(delta);
         yield buffer.toString();
       }
+    } on TimeoutException {
+      SjLog.warning('CharacterChat: 流式回复超时（$replyStallTimeout 无新内容）');
+      throw CharacterChatException('模型响应超时了，检查网络或换个服务再试。');
     } catch (e, st) {
       SjLog.warning('CharacterChat: 生成回复失败: $e\n$st');
       rethrow;
@@ -451,9 +470,6 @@ class CharacterChatService {
   /// * 在后台跑（调用方不 await），用户不该等它
   Future<void> refreshMemory(int sessionId) async {
     try {
-      final model = resolveCurrentModel();
-      if (model == null) return;
-
       final session = await characterChatDao.getSession(sessionId);
       if (session == null) return;
 
@@ -461,7 +477,12 @@ class CharacterChatService {
         sessionId,
         afterId: session.memoryUptoMessageId ?? 0,
       );
+      // 先看有没有东西要折叠，再去解析模型：绝大多数回合都走这条早退，
+      // 以前是先 resolveCurrentModel 再判断，等于每回合白解析一次配置。
       if (pending.length < memoryTriggerMessages) return;
+
+      final model = resolveCurrentModel();
+      if (model == null) return;
 
       final chunk = pending.take(memoryChunkMessages).toList();
       final lastId = chunk.last.id;

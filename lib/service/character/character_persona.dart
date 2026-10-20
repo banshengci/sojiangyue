@@ -194,6 +194,10 @@ String buildCharacterSystemPrompt({
 }
 
 /// 群聊（多人同场）的 system prompt：列出在场每个人的性格要点。
+///
+/// [extraDirective] 与单人版同义：玩法规则、分幕进度、状态量、暗牌、
+/// 增强规则都从这条路进来。群聊是玩法的主要场景（一局多人在场），
+/// 少了它，玩法在群聊里就只剩一个名字。
 String buildGroupSystemPrompt({
   required List<CharacterCard> characters,
   CharacterParticipation? participation,
@@ -201,6 +205,7 @@ String buildGroupSystemPrompt({
   List<CharacterRelation> relations = const [],
   String? bookTitle,
   List<WorldSetting> world = const [],
+  String? extraDirective,
 }) {
   final buf = StringBuffer();
   final book = (bookTitle == null || bookTitle.isEmpty) ? '这本书' : '《$bookTitle》';
@@ -264,6 +269,14 @@ String buildGroupSystemPrompt({
   buf.writeln('- 不要每段都用「我＋动作」开头（我轻轻放下茶 / 我望着窗外 / 我抬眼），');
   buf.writeln('  一段里最多出现一次，不要连着来。');
   buf.writeln('- 不要为写景而写景。');
+
+  // 玩法设定放在最后：它是本场的硬约束（规则、分幕、收局条件、暗牌），
+  // 越靠后模型越当回事。单人版同理，两处别走偏。
+  if (extraDirective != null && extraDirective.trim().isNotEmpty) {
+    buf.writeln();
+    buf.writeln('## 本场额外设定（优先于上面的通用规矩）');
+    buf.writeln(extraDirective.trim());
+  }
 
   return buf.toString().trim();
 }

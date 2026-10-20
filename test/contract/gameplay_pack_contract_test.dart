@@ -2,10 +2,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
+import 'package:songjiang_reader/service/gameplay/gameplay_modes.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_market_client.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_models.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_pack_service.dart';
+import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
+import 'package:songjiang_reader/service/gameplay/official_gameplay_packs.dart';
 
 /// 玩法包契约测试（3.3 + 3.2）：manifest 解析边界 + 与 2.3 插件契约打通。
 void main() {
@@ -217,6 +221,86 @@ void main() {
           Uint8List.fromList(utf8.encode('松江阅')));
       expect(a, b);
       expect(a.length, 64); // 小写十六进制，32 字节
+    });
+  });
+
+  // 玩法能带技能之后，契约要卡住「写错了的玩法」——
+  // 坏清单不该等到玩家开一局才发现装不上。
+  group('玩法自带的技能（契约）', () {
+    final allModes = <GameplayMode>[
+      ...kBuiltinGameplayModes,
+      for (final pack in kOfficialGameplayPacks)
+        ...pack.gameplayModesJson.map(GameplayMode.fromJson),
+    ];
+
+    test('每个玩法的技能都能编译成插件清单', () {
+      expect(allModes, isNotEmpty);
+      for (final m in allModes) {
+        final manifest = GameplayRuntime.buildPluginManifest(m);
+        if (!m.hasSkills) {
+          expect(manifest, isNull, reason: '「${m.name}」没声明技能却生成了清单');
+          continue;
+        }
+        expect(manifest, isNotNull, reason: '「${m.name}」的清单没生成');
+        expect(manifest!.id, GameplayRuntime.pluginIdFor(m));
+        // 声明式工具必须调得到 AI
+        expect(
+          manifest.permissions.map((p) => p.value),
+          contains('ai.query'),
+          reason: '「${m.name}」缺 ai.query 权限',
+        );
+      }
+    });
+
+    test('turnTool 必须指向自己声明的工具', () {
+      for (final m in allModes) {
+        final id = m.turnTool;
+        if (id == null) continue;
+        final ids = m.scriptTools.map((t) => t['id']).toList();
+        expect(ids, contains(id), reason: '「${m.name}」的 turnTool=$id 不存在');
+      }
+    });
+
+    test('打开通用判定的玩法必须有状态量可判', () {
+      for (final m in allModes) {
+        if (!m.statJudge) continue;
+        expect(m.stats, isNotEmpty, reason: '「${m.name}」开了 statJudge 却没有状态量');
+        // 有自定义技能时以自定义为准，不再额外生成
+        final manifest = GameplayRuntime.buildPluginManifest(m)!;
+        final ids = manifest.tools.map((t) => t.id).toList();
+        expect(ids.toSet().length, ids.length, reason: '「${m.name}」工具 id 重复');
+        expect(
+          ids,
+          contains(m.turnTool ?? GameplayRuntime.statJudgeToolId),
+          reason: '「${m.name}」要跑的技能没编进清单',
+        );
+      }
+    });
+
+    test('技能声明能随玩法 JSON 往返（装机/导出不丢）', () {
+      for (final m in allModes) {
+        if (!m.hasSkills) continue;
+        final back = GameplayMode.fromJson(m.toJson());
+        expect(back.scriptTools.length, m.scriptTools.length,
+            reason: '「${m.name}」scriptTools 丢了');
+        expect(back.enhancers.length, m.enhancers.length,
+            reason: '「${m.name}」enhancers 丢了');
+        expect(back.rules.length, m.rules.length,
+            reason: '「${m.name}」rules 丢了');
+        expect(back.turnTool, m.turnTool, reason: '「${m.name}」turnTool 丢了');
+        expect(back.statJudge, m.statJudge, reason: '「${m.name}」statJudge 丢了');
+      }
+    });
+
+    test('内置 + 官方包，每个玩法都挂了技能', () {
+      // 「玩法只是聊天」这个反馈的兜底：以后新增玩法忘了挂技能，这里会红。
+      for (final m in allModes) {
+        expect(
+          GameplayRuntime.turnToolIdFor(m),
+          isNotNull,
+          reason: '「${m.name}」没有任何回合技能，状态量只能靠模型自报',
+        );
+      }
     });
   });
 }

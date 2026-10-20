@@ -10,9 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:songjiang_reader/dao/character_chat_dao.dart';
+import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/dao/gameplay_dao.dart';
+import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/models/gameplay_session.dart';
+import 'package:songjiang_reader/service/gameplay/gameplay_catalog.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_judge.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_runtime.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_setup.dart';
@@ -24,6 +27,7 @@ import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 
 import 'characters_page_strings.dart';
+import 'character_avatar.dart';
 import 'package:songjiang_reader/plugin/plugin_npc_runner.dart';
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/service/character/chat_autoplay.dart';
@@ -107,6 +111,27 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
   /// 玩法运行时状态（仅当选了玩法模式时存在）。
   GameplaySession? _gameplay;
+
+  /// 本场用的玩法。
+  ///
+  /// 优先用调用方传进来的（从玩法中心开局）；从会话列表进来时调用方不知道
+  /// 这是哪一局玩法，就在 [_initGameplay] 里按库里那局存档的 modeId 反查回来。
+  /// 页面内一律读这个字段，不要再读 `widget.gameplayMode`——否则从列表进来的
+  /// 对局会「看得见历史、玩法却整个失效」。
+  GameplayMode? _gameplayMode;
+
+  /// 本页装进插件注册表的玩法技能 id（没装过为 null）。
+  ///
+  /// 分支用 pushReplacement，新旧两页会短暂共存；用一个静态引用计数
+  /// 保证后装的不会被前一页的 dispose 顺手卸掉。
+  String? _installedSkillId;
+  static final Map<String, int> _skillRefs = {};
+
+  /// 在场人物卡（按姓名索引），气泡头像用。
+  ///
+  /// 跨书场景里说话的人可能来自别的书，所以按 `bookId:姓名` 逐个补。
+  Map<String, CharacterCard> _cards = const {};
+
   bool _gameplayBusy = false;
 
   /// 原始流式文本（含状态块）；展示时剥离，结算时解析。
@@ -131,9 +156,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   /// 玩法规则与开局情境合并后的额外设定。
   String? get _extraDirective {
     final parts = <String>[
-      if (widget.gameplayMode != null && _gameplay != null)
+      if (_gameplayMode != null && _gameplay != null)
         GameplayRuntime.buildDirective(
-          mode: widget.gameplayMode!,
+          mode: _gameplayMode!,
           session: _gameplay!,
           // 群聊时告诉规则层有哪些人，好感/信任才能按人展示
           members: onStageNames(
@@ -160,9 +185,66 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   void dispose() {
     // 离开页面必须停连播：否则会在后台继续烧 token
     _autoPlay = false;
+    _releaseGameplaySkills();
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// 把玩法自带的技能装进插件注册表。
+  ///
+  /// 装完立刻把它的增强器与规则对本局打开——它们本来就是这一局的一部分，
+  /// 不该让玩家再去菜单里逐条勾选。
+  void _installGameplaySkills(GameplayMode mode, int sessionId) {
+    if (!mode.hasSkills) return;
+    final id = GameplayRuntime.pluginIdFor(mode);
+    if (_installedSkillId == id) return;
+    try {
+      final manifest = GameplayRuntime.buildPluginManifest(mode);
+      if (manifest == null) return;
+      PluginRegistry.instance.loadManifest(manifest);
+      for (final e in manifest.enhancers) {
+        PluginRegistry.instance.setEnhancerEnabledIn(
+          sessionId,
+          manifest.id,
+          e.id,
+          true,
+        );
+      }
+      for (final r in manifest.rules) {
+        PluginRegistry.instance.setRuleEnabled(manifest.id, r.id, true);
+      }
+      // 增强规则在 _init 里读过一次，装完要重新读，否则本局第一句话吃不到
+      _sessionEnhancerRules =
+          PluginRegistry.instance.enhancerRulesForSession(sessionId);
+      _installedSkillId = id;
+      _skillRefs[id] = (_skillRefs[id] ?? 0) + 1;
+      SjLog.info(
+        'Gameplay: 装载玩法技能 $id'
+        '（工具 ${manifest.tools.length}，增强 ${manifest.enhancers.length}，'
+        '规则 ${manifest.rules.length}）',
+      );
+    } catch (e) {
+      SjLog.warning('Gameplay: 装载玩法技能失败（按无技能处理）: $e');
+    }
+  }
+
+  /// 卸掉本页装的玩法技能（引用计数归零才真的卸）。
+  void _releaseGameplaySkills() {
+    final id = _installedSkillId;
+    if (id == null) return;
+    _installedSkillId = null;
+    final left = (_skillRefs[id] ?? 1) - 1;
+    if (left > 0) {
+      _skillRefs[id] = left;
+      return;
+    }
+    _skillRefs.remove(id);
+    try {
+      PluginRegistry.instance.unload(id);
+    } catch (e) {
+      SjLog.warning('Gameplay: 卸载玩法技能失败: $e');
+    }
   }
 
   Future<void> _init() async {
@@ -192,10 +274,12 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       // 会话级增强器：每个会话一份，阅读页 AI 用的是全局开关
       _sessionEnhancerRules =
           PluginRegistry.instance.enhancerRulesForSession(session.id!);
+      final cards = await _loadCards(session);
       if (!mounted) return;
       setState(() {
         _session = session;
         _messages = messages;
+        _cards = cards;
         _loading = false;
       });
 
@@ -224,15 +308,63 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     }
   }
 
+  /// 把在场人物卡读出来（气泡头像用）。
+  ///
+  /// 失败就当没有头像——退回首字头像，不该因为读卡失败让对话打不开。
+  Future<Map<String, CharacterCard>> _loadCards(
+    CharacterChatSession session,
+  ) async {
+    final out = <String, CharacterCard>{};
+    try {
+      final byBook = <int, List<CharacterCard>>{};
+      Future<List<CharacterCard>> cardsOf(int bookId) async {
+        final cached = byBook[bookId];
+        if (cached != null) return cached;
+        final list = await characterDao.getCharacters(bookId);
+        byBook[bookId] = list;
+        return list;
+      }
+
+      for (final ref in parseMemberRefs(session.characterName, session.bookId)) {
+        for (final c in await cardsOf(ref.bookId)) {
+          out[c.name] = c;
+        }
+      }
+      // 单人会话没有成员编码时，退回按本书全量加载
+      if (out.isEmpty) {
+        for (final c in await cardsOf(session.bookId)) {
+          out[c.name] = c;
+        }
+      }
+    } catch (e) {
+      SjLog.warning('CharacterChat: 读取人物卡失败（头像退回首字）: $e');
+    }
+    return out;
+  }
+
   /// 初始化玩法运行时：加载或新建本局状态，需要暗牌则先生成。
   Future<void> _initGameplay(CharacterChatSession session) async {
-    final mode = widget.gameplayMode;
+    // 三条来路：调用方指定（玩法中心）→ 本页已知（清空重开）→ 库里存档反查（会话列表）
+    final mode = _gameplayMode ??
+        widget.gameplayMode ??
+        await _restoreGameplayMode(session);
     if (mode == null) return;
 
     final existing = await gameplayDao.getByChatSession(session.id!);
     if (existing != null) {
       if (!mounted) return;
-      setState(() => _gameplay = existing);
+      setState(() {
+        _gameplayMode = mode;
+        _gameplay = existing;
+      });
+      _installGameplaySkills(mode, session.id!);
+      // 存档在、但暗牌没写出来（开局时没配 AI / 调用失败）：
+      // 这一局其实没法玩——判官没有规则可判，指认没有真相可比。
+      // 以前这里直接 return，玩家只能自己去菜单里点「重新生成本局设定」。
+      if (mode.setupPrompt != null &&
+          (existing.secret?.trim().isEmpty ?? true)) {
+        await _setupSecret();
+      }
       return;
     }
 
@@ -243,15 +375,51 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     );
     fresh = fresh.copyWith(id: await gameplayDao.save(fresh));
     if (!mounted) return;
-    setState(() => _gameplay = fresh);
+    setState(() {
+      _gameplayMode = mode;
+      _gameplay = fresh;
+    });
+    _installGameplaySkills(mode, session.id!);
 
     // 玩法有暗牌（剧本杀真相 / 海龟汤汤底）时，开局先让模型写出来
     if (mode.setupPrompt != null) await _setupSecret();
   }
 
+  /// 从库里那局存档反查玩法。
+  ///
+  /// 会话表本身不记「这是哪一局玩法」，但 `gameplay_session` 按 chatSessionId
+  /// 存着 modeId。会话列表点进来时调用方只给了 session，就靠这一手把玩法接回来。
+  /// 找不到（普通对话、或玩法包已被卸载）时返回 null，页面退化成普通对话。
+  Future<GameplayMode?> _restoreGameplayMode(
+    CharacterChatSession session,
+  ) async {
+    if (session.id == null) return null;
+    try {
+      final existing = await gameplayDao.getByChatSession(session.id!);
+      if (existing == null) return null;
+      final catalog = await GameplayCatalog.load();
+      GameplayMode? mode;
+      for (final m in catalog.all) {
+        if (m.id == existing.modeId) {
+          mode = m;
+          break;
+        }
+      }
+      if (mode == null) {
+        SjLog.warning('Gameplay: 存档里的玩法 ${existing.modeId} 已不存在，按普通对话处理');
+        return null;
+      }
+      SjLog.info('Gameplay: 从存档恢复玩法 ${mode.id}（会话 ${session.id}）');
+      return mode;
+    } catch (e) {
+      SjLog.warning('Gameplay: 恢复玩法失败，按普通对话处理: $e');
+      return null;
+    }
+  }
+
   /// 生成暗牌。
   Future<void> _setupSecret() async {
-    final mode = widget.gameplayMode;
+    final mode = _gameplayMode;
     if (mode == null || mode.setupPrompt == null) return;
     if ((_gameplay?.secret?.isNotEmpty ?? false)) return;
 
@@ -311,7 +479,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
   /// 重新生成本局设定（老存档没有分段标记时用得上）。
   Future<void> _regenerateSetup() async {
-    final mode = widget.gameplayMode;
+    final mode = _gameplayMode;
     final state = _gameplay;
     if (mode == null || state == null || mode.setupPrompt == null) return;
     final ok = await showDialog<bool>(
@@ -360,7 +528,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   ///
   /// 这是剧本杀真正的「动作」——没有它，玩家说什么都只是聊天。
   Future<void> _accuse() async {
-    final mode = widget.gameplayMode;
+    final mode = _gameplayMode;
     final state = _gameplay;
     if (mode == null || state == null || state.ended) return;
     if (state.secret == null || state.secret!.trim().isEmpty) {
@@ -455,7 +623,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       builder: (ctx) {
         final c = SjColors.of(ctx);
         return AlertDialog(
-          title: Text(widget.gameplayMode?.secretLabel ?? '揭晓真相'),
+          title: Text(_gameplayMode?.secretLabel ?? '揭晓真相'),
           content: SingleChildScrollView(
             child: Text(secret, style: SjText.body(c.ink)),
           ),
@@ -497,7 +665,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${widget.gameplayMode?.name ?? '本场'} · 规则',
+                '${_gameplayMode?.name ?? '本场'} · 规则',
                 style: SjText.cardTitle(c.ink),
               ),
               if (setup.publicBrief.isNotEmpty) ...[
@@ -529,7 +697,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
               if (revealed && setup.secret.isNotEmpty) ...[
                 const SizedBox(height: 18),
                 Text(
-                  widget.gameplayMode?.secretLabel ?? '真相',
+                  _gameplayMode?.secretLabel ?? '真相',
                   style: SjText.meta(c.inkSoft),
                 ),
                 const SizedBox(height: 6),
@@ -547,7 +715,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   /// 海龟汤的全部难度在于「只能回答是 / 否 / 与此无关」——模型只要多解释一句，
   /// 玩家就不用猜了，这一局也就废了。所以这里不靠提示词自律，直接切。
   String _enforceGameplayReply(String text) {
-    if (widget.gameplayMode?.id != 'haigui-soup') return text;
+    if (_gameplayMode?.id != 'haigui-soup') return text;
     return parseYesNo(text) ?? text;
   }
 
@@ -557,13 +725,16 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   /// 并顺手把暗牌揭开——不然玩家只看到「结束了」，却不知道自己错过了什么。
   /// 门槛跨线时也会补旁白：数字变化必须有后果，否则状态栏只是装饰。
   Future<void> _applyGameplayTurn(GameplayTurn turn) async {
-    final mode = widget.gameplayMode;
+    final mode = _gameplayMode;
     final session = _gameplay;
     if (mode == null || session == null) return;
     if (!turn.hasChanges &&
         !turn.ended &&
         !turn.advancePhase &&
         turn.note == null) {
+      // 一句日志：模型这回合没写状态块（或写了空块）。
+      // 没有这条，出问题时只能靠截图猜"觉醒度到底动没动"。
+      SjLog.info('Gameplay: turn=${session.turn + 1} 本回合无状态变化');
       return;
     }
     final result = GameplayRuntime.apply(
@@ -576,14 +747,23 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     if (!mounted) return;
     setState(() {});
 
+    SjLog.info(
+      'Gameplay: turn=${result.session.turn} '
+      'phase=${result.session.phaseIndex + 1}/${mode.phases.length} '
+      'deltas=${turn.deltas} stats=${result.session.stats} '
+      'events=${result.events.length} ended=${result.session.ended}',
+    );
+
     // 门槛事件先播（它是过程），结局最后播（它是收尾）
     for (final event in result.events) {
       if (!mounted) return;
+      SjLog.info('Gameplay: 跨过门槛「$event」');
       await _appendNarrator('【转折】$event');
     }
 
     final ending = result.ending;
     if (ending == null) return;
+    SjLog.info('Gameplay: 收局 —— ${ending.text}');
     if (!_gameplay!.revealed) {
       _gameplay = _gameplay!.copyWith(revealed: true);
       await gameplayDao.save(_gameplay!);
@@ -646,7 +826,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     var judgeDeltas = <String, int>{};
     String? judgeNote;
     _judgeDirective = null;
-    final judgeMode = widget.gameplayMode;
+    final judgeMode = _gameplayMode;
     if (judgeMode != null &&
         judgeMode.judged &&
         !advancing &&
@@ -663,10 +843,11 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
           );
           if (verdict.violated) {
             final rule = setup.rules[verdict.violatedRule! - 1];
-            judgeDeltas = {
-              'violations': 1,
-              'sanity': verdict.fatal ? -25 : -8,
-            };
+            // 扣什么由玩法自己定：规则怪谈扣神志，剧本杀/海龟汤扣主计分量
+            judgeDeltas = GameplayJudge.penaltyFor(
+              judgeMode,
+              fatal: verdict.fatal,
+            );
             judgeNote = '违反规则 ${verdict.violatedRule}：$rule';
             _judgeDirective = '【判官】玩家刚刚违反了第 ${verdict.violatedRule} 条规则'
                 '（$rule）${verdict.fatal ? '，而且是致命的那条' : ''}。'
@@ -702,7 +883,14 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       _scrollToEnd();
       // 必须落库：这一行曾经在重构里被误删，表现是「角色的话还在、读者的话没了」
       // ——界面上有气泡（内存里有），退出重进就查不到了。
-      await _service.saveUserMessage(session.id!, text);
+      //
+      // 写库失败不该让整个回合崩掉：界面上这一句已经在，先继续生成，
+      // 只把错误记下来（以前它裸在 try 外面，一抛就穿到全局错误处理）。
+      try {
+        await _service.saveUserMessage(session.id!, text);
+      } catch (e) {
+        SjLog.warning('CharacterChat: 读者这一句没存下来: $e');
+      }
     }
 
     // 生成前：结算 before_generation 规则，指令并进本轮设定
@@ -740,7 +928,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
 
       // 从原始文本里解析状态块，正文用于展示与落库。
       // 判官的结算（违规 +1、神志受损）并进这一轮，回合数只加一次。
-      final turn = GameplayRuntime.merge(
+      var turn = GameplayRuntime.merge(
         GameplayRuntime.parse(_streamingRaw),
         deltas: judgeDeltas,
         note: judgeNote,
@@ -748,6 +936,32 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       final reply = _enforceGameplayReply(turn.displayText);
       if (reply.isEmpty) {
         throw StateError('模型没有返回内容');
+      }
+      // 玩法自带的「每回合技能」：状态量由独立技能判，而不是让正在演戏的
+      // 模型自己在正文末尾报。没声明 turnTool 的玩法不会有这次额外调用。
+      //
+      // 顺序是有讲究的：先并入判官（违规次数 + 违规的神志惩罚），再让技能覆盖。
+      // 技能看到的是这一回合**已经演出后果**的正文，所以它判的神志已经包含了
+      // 违规的惊吓；再叠一次判官的 -8 就是双算。但技能不碰 violations，
+      // 判官记的违规次数会原样保留。
+      final skillMode = _gameplayMode;
+      final skillState = _gameplay;
+      if (skillMode != null &&
+          skillState != null &&
+          GameplayRuntime.turnToolIdFor(skillMode) != null) {
+        final judged = await GameplayRuntime.runTurnTool(
+          mode: skillMode,
+          session: skillState,
+          // 用剥离状态块后的原话，不要用 _enforceGameplayReply 的结果：
+          // 海龟汤会被截成「是/否」，技能拿着两个字什么也判不出来。
+          replyText: turn.displayText,
+          // 按人记的状态要写「好感|姬动」，技能得知道有谁在场
+          members: onStageNames(session.characterName),
+          // 推理类玩法要看玩家问的是什么；暗牌给它做对照
+          playerInput: _lastUserInput,
+          secret: GameplaySetup.parse(skillState.secret).secret,
+        );
+        turn = GameplayRuntime.overrideWith(turn, judged, mode: skillMode);
       }
       final spoken = _speakerOf(session, reply);
       final id = await _service.saveCharacterMessage(
@@ -797,7 +1011,8 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      SjLog.warning('CharacterChat: 本轮失败: $e');
+      setState(() => _error = _friendlyError(e));
     } finally {
       if (mounted) {
         setState(() {
@@ -985,7 +1200,13 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
           hasError: _error != null,
         )) {
       setState(() => _autoTurns++);
-      await _advance();
+      try {
+        await _advance();
+      } catch (e) {
+        // 连播是 unawaited 起的，异常漏出去就是一条全局未捕获错误
+        SjLog.warning('CharacterChat: 连播中断: $e');
+        break;
+      }
       // 出错或用户已经离开：立刻停，不要继续烧 token
       if (!mounted || _error != null) break;
       // 给用户一个能按停的窗口，也避免请求打得太密
@@ -1219,7 +1440,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
           builder: (_) => CharacterChatPage(
             session: fresh,
             bookTitle: widget.bookTitle,
-            gameplayMode: widget.gameplayMode,
+            gameplayMode: _gameplayMode,
           ),
         ),
       );
@@ -1310,7 +1531,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         builder: (_) => CharacterChatPage(
           session: target,
           bookTitle: widget.bookTitle,
-          gameplayMode: widget.gameplayMode,
+          gameplayMode: _gameplayMode,
         ),
       ),
     );
@@ -1755,7 +1976,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     setState(() => _messages = []);
 
     // 玩法对局也重新开局：否则状态会停留在清空前的数值上
-    if (widget.gameplayMode != null) {
+    if (_gameplayMode != null) {
       await gameplayDao.deleteByChatSession(session.id!);
       _gameplay = null;
       await _initGameplay(session);
@@ -1805,7 +2026,7 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
               ),
           ],
         ),
-        bottom: (widget.gameplayMode != null && _gameplay != null)
+        bottom: (_gameplayMode != null && _gameplay != null)
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(32),
                 child: _buildGameplayBar(c),
@@ -1861,15 +2082,15 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                 value: 'npc',
                 child: Text('引入临时角色'),
               ),
-              if (widget.gameplayMode?.accusation ?? false)
+              if (_gameplayMode?.accusation ?? false)
                 PopupMenuItem<String>(
                   value: 'accuse',
                   enabled: !_sending &&
                       _gameplay != null &&
                       !(_gameplay?.ended ?? false),
-                  child: Text('${widget.gameplayMode?.accusationLabel ?? '指认'}…'),
+                  child: Text('${_gameplayMode?.accusationLabel ?? '指认'}…'),
                 ),
-              if (widget.gameplayMode?.setupPrompt != null)
+              if (_gameplayMode?.setupPrompt != null)
                 const PopupMenuItem<String>(
                   value: 'regen',
                   child: Text('重新生成本局设定'),
@@ -1906,10 +2127,9 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                           itemCount: _messages.length + (_streaming.isEmpty ? 0 : 1),
                           itemBuilder: (context, i) {
                             if (i >= _messages.length) {
-                              return _Bubble(
-                                text: _streaming,
-                                isUser: false,
-                                speaker: title,
+                              return _buildSpoken(
+                                _streaming,
+                                firstSpeaker: null,
                                 streaming: true,
                               );
                             }
@@ -1919,11 +2139,12 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                             }
                             return GestureDetector(
                               onLongPress: () => _onBubbleLongPress(m),
-                              child: _Bubble(
-                                text: m.content,
-                                isUser: m.role == CharacterChatRole.user,
-                                speaker: m.speaker,
-                              ),
+                              child: m.role == CharacterChatRole.user
+                                  ? _Bubble(text: m.content, isUser: true)
+                                  : _buildSpoken(
+                                      m.content,
+                                      firstSpeaker: m.speaker,
+                                    ),
                             );
                           },
                         ),
@@ -1942,9 +2163,61 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
     );
   }
 
+  /// 渲染一段角色回复：按「姓名：」切成多张卡片，纯括注走旁白行。
+  ///
+  /// 落库仍然是一回合一条（原因见 [splitSpokenBlock] 的注释），这里只改观感：
+  /// 以前一回合里弗瑞、姬动、陈思璇轮着说话，会整段堆进第一张卡片，
+  /// 看起来像那个人替全场说了话。
+  Widget _buildSpoken(
+    String text, {
+    String? firstSpeaker,
+    bool streaming = false,
+  }) {
+    final names = onStageNames(_session?.characterName ?? '');
+    final segments = splitSpokenBlock(
+      text,
+      firstSpeaker: firstSpeaker,
+      onStage: names,
+    );
+
+    // 空内容：流式期间显示「正在想…」
+    if (segments.isEmpty) {
+      return _Bubble(text: text, isUser: false, streaming: streaming);
+    }
+
+    if (segments.length == 1) {
+      final only = segments.first;
+      if (only.isNarration) return _NarratorLine(text: only.text);
+      final who = only.speaker.isEmpty ? (firstSpeaker ?? '') : only.speaker;
+      return _CharacterBubble(
+        text: only.text,
+        speaker: who,
+        card: _cards[who],
+        streaming: streaming,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < segments.length; i++)
+          if (segments[i].isNarration)
+            _NarratorLine(text: segments[i].text)
+          else
+            _CharacterBubble(
+              text: segments[i].text,
+              speaker: segments[i].speaker,
+              card: _cards[segments[i].speaker],
+              // 只有最后一段可能是半截话
+              streaming: streaming && i == segments.length - 1,
+            ),
+      ],
+    );
+  }
+
   /// 玩法状态条：玩法名 · 进度幕 · 各状态量 · 揭晓入口。
   Widget _buildGameplayBar(SjColors c) {
-    final mode = widget.gameplayMode!;
+    final mode = _gameplayMode!;
     final state = _gameplay!;
     // 按成员的状态（好感/信任）需要知道有谁在场
     final members = onStageNames(
@@ -2029,6 +2302,33 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
         ),
       ),
     );
+  }
+
+  /// 把异常翻成人话。
+  ///
+  /// 原始信息（`ClientException: Connection closed while receiving data,
+  /// uri=https://…`）只进日志——糊在错误条上，用户既看不懂也不知道该做什么。
+  String _friendlyError(Object e) {
+    if (e is CharacterChatException) return e.message;
+    if (e is TimeoutException) {
+      return '模型响应超时了。检查网络，或到「设置 → AI」换个服务再试。';
+    }
+    final raw = e.toString();
+    if (raw.contains('Connection closed') ||
+        raw.contains('SocketException') ||
+        raw.contains('Connection refused') ||
+        raw.contains('Connection reset')) {
+      return '连接被中断了，模型服务没有响应。检查网络后重试。';
+    }
+    if (raw.contains('401') || raw.contains('Unauthorized')) {
+      return 'API 密钥好像不对，去「设置 → AI」核对一下。';
+    }
+    if (raw.contains('429')) {
+      return '请求太频繁了，歇一会儿再试。';
+    }
+    // 兜底截断：别让一整串英文堆栈占满错误条
+    final short = raw.length > 120 ? '${raw.substring(0, 120)}…' : raw;
+    return '这一轮没生成出来：$short';
   }
 
   Widget _buildErrorBar(SjColors c) => Container(
@@ -2158,7 +2458,10 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   }
 }
 
-/// 旁白行（开局情境等）：居中、斜体、不占气泡。
+/// 旁白行（开局情境 / 门槛 / 收局）：左边一个小三角，不占气泡。
+///
+/// 原来是居中斜体。中文斜体不好看，而且一段场景描写居中之后每行都要重新找
+/// 起点，读着累；改成左对齐、带个「▶」的引导符，和剧本里的舞台提示一致。
 class _NarratorLine extends StatelessWidget {
   const _NarratorLine({required this.text});
 
@@ -2168,14 +2471,95 @@ class _NarratorLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = SjColors.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: SjText.meta(c.inkSoft).copyWith(
-          fontStyle: FontStyle.italic,
-          height: 1.6,
-        ),
+      padding: const EdgeInsets.fromLTRB(6, 8, 12, 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Icon(Icons.play_arrow_rounded, size: 13, color: c.inkSoft),
+          ),
+          const SizedBox(width: 3),
+          Expanded(
+            child: Text(
+              text,
+              style: SjText.meta(c.inkSoft).copyWith(height: 1.55),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 一条角色发言：左侧头像 + 上方姓名 + 气泡。
+///
+/// 名字原先压在气泡里，一段戏里四五个人轮流说话时很难一眼看出谁在说；
+/// 头像放在左边之后，扫一眼就知道换人了。
+class _CharacterBubble extends StatelessWidget {
+  const _CharacterBubble({
+    required this.text,
+    required this.speaker,
+    this.card,
+    this.streaming = false,
+  });
+
+  final String text;
+  final String speaker;
+
+  /// 有卡片就用真头像，没有就退回首字。
+  final CharacterCard? card;
+  final bool streaming;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = SjColors.of(context);
+    final name = speaker.trim();
+    final card = this.card;
+
+    final avatar = card != null
+        ? characterAvatar(card, c, radius: 17)
+        : CircleAvatar(
+            radius: 17,
+            backgroundColor: c.frost,
+            child: Text(
+              name.isEmpty ? '·' : name.substring(0, 1),
+              style: SjText.meta(c.ink),
+            ),
+          );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          avatar,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (name.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 2, bottom: 3),
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SjText.meta(c.inkSoft),
+                    ),
+                  ),
+                _Bubble(
+                  text: text,
+                  isUser: false,
+                  streaming: streaming,
+                  // 头像占了 42，气泡别顶到右边
+                  maxWidthFactor: 0.7,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2186,14 +2570,14 @@ class _Bubble extends StatelessWidget {
   const _Bubble({
     required this.text,
     required this.isUser,
-    this.speaker,
     this.streaming = false,
+    this.maxWidthFactor = 0.78,
   });
 
   final String text;
   final bool isUser;
-  final String? speaker;
   final bool streaming;
+  final double maxWidthFactor;
 
   @override
   Widget build(BuildContext context) {
@@ -2206,7 +2590,7 @@ class _Bubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
+          maxWidth: MediaQuery.of(context).size.width * maxWidthFactor,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
@@ -2221,28 +2605,13 @@ class _Bubble extends StatelessWidget {
               ? null
               : Border.all(color: c.cardBorder, width: 0.5),
         ),
-        child: Column(
-          crossAxisAlignment:
-              isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!isUser && speaker != null && speaker!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  speaker!,
-                  style: SjText.meta(c.river),
-                ),
-              ),
-            Text(
-              text.isEmpty && streaming ? CharactersPageText.chatThinking : text,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: fg,
-              ),
-            ),
-          ],
+        child: Text(
+          text.isEmpty && streaming ? CharactersPageText.chatThinking : text,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: fg,
+          ),
         ),
       ),
     );

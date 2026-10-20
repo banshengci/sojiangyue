@@ -107,7 +107,30 @@ const GameplayMode _jianghu = GameplayMode(
       text: '有人在打听你的行踪，而且不止一拨。',
     ),
   ],
-);
+    scriptTools: [
+      {
+        'id': 'jianghu-scan',
+        'displayName': '江湖账本',
+        'description': '这一手是扬名还是结怨',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「江湖历练」的状态判定器。江湖会记账：扬名带来敬畏，也带来挑战者。\n'
+            '\n'
+            '判定两项：\n'
+            '- 声望（fame，0~100）：当众显露实力、守信、赢下一场硬仗 +5~15；\n'
+            '  失约、以多欺少、被当众折辱 -5~15。\n'
+            '- 仇怨（grudge，0~100）：结下梁子、伤了人命、驳了谁的面子 +5~20；\n'
+            '  赔礼、放人一马、还清旧债 -5~15。仇怨越高，来的人越狠。\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"声望": 10, "仇怨": 8, "note": "他当街折了对方的名号"}',
+      },
+    ],
+    turnTool: 'jianghu-scan',
+  );
 
 // ── 2. 朝堂权谋 ────────────────────────────────────────────
 const GameplayMode _court = GameplayMode(
@@ -193,7 +216,32 @@ const GameplayMode _court = GameplayMode(
       text: '有份东西落在了别人手里，你还不知道是谁。',
     ),
   ],
-);
+    scriptTools: [
+      {
+        'id': 'court-scan',
+        'displayName': '朝堂账本',
+        'description': '圣眷、把柄、党羽各动了多少',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「朝堂权谋」的状态判定器。朝堂上每句话都会被记下来。\n'
+            '\n'
+            '判定三项：\n'
+            '- 圣眷（favor，0~100）：合圣意、办差得力、替君分忧 +5~15；\n'
+            '  触怒、当众驳斥、站错队 -10~25。\n'
+            '- 把柄（leverage，0~100）：露出破绽、被拿话套住、留下实物把柄 +5~20；\n'
+            '  销毁、封口、反将一军 -5~15。\n'
+            '- 党羽（faction，10~100）：拉拢、施恩、结盟成功 +5~15；\n'
+            '  失势、被弹劾、亲信倒戈 -10~20。\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"圣眷": 8, "把柄": 12, "note": "他在御前说漏了一个名字"}',
+      },
+    ],
+    turnTool: 'court-scan',
+  );
 
 // ── 3. 末世求生 ────────────────────────────────────────────
 const GameplayMode _wasteland = GameplayMode(
@@ -273,7 +321,32 @@ const GameplayMode _wasteland = GameplayMode(
       text: '没人再跟你对眼神，话都只说半句。',
     ),
   ],
-);
+    scriptTools: [
+      {
+        'id': 'survival-scan',
+        'displayName': '生存账本',
+        'description': '物资、感染、信任各动了多少',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「末世求生」的状态判定器。资源是硬的，感染是不可逆的。\n'
+            '\n'
+            '判定三项：\n'
+            '- 物资（supply，30~100）：搜到食物、药品、燃料 +10~25；消耗、损毁、被抢 -10~30。\n'
+            '- 感染度（infection，0~100）：接触污染源、受伤、收留来路不明的人 +5~20；\n'
+            '  隔离、消毒、放弃某些东西 -5~15。它很难降。\n'
+            '- 信任（trust，0~100，按人记，键写成「信任|姓名」）：互助、分给对方东西 +5~10；\n'
+            '  隐瞒、抢夺、见死不救 -10~20。\n'
+            '\n'
+            '在场的人：{{members}}\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"物资": -15, "感染度": 8, "note": "他们分掉了最后半瓶水"}',
+      },
+    ],
+    turnTool: 'survival-scan',
+  );
 
 // ── 4. 修仙渡劫 ────────────────────────────────────────────
 const GameplayMode _xianxia = GameplayMode(
@@ -347,7 +420,30 @@ const GameplayMode _xianxia = GameplayMode(
       text: '经脉通了半截，你能感觉到雷云在头顶聚。',
     ),
   ],
-);
+    scriptTools: [
+      {
+        'id': 'dao-scan',
+        'displayName': '修为与心魔',
+        'description': '修为涨多少，心魔就得跟着涨',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「修仙渡劫」的状态判定器。修为与心魔同步增长——这是这个玩法最要紧的一条。\n'
+            '\n'
+            '判定两项：\n'
+            '- 修为（cultivation，0~100）：悟道、炼丹、破阵、得到机缘 +5~20；\n'
+            '  受重伤、走火入魔、被夺灵气 -10~25。\n'
+            '- 心魔（demon，10~100）：**修为每涨都要同步涨心魔，涨幅约为修为的一半**；\n'
+            '  直面旧事、认错、舍执念 -10~20。心魔越高，看到的越不真。\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"修为": 12, "心魔": 6, "note": "他借雷淬体，也想起了当年那道雷"}',
+      },
+    ],
+    turnTool: 'dao-scan',
+  );
 
 // ── 5. 校园青春 ────────────────────────────────────────────
 const GameplayMode _campus = GameplayMode(
@@ -415,7 +511,32 @@ const GameplayMode _campus = GameplayMode(
       text: '走廊里的话头在你进门时断了。',
     ),
   ],
-);
+    scriptTools: [
+      {
+        'id': 'campus-scan',
+        'displayName': '好感与风评',
+        'description': '对谁的好感变了，风评是集体的',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「校园青春」的状态判定器。好感按人记，风评是集体的，两条线互相拖累。\n'
+            '\n'
+            '判定两项：\n'
+            '- 好感（affection，0~100，按人记，键写成「好感|姓名」）：\n'
+            '  一起做事、记住细节、在关键时刻站在对方那边 +5~15；\n'
+            '  失约、说错话、当众让人难堪 -10~25。\n'
+            '- 风评（reputation，50~100）：做好事、被老师表扬 +3~10；\n'
+            '  流言、被误解、在冲突里站错边 -5~20。风评低会拖累所有好感。\n'
+            '\n'
+            '在场的人：{{members}}\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"好感|林夏": 10, "风评": -5, "note": "他替她顶了那次迟到"}',
+      },
+    ],
+    turnTool: 'campus-scan',
+  );
 
 // ── 6. 商战 ────────────────────────────────────────────────
 const GameplayMode _business = GameplayMode(
@@ -482,7 +603,30 @@ const GameplayMode _business = GameplayMode(
       text: '对方开始绕开你谈事了。',
     ),
   ],
-);
+    scriptTools: [
+      {
+        'id': 'business-scan',
+        'displayName': '两本账',
+        'description': '资金与声誉，赢的代价可能是不体面',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「商战」的状态判定器。资金与声誉是两本账，赢的代价可能是不体面。\n'
+            '\n'
+            '判定两项：\n'
+            '- 资金（capital，0~100）：签约、融资、压价成功 +10~25；\n'
+            '  违约、被围猎、现金流断裂 -15~30。\n'
+            '- 声誉（reputation，50~100）：守约、让利得体、被行业认可 +5~15；\n'
+            '  使阴招、违约、被曝出问题 -10~25。声誉低时没人再给你台阶。\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"资金": 18, "声誉": -10, "note": "他压价拿下了那批货，也得罪了同行"}',
+      },
+    ],
+    turnTool: 'business-scan',
+  );
 
 /// 官方玩法包（每个包一个玩法，可单独安装）。
 final List<GameplayPackManifest> kOfficialGameplayPacks = [

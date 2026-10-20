@@ -323,6 +323,112 @@ List<String> onStageNames(String characterName) => characterName
   return (speaker: '', text: trimmed);
 }
 
+/// 一段发言：说话人 + 正文。
+///
+/// [speaker] 为空表示这是旁白（没有人在说），界面上不该给它挂名字。
+class ChatSegment {
+  const ChatSegment({required this.speaker, required this.text});
+
+  final String speaker;
+  final String text;
+
+  bool get isNarration => speaker.isEmpty;
+
+  @override
+  String toString() => isNarration ? '旁白($text)' : '$speaker($text)';
+}
+
+/// 把一整段回复按「姓名：」切成若干段发言。
+///
+/// 为什么需要：[splitSpokenLine] 只认开头的第一个说话人，于是一个回合里
+/// 弗瑞、姬动、陈思璇、阿金轮着说话时，整段会堆进「弗瑞」那一张卡片，
+/// 看起来像他一个人替全场说了话。这里按行切，让每张卡片只放一个人。
+///
+/// 规则：
+/// * 每行开头若是「在场者姓名 + 冒号」，就另起一段；认不出的行并入上一段
+/// * [firstSpeaker] 是调用方已经剥掉的那层前缀（落库时被 strip 掉了），
+///   喂给第一段，否则开头那句旁白会没有归属
+/// * 整段就是一对括注「（……）」的，判成旁白——那是场景描写，不是谁在说话；
+///   但「（动作）台词」不算，括号只开了个头，后面还有台词
+///
+/// 切分只发生在渲染层，落库仍然是一回合一条：回合数、上下文窗口、
+/// 记忆折叠、分支回滚都按「一条 = 一回合」算，这里不动它们。
+List<ChatSegment> splitSpokenBlock(
+  String content, {
+  String? firstSpeaker,
+  List<String> onStage = const [],
+}) {
+  final trimmed = content.trim();
+  if (trimmed.isEmpty) return const [];
+
+  final segments = <ChatSegment>[];
+  final buffer = <String>[];
+  var speaker = (firstSpeaker ?? '').trim();
+
+  void flush() {
+    final text = buffer.join('\n').trim();
+    buffer.clear();
+    if (text.isNotEmpty) {
+      segments.add(ChatSegment(speaker: speaker, text: text));
+    }
+  }
+
+  for (final line in trimmed.split('\n')) {
+    final hit = _matchSpeakerLine(line, onStage);
+    if (hit != null) {
+      flush();
+      speaker = hit.speaker;
+      buffer.add(hit.text);
+      continue;
+    }
+    // 独立成段的纯括注是旁白：前后台词都要断开，不能并进上一个人的嘴里
+    final t = line.trim();
+    if (t.isNotEmpty && _isPureAside(t)) {
+      flush();
+      segments.add(ChatSegment(speaker: '', text: t));
+      continue;
+    }
+    buffer.add(line);
+  }
+  flush();
+
+  return [
+    for (final s in segments)
+      // 有名字但整段是括注：那是旁白，别挂在人头上
+      if (!s.isNarration && _isPureAside(s.text))
+        ChatSegment(speaker: '', text: s.text)
+      else
+        s,
+  ];
+}
+
+/// 单行开头的说话人：直接认，认不出再跳过一层开引号认。
+({String speaker, String text})? _matchSpeakerLine(
+  String line,
+  List<String> onStage,
+) {
+  final t = line.trim();
+  if (t.isEmpty) return null;
+  final direct = _matchSpeakerPrefix(t, onStage);
+  if (direct != null) return direct;
+
+  final quote = _leadingQuote(t);
+  if (quote.isEmpty) return null;
+  final hit = _matchSpeakerPrefix(t.substring(quote.length), onStage);
+  if (hit == null) return null;
+  // 引号是它的文体，留在正文里
+  return (speaker: hit.speaker, text: quote + hit.text);
+}
+
+/// 整段是否只是一对括注（场景描写）。
+bool _isPureAside(String text) {
+  final t = text.trim();
+  if (t.length < 2) return false;
+  final opens = t.startsWith('（') || t.startsWith('(');
+  final closes = t.endsWith('）') || t.endsWith(')');
+  return opens && closes;
+}
+
 /// 开头若是开引号，返回它；否则空串。
 String _leadingQuote(String text) {
   const opens = ['「', '『', '“', '‘', '"', '（', '《'];

@@ -243,38 +243,60 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
   // ---- 玩法模式：选玩法 → 选书 → 选人物 → 开一局 ----
 
   Widget _buildModesSection(BuildContext context) {
+    final primary = Theme.of(context).primaryColor;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(Icons.local_play_outlined,
-                size: 18, color: Theme.of(context).primaryColor),
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.local_play_outlined, size: 15, color: primary),
+            ),
             const SizedBox(width: 8),
             const Text('玩法模式',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 8),
-            Text('${_catalog.all.length}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${_catalog.all.length}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ),
             const Spacer(),
             if (_catalog.installed.isEmpty)
               TextButton.icon(
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
                 onPressed: _installOfficialModes,
-                icon: const Icon(Icons.download_outlined, size: 16),
-                label: const Text('安装 6 个新玩法'),
+                icon: const Icon(Icons.download_outlined, size: 15),
+                label: const Text('安装 6 个新玩法',
+                    style: TextStyle(fontSize: 12)),
               ),
           ],
         ),
         const Padding(
-          padding: EdgeInsets.only(left: 26, top: 4, bottom: 10),
+          padding: EdgeInsets.only(left: 34, top: 4, bottom: 10),
           child: Text('选一个玩法，挑一位人物，立刻开一局',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 26),
+          padding: const EdgeInsets.only(left: 34),
           child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               for (final mode in _catalog.all)
                 _modeCard(context, mode),
@@ -286,59 +308,132 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
     );
   }
 
+  /// 卡片上那行技能摘要。
+  ///
+  /// 只列名字，不展开细节——卡片宽 172，塞不下更多。
+  String _skillSummary(GameplayMode mode) {
+    final names = <String>[
+      for (final t in mode.scriptTools)
+        (t['displayName'] ?? t['id'] ?? '').toString(),
+      if (mode.statJudge && mode.scriptTools.isEmpty) '状态判定',
+    ].where((s) => s.trim().isNotEmpty).toList();
+
+    if (names.isEmpty) {
+      if (mode.enhancers.isNotEmpty) return '增强规则 ${mode.enhancers.length} 条';
+      if (mode.rules.isNotEmpty) return '事件规则 ${mode.rules.length} 条';
+      return '无技能';
+    }
+    if (names.length <= 2) return '技能：${names.join('、')}';
+    return '技能：${names.take(2).join('、')} 等 ${names.length} 个';
+  }
+
   Widget _modeCard(BuildContext context, GameplayMode mode) {
+    final primary = Theme.of(context).primaryColor;
+    final fromPack = _catalog.isFromPack(mode.id);
+    final tags = <String>[
+      if (mode.stats.isNotEmpty) '带状态',
+      if (mode.phases.isNotEmpty) '${mode.phases.length} 幕',
+      if (mode.setupPrompt != null) '有暗牌',
+    ];
+
     return InkWell(
       onTap: () => _startMode(mode),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        width: 156,
-        padding: const EdgeInsets.all(10),
+        width: 172,
+        height: 162,
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-          borderRadius: BorderRadius.circular(10),
+          color: primary.withValues(alpha: 0.035),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: primary.withValues(alpha: 0.14)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(mode.icon, size: 16),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(mode.name,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(mode.icon, size: 17, color: primary),
                 ),
-                if (_catalog.isFromPack(mode.id)) ...[
-                  const SizedBox(width: 4),
-                  Text(
-                    '已装',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: Theme.of(context).primaryColor,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    mode.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (fromPack)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '已装',
+                      style: TextStyle(fontSize: 9, color: primary),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // 摘要固定两行：长短不一会把卡片撑成参差不齐的样子
+            Expanded(
+              child: Text(
+                mode.summary,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.45,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+            if (tags.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  tags.join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: primary.withValues(alpha: 0.75),
+                  ),
+                ),
+              ),
+            if (mode.hasSkills)
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, size: 10, color: primary),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(
+                      _skillSummary(mode),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: primary.withValues(alpha: 0.9),
+                      ),
                     ),
                   ),
                 ],
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(mode.summary,
-                style: const TextStyle(
-                    fontSize: 11, color: Colors.grey, height: 1.4)),
-            if (mode.hasRuntime) ...[
-              const SizedBox(height: 6),
-              Text(
-                [
-                  if (mode.stats.isNotEmpty) '带状态',
-                  if (mode.phases.isNotEmpty) '分幕',
-                  if (mode.setupPrompt != null) '有暗牌',
-                ].join(' · '),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Theme.of(context).primaryColor,
-                ),
               ),
-            ],
           ],
         ),
       ),

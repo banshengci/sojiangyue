@@ -73,6 +73,35 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         text: '手上的实证已经能连成一条线了。',
       ),
     ],
+  
+    scriptTools: [
+      {
+        'id': 'case-scan',
+        'displayName': '案情推进判定',
+        'description': '这一回合有没有问出实证、离真相还有多远',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「剧本杀」的状态判定器。你知道本案真相，也看得到玩家这一回合\n'
+            '问的是什么、角色怎么回答的。\n'
+            '\n'
+            '本案真相（只用来对照，不要写出来）：\n'
+            '{{secret}}\n'
+            '\n'
+            '判定两项：\n'
+            '- 线索（clue，0~6）：只有角色**被迫吐出一条与案情有关的实证**\n'
+            '（具体时间、物证、目击者）才 +1；含糊的推测、情绪、无关闲聊都不加，\n'
+            '一回合最多 +1。\n'
+            '- 逼近真相（suspicion，0~100）：玩家指出的方向越贴近真凶与手法涨得越多\n'
+            '（沾边 +3~8，问到关键 +10~20）；被谎言带偏、问到无关方向则 -5。\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"线索": 1, "逼近真相": 12, "note": "他说漏了死者手里攥着半块玉佩"}',
+      },
+    ],
+    turnTool: 'case-scan',
   ),
   GameplayMode(
     id: 'haigui-soup',
@@ -124,6 +153,32 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         text: '你已经摸到这件事的骨架了，只差最后一块。',
       ),
     ],
+  
+    scriptTools: [
+      {
+        'id': 'soup-scan',
+        'displayName': '接近度判定',
+        'description': '只看玩家的提问，判断离汤底有多近',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「海龟汤」的状态判定器。汤底只有出题人知道，\n'
+            '角色只会回答「是」「否」「与此无关」——所以**只看玩家的提问**判断远近。\n'
+            '\n'
+            '汤底（只用来对照，不要写出来）：\n'
+            '{{secret}}\n'
+            '\n'
+            '判定「接近真相」（closeness，0~100）：\n'
+            '- 问到直接指向汤底核心因果的关键事实：+10~20\n'
+            '- 问到边缘线索：+3~8\n'
+            '- 无关方向：0\n'
+            '- 问题里带错误前提、被带偏：-5\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '\n'
+            '只输出 JSON，例如 {"接近真相": 12, "note": "他问到了那碗汤为什么是凉的"}',
+      },
+    ],
+    turnTool: 'soup-scan',
   ),
   GameplayMode(
     id: 'horror-rule',
@@ -189,6 +244,33 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         text: '已经破过一次规矩了，那些东西开始注意到你。',
       ),
     ],
+  
+    scriptTools: [
+      {
+        'id': 'sanity-scan',
+        'displayName': '神志判定',
+        'description': '只看这一回合掉了多少神志；违规由判官另判',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「规则怪谈」的神志判定器。你**只判「神志」（sanity，0~100）**；\n'
+            '违规次数由另一个判官单独判，**不要输出 violations**。\n'
+            '\n'
+            '判据：\n'
+            '- 目睹怪异、被惊吓、独自行动、相信了不该信的东西：-5~15\n'
+            '- 互相印证、待在亮处、守住了规矩、有人陪着：+3~8（神志很难完全恢复）\n'
+            '- 平常对话、没有异象：0\n'
+            '\n'
+            '这场怪谈的规则真相（只用来对照，不要写出来）：\n'
+            '{{secret}}\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"神志": -10, "note": "走廊又长了一截"}',
+      },
+    ],
+    turnTool: 'sanity-scan',
   ),
 
   // ── 情感 ──────────────────────────────────────────────
@@ -260,6 +342,32 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         text: '这一步已经不能再装作不知道了。',
       ),
     ],
+  
+    scriptTools: [
+      {
+        'id': 'romance-scan',
+        'displayName': '好感判定',
+        'description': '只判这一回合真有互动的那一位',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「恋爱模拟」的状态判定器。这是两个人的关系，**只判这一回合真的有互动的那一位**；\n'
+            '没被搭话、没回应的人不要动。\n'
+            '\n'
+            '判定（按人记，键写成「状态名|姓名」，姓名只能从在场的人里选）：\n'
+            '- 好感（affection，10~100）：对方说得体贴、做得合心意 +5~10；冒犯、轻浮、越界 -5~15。\n'
+            '  早期涨幅要小，越熟越容易涨也越容易伤。\n'
+            '- 信任（trust，0~100）：对方坦率、说到做到 +3~6；被敷衍、发现隐瞒 -5~10。\n'
+            '  信任比好感涨得慢，一般不超过好感涨幅的一半。\n'
+            '\n'
+            '在场的人：{{members}}\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"好感|姬动": 8, "信任|姬动": 3, "note": "他记住了她怕冷"}',
+      },
+    ],
+    turnTool: 'romance-scan',
   ),
   GameplayMode(
     id: 'letter',
@@ -304,6 +412,30 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         text: '最难说的那一句已经在纸上了。',
       ),
     ],
+  
+    scriptTools: [
+      {
+        'id': 'candor-scan',
+        'displayName': '坦白度判定',
+        'description': '这一笔有没有真的说出难说的实话',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「未寄出的信」的坦白度判定器。这封信写给一个具体的人，正文就是信的内容。\n'
+            '\n'
+            '判定「坦白度」（candor，0~100）：\n'
+            '- 说出一点真正难说的实话：+8~15\n'
+            '- 提到具体的事、具体的日子、具体的名字，比空泛的抒情更算数\n'
+            '- 回避、绕开、写漂亮话、只谈天气与回忆：0\n'
+            '- 写了又划掉、停在半句：不算涨，也不算跌\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '信的内容：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"坦白度": 12, "note": "他终于说出了那天为什么没去"}',
+      },
+    ],
+    turnTool: 'candor-scan',
   ),
 
   // ── 思辨 / 创作 ───────────────────────────────────────
@@ -355,6 +487,30 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         text: '对方开始重复自己的观点了，这是松动的迹象。',
       ),
     ],
+  
+    scriptTools: [
+      {
+        'id': 'argument-scan',
+        'displayName': '说服力判定',
+        'description': '论证有没有真的打到对方要害',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「角色辩论」的说服力判定器。双方各执一词，看谁先把谁说动。\n'
+            '\n'
+            '判定「说服力」（persuasion，50~100）：\n'
+            '- 论证有力（有理由、有例证、预判并回应了对方要害）：+8~15\n'
+            '- 正面回应了对方的有效反驳：+5~10\n'
+            '- 被驳倒、答非所问、偷换概念：-5~10\n'
+            '- 各打五十大板式地和稀泥、只喊口号、人身攻击：0\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"说服力": 12, "note": "他用对方的例子反证了自己的立场"}',
+      },
+    ],
+    turnTool: 'argument-scan',
   ),
   GameplayMode(
     id: 'meta-fiction',
@@ -394,6 +550,30 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         text: '他已经分不清哪句话是自己想说的了。',
       ),
     ],
+  
+    scriptTools: [
+      {
+        'id': 'awareness-scan',
+        'displayName': '觉醒度扫描',
+        'description': '这一回合角色有没有意识到叙事装置',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「元叙事」玩法的状态判定器。读下面的角色回复，判断这一回合\n'
+            '角色有没有意识到自己身处故事之中——提到作者、读者、翻页、删改、\n'
+            '命运重复，或对处境产生不自然的怀疑，才算察觉。\n'
+            '\n'
+            '当前状态：{{statsLine}}\n'
+            '\n'
+            '回复正文：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，二选一：\n'
+            '{"awareness": 0}\n'
+            '{"awareness": 15, "note": "一句话说明他察觉到了什么"}\n'
+            '真的察觉才给 10~20；普通剧情推进给 0。',
+      },
+    ],
+    turnTool: 'awareness-scan',
   ),
 
   // ── 趣味 ──────────────────────────────────────────────
@@ -441,6 +621,30 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         text: '有件事对不上：这里的东西，不该是这个样子。',
       ),
     ],
+  
+    scriptTools: [
+      {
+        'id': 'suspense-scan',
+        'displayName': '悬念推进',
+        'description': '这一回合有没有把那个悬念往前推一步',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「盲盒开局」的悬念判定器。开局就埋着一个未解的悬念（谁来过、少了什么、\n'
+            '外面为什么这么安静），角色不会主动揭晓，只能被问出来。\n'
+            '\n'
+            '判定「悬念推进」（clue，0~5）：\n'
+            '- 玩家每接近那个悬念一步就 +1（问到关键的人、物、时间，或把两处异常联系起来）\n'
+            '- 一回合最多 +1；原地打转、问无关的事：0\n'
+            '- 已经被问出来的线索不要重复计分\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"悬念推进": 1, "note": "他问起了门口那双多出来的鞋"}',
+      },
+    ],
+    turnTool: 'suspense-scan',
   ),
   GameplayMode(
     id: 'crossover-chat',
@@ -487,5 +691,30 @@ const List<GameplayMode> kBuiltinGameplayModes = [
         text: '没人再接话，茶凉了也没人喝。',
       ),
     ],
+  
+    scriptTools: [
+      {
+        'id': 'rapport-scan',
+        'displayName': '场面温度',
+        'description': '这桌人有没有聊到一块儿去',
+        'behavior': 'aiPrompt',
+        'prompt': 
+            '你是「跨书茶馆」的场面判定器。几位来自不同作品的人物聚在一处，彼此不认识。\n'
+            '\n'
+            '判定「场面融洽」（rapport，50~100）：\n'
+            '- 谈得来、互相接话、有人主动讲自己的事：+3~8\n'
+            '- 意外投契、解开一处误解：+8~12\n'
+            '- 话不投机、互相看不上、呛起来：-5~10\n'
+            '- 冷场、没人接话：-3\n'
+            '- 礼节性的客套：0\n'
+            '\n'
+            '玩家这一回合：{{playerInput}}\n'
+            '角色回复：\n'
+            '{{text}}\n'
+            '\n'
+            '只输出 JSON，例如 {"场面融洽": 6, "note": "两个人发现彼此都怕同一样东西"}',
+      },
+    ],
+    turnTool: 'rapport-scan',
   ),
 ];

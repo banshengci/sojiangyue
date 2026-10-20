@@ -223,6 +223,11 @@ class GameplayMode {
     this.accusationLabel = '指认',
     this.accusationSuspectLabel = '凶手是谁',
     this.accusationMethodLabel = '手法（可以留空）',
+    this.scriptTools = const [],
+    this.enhancers = const [],
+    this.rules = const [],
+    this.turnTool,
+    this.statJudge = false,
   });
 
   final String id;
@@ -285,6 +290,45 @@ class GameplayMode {
 
   /// 指认里第二个输入框的标题。
   final String accusationMethodLabel;
+
+  /// 玩法自带的「技能」：一组声明式 AI 工具（复用 PluginToolSpec）。
+  ///
+  /// 存原始 JSON 而不是解析后的对象，是为了让本文件不依赖插件契约
+  /// （模型层不该反向依赖 plugin/）。开局时由 GameplayRuntime 编译成
+  /// PluginManifest 注入注册表。
+  ///
+  /// 有这个，玩法就不只是「一段提示词」：可以挂一个独立的判定技能，
+  /// 而不是让正在演戏的模型自己给自己打分。
+  final List<Map<String, dynamic>> scriptTools;
+
+  /// 玩法自带的增强规则（复用 PluginEnhancer）：开局即注入主对话。
+  final List<Map<String, dynamic>> enhancers;
+
+  /// 玩法自带的事件规则（复用 PluginRule）：before_generation / after_turn。
+  final List<Map<String, dynamic>> rules;
+
+  /// 每回合结束后自动跑一次的技能 id（[scriptTools] 里的某一个）。
+  ///
+  /// 约定它返回 JSON，键是状态量（名字或 key），值是要加减的数；
+  /// 可选 `note` 写一句本回合的说明。这样「觉醒度」这类状态由独立技能判，
+  /// 而不是靠主模型在正文末尾自己报。
+  final String? turnTool;
+
+  /// 用内置的「通用状态判定」技能。
+  ///
+  /// 没有自定义 [turnTool] 的玩法，打开这个就能获得一个按 [stats] 里的
+  /// name/hint 自动生成的判定技能：每回合读一遍正文，给该动的状态量加减。
+  ///
+  /// 为什么要它：15 个玩法各写一段判定提示词，既重复又容易走偏；
+  /// 而每个状态量的 `hint` 本来就写着"什么时候该增减"，直接拿它生成即可。
+  final bool statJudge;
+
+  /// 是否声明了任何技能。
+  bool get hasSkills =>
+      scriptTools.isNotEmpty ||
+      enhancers.isNotEmpty ||
+      rules.isNotEmpty ||
+      statJudge;
 
   bool get hasRuntime =>
       stats.isNotEmpty || phases.isNotEmpty || setupPrompt != null;
@@ -357,6 +401,13 @@ class GameplayMode {
           (j['accusationMethodLabel'] ?? '').toString().trim().isEmpty
               ? '手法（可以留空）'
               : j['accusationMethodLabel'].toString(),
+      scriptTools: _rawMaps(j['scriptTools']),
+      enhancers: _rawMaps(j['enhancers']),
+      rules: _rawMaps(j['rules']),
+      turnTool: (j['turnTool'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : (j['turnTool'] as String).trim(),
+      statJudge: j['statJudge'] == true,
     );
   }
 
@@ -385,5 +436,19 @@ class GameplayMode {
           'accusationSuspectLabel': accusationSuspectLabel,
         if (accusationMethodLabel != '手法（可以留空）')
           'accusationMethodLabel': accusationMethodLabel,
+        if (scriptTools.isNotEmpty) 'scriptTools': scriptTools,
+        if (enhancers.isNotEmpty) 'enhancers': enhancers,
+        if (rules.isNotEmpty) 'rules': rules,
+        if (turnTool != null) 'turnTool': turnTool,
+        if (statJudge) 'statJudge': true,
       };
+}
+
+/// 把 JSON 里的数组原样收成 `List<Map>`；非 Map 的条目直接丢弃。
+List<Map<String, dynamic>> _rawMaps(Object? raw) {
+  if (raw is! List) return const [];
+  return [
+    for (final e in raw)
+      if (e is Map) Map<String, dynamic>.from(e),
+  ];
 }

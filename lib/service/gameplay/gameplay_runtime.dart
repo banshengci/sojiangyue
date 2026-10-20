@@ -15,6 +15,8 @@ import 'dart:convert';
 
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/models/gameplay_session.dart';
+import 'package:songjiang_reader/plugin/plugin_registry.dart';
+import 'package:songjiang_reader/plugin/songjiang_plugin_contract.dart';
 import 'package:songjiang_reader/service/gameplay/gameplay_setup.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 
@@ -54,6 +56,239 @@ class GameplayTurn {
 
 class GameplayRuntime {
   GameplayRuntime._();
+
+  /// 玩法技能的插件 id。
+  ///
+  /// 加前缀是为了不和用户从市场装的插件撞 id——玩法技能是宿主的，
+  /// 不该占掉 `com.xxx.yyy` 这类命名空间。
+  static String pluginIdFor(GameplayMode mode) => 'gameplay.${mode.id}';
+
+  /// 内置通用判定技能的工具 id。
+  static const String statJudgeToolId = 'stat-judge';
+
+  /// 这一局实际要跑的回合技能。
+  ///
+  /// 自定义的优先；否则看玩法有没有打开通用判定（且它真有状态量可判）。
+  static String? turnToolIdFor(GameplayMode mode) {
+    if (mode.turnTool != null) return mode.turnTool;
+    if (mode.statJudge && mode.stats.isNotEmpty) return statJudgeToolId;
+    return null;
+  }
+
+  /// 按玩法自己的状态量生成通用判定技能。
+  ///
+  /// 状态量的 `hint` 本来就写着「什么时候该增减」，直接拿它当判据——
+  /// 不必给 15 个玩法各写一段判定提示词，也不会各写各的走偏。
+  static Map<String, dynamic> buildStatJudgeSpec(GameplayMode mode) {
+    final lines = <String>[
+      for (final d in mode.stats)
+        '- ${d.name}（${d.key}）：范围 ${d.min}~${d.max}，'
+            '${d.perMember ? '按人记，键写成「${d.name}|姓名」' : '全场共享'}。'
+            '${d.hint}',
+    ];
+    final sample = mode.stats.isEmpty ? '状态名' : mode.stats.first.name;
+    return {
+      'id': statJudgeToolId,
+      'displayName': '状态判定',
+      'description': '读这一回合的正文，判定各状态量该增减多少',
+      'behavior': 'aiPrompt',
+      'prompt': '你是「${mode.name}」玩法的状态判定器。'
+          '读下面的角色回复，按每条状态的说明判断本回合该加减多少。\n\n'
+          '状态量：\n${lines.join('\n')}\n\n'
+          '当前数值：{{statsLine}}\n'
+          '在场的人：{{members}}\n\n'
+          '规则：\n'
+          '- 只报真的发生变化的那几项；没变就不写\n'
+          '- 普通互动 ±3~8，重要转折 ±10~25\n'
+          '- 按人记的状态必须写成「状态名|人名」，人名只能从上面在场的人里选\n'
+          '- 不要复述正文，不要解释\n\n'
+          '玩家这一回合：{{playerInput}}\n'
+          '角色回复：\n{{text}}\n\n'
+          '只输出 JSON，例如 {"$sample": 5, "note": "一句话说明为什么"}',
+    };
+  }
+
+  /// 把玩法声明的技能编译成插件清单；没声明就返回 null。
+  ///
+  /// 玩法原先只能给一段 [GameplayMode.directive]，写不了机制。这里让它能带：
+  /// - `scriptTools`：声明式工具（复用 PluginToolSpec）
+  /// - `enhancers`：开局即注入主对话的增强规则
+  /// - `rules`：before_generation / after_turn 事件规则
+  /// - `statJudge`：按状态量自动生成的通用判定技能
+  ///
+  /// 全部复用现有插件契约，不新造协议——玩法包与插件包走同一套东西。
+  static PluginManifest? buildPluginManifest(GameplayMode mode) {
+    final tools = <Map<String, dynamic>>[
+      ...mode.scriptTools,
+      if (turnToolIdFor(mode) == statJudgeToolId) buildStatJudgeSpec(mode),
+    ];
+    if (tools.isEmpty && mode.enhancers.isEmpty && mode.rules.isEmpty) {
+      return null;
+    }
+    return PluginManifest.fromJson({
+      'schemaVersion': '1.0',
+      'id': pluginIdFor(mode),
+      'name': '${mode.name} · 技能',
+      'version': '1.0.0',
+      'description': mode.summary,
+      'author': '松江阅',
+      // 声明式工具（llmChain / aiPrompt）都要调 AI；
+      // 规则里带 set_storage 才申请写权限——最小授权，不白给。
+      'permissions': [
+        'ai.query',
+        if (_needsStorageWrite(mode)) 'storage.write',
+      ],
+      'hooks': <Map<String, dynamic>>[],
+      'tools': tools,
+      'enhancers': mode.enhancers,
+      'rules': mode.rules,
+    });
+  }
+
+  /// 玩法规则里有没有写插件私有存储的动作。
+  ///
+  /// 有才申请 `storage.write`：`PluginRuleRunner` 是按 manifest 的权限放行的，
+  /// 不声明就会被静默丢掉，玩法作者会以为写进去了。
+  static bool _needsStorageWrite(GameplayMode mode) {
+    for (final rule in mode.rules) {
+      final actions = rule['actions'];
+      if (actions is! List) continue;
+      for (final a in actions) {
+        if (a is Map && a['type']?.toString() == 'set_storage') return true;
+      }
+    }
+    return false;
+  }
+
+  /// 跑一次玩法声明的「每回合技能」，把返回的 JSON 变成状态变化量。
+  ///
+  /// 意义：状态量不该由正在演戏的模型自己在正文末尾报——那等于让演员
+  /// 给自己打分。挂一个独立技能去判，和判官是同一个思路。
+  ///
+  /// 没声明 [GameplayMode.turnTool]、或技能执行失败时返回空结果，
+  /// 绝不阻断这一回合。
+  static Future<GameplayTurn> runTurnTool({
+    required GameplayMode mode,
+    required GameplaySession session,
+    required String replyText,
+    List<String> members = const [],
+    /// 玩家这一回合说了什么。旁观/继续演出时为空。
+    ///
+    /// 推理类玩法必须看这一句：海龟汤的回复只有「是/否」，光看回复判不出
+    /// 玩家离汤底有多近；剧本杀也要知道玩家问的是不是关键处。
+    String playerInput = '',
+    /// 暗牌（剧本杀的真相 / 海龟汤的汤底）。判"离真相多远"要有对照。
+    String secret = '',
+  }) async {
+    final toolId = turnToolIdFor(mode);
+    if (toolId == null) return const GameplayTurn(displayText: '');
+    if (replyText.trim().isEmpty && playerInput.trim().isEmpty) {
+      return const GameplayTurn(displayText: '');
+    }
+    try {
+      final raw = await PluginRegistry.instance.runDeclarativeTool(
+        pluginIdFor(mode),
+        toolId,
+        {
+          'text': replyText.trim(),
+          'turn': session.turn,
+          'stats': session.stats,
+          'statsLine': [
+            for (final e in session.stats.entries) '${e.key}=${e.value}',
+          ].join('，'),
+          'members': members.join('、'),
+          // 注意别用 input 当键名：{{input}} 是模板里「整个 JSON」的保留占位符
+          'playerInput': playerInput.trim(),
+          'secret': secret.trim(),
+        },
+      );
+      final turn = parseSkillOutput(raw);
+      if (turn.hasChanges || turn.note != null) {
+        SjLog.info(
+          'Gameplay: 技能 $toolId 判定 deltas=${turn.deltas} note=${turn.note}',
+        );
+      }
+      return turn;
+    } catch (e) {
+      SjLog.warning('Gameplay: 回合技能 $toolId 执行失败（已忽略）: $e');
+      return const GameplayTurn(displayText: '');
+    }
+  }
+
+  /// 解析技能返回的 JSON：`{"awareness": 15, "note": "一句话"}`。
+  ///
+  /// 允许模型在 JSON 前后带话（和判官一样的宽容度）；解析不出就返回空结果。
+  static GameplayTurn parseSkillOutput(String raw) {
+    final start = raw.indexOf('{');
+    final end = raw.lastIndexOf('}');
+    if (start < 0 || end <= start) {
+      return const GameplayTurn(displayText: '');
+    }
+    try {
+      final decoded = jsonDecode(raw.substring(start, end + 1));
+      if (decoded is! Map) return const GameplayTurn(displayText: '');
+      final deltas = <String, int>{};
+      String? note;
+      decoded.forEach((k, v) {
+        final key = k.toString();
+        if (key == 'note') {
+          final t = v?.toString().trim() ?? '';
+          if (t.isNotEmpty) note = t;
+          return;
+        }
+        final n = v is num ? v.toInt() : int.tryParse(v?.toString() ?? '');
+        // 保留 0：技能明确说「这一项没变」时，要能压掉模型自报的数值
+        // （覆盖语义见 [overrideWith]）。丢掉 0 就等于技能无法否决模型。
+        if (n != null) deltas[key] = n;
+      });
+      return GameplayTurn(displayText: '', deltas: deltas, note: note);
+    } catch (e) {
+      SjLog.warning('Gameplay: 技能返回不是合法 JSON: $raw ($e)');
+      return const GameplayTurn(displayText: '');
+    }
+  }
+
+  /// 技能的结论**覆盖**模型自报的同名项（不是相加）。
+  ///
+  /// 为什么不能相加：玩法开着 [GameplayMode.turnTool] 时，模型往往也会在
+  /// 状态块里自己报一遍同样的状态量。两边相加就翻倍了。
+  /// 技能是独立判的，比正在演戏的模型可信，所以同名项以它为准。
+  ///
+  /// 比较前要把键归一化：模型爱写 key（`sanity`），技能爱写名字（`神志`），
+  /// 直接按字符串比会对不上，结果是两边都算一遍。
+  static GameplayTurn overrideWith(
+    GameplayTurn base,
+    GameplayTurn skill, {
+    GameplayMode? mode,
+  }) {
+    if (!skill.hasChanges && skill.note == null) return base;
+    final nameToKey = <String, String>{
+      for (final d in mode?.stats ?? const <GameplayStatDef>[]) d.name: d.key,
+      for (final d in mode?.stats ?? const <GameplayStatDef>[]) d.key: d.key,
+    };
+
+    final deltas = <String, int>{};
+    base.deltas.forEach((k, v) => deltas[_keyOf(k, nameToKey)] = v);
+    skill.deltas.forEach((k, v) => deltas[_keyOf(k, nameToKey)] = v);
+
+    return GameplayTurn(
+      displayText: base.displayText,
+      deltas: deltas,
+      note: skill.note ?? base.note,
+      ended: base.ended,
+      advancePhase: base.advancePhase,
+    );
+  }
+
+  /// 把「好感」/「好感|姬动」/`affection` 统一成 `affection` / `affection|姬动`。
+  static String _keyOf(String raw, Map<String, String> nameToKey) {
+    if (nameToKey.isEmpty) return raw;
+    final sep = raw.indexOf('|');
+    if (sep <= 0) return nameToKey[raw] ?? raw;
+    final head = raw.substring(0, sep);
+    final mapped = nameToKey[head];
+    return mapped == null ? raw : '$mapped${raw.substring(sep)}';
+  }
 
   /// 组装注入给模型的玩法设定。
   static String buildDirective({

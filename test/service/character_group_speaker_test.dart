@@ -102,6 +102,82 @@ void main() {
     });
   });
 
+  group('splitSpokenBlock（一回合多段）', () {
+    const names = ['姬动', '烈焰', '弗瑞', '陈思璇'];
+
+    test('一个回合里几个人轮着说话，拆成几张卡片', () {
+      // 截图里的真实形态：落库时首行「弗瑞：」已被 strip，剩下的人还在正文里
+      const raw = '（大手一挥，直接拍板）就这么定了。师弟，你明天一早就动身。\n'
+          '\n'
+          '姬动：我不去。\n'
+          '\n'
+          '陈思璇：姬动……\n'
+          '\n'
+          '弗瑞：由不得你。';
+      final segs = splitSpokenBlock(raw, firstSpeaker: '弗瑞', onStage: names);
+      expect(segs.map((s) => s.speaker).toList(), ['弗瑞', '姬动', '陈思璇', '弗瑞']);
+      expect(segs[0].text, contains('就这么定了'));
+      expect(segs[1].text, '我不去。');
+    });
+
+    test('整段只有别人的台词时，不再挂在首行那个人头上', () {
+      // 截图里那张标着「姬动」却只有陈思璇一句的卡片
+      const raw = '陈思璇：（望着姬动离去的方向）姬动……你还是答应了。';
+      final segs = splitSpokenBlock(raw, firstSpeaker: '姬动', onStage: names);
+      expect(segs.length, 1);
+      expect(segs.first.speaker, '陈思璇');
+    });
+
+    test('独立成段的纯括注是旁白，不并进上一个人的台词', () {
+      const raw = '（驿站外，姬动正在备马，忽然感应到一股冰寒气息。他握上了刀柄）\n'
+          '\n'
+          '姬动：出来。';
+      final segs = splitSpokenBlock(raw, firstSpeaker: '弗瑞', onStage: names);
+      expect(segs.first.isNarration, isTrue);
+      expect(segs.first.text, startsWith('（驿站外'));
+      expect(segs[1].speaker, '姬动');
+      expect(segs[1].text, '出来。');
+    });
+
+    test('「（动作）台词」不算旁白——括号只开了个头，后面还有话', () {
+      const raw = '（收回目光，攥紧拳头，指甲几乎嵌入掌心）姬动，你带她去祭烈焰陛下。';
+      final segs = splitSpokenBlock(raw, firstSpeaker: '阿金', onStage: const ['阿金']);
+      expect(segs.length, 1);
+      expect(segs.first.speaker, '阿金');
+      expect(segs.first.isNarration, isFalse);
+    });
+
+    test('台词中间夹一段括注，括注自己成一行', () {
+      const raw = '姬动：你走吧。\n'
+          '（门被轻轻带上。）\n'
+          '姬动：别回头。';
+      final segs = splitSpokenBlock(raw, onStage: names);
+      expect(segs.map((s) => s.speaker).toList(), ['姬动', '', '姬动']);
+      expect(segs[1].isNarration, isTrue);
+    });
+
+    test('不在场的人名不拆（避免把旁人的话安到在场者头上）', () {
+      const raw = '王熙凤：都散了吧。';
+      final segs = splitSpokenBlock(raw, onStage: names);
+      expect(segs.length, 1);
+      expect(segs.first.speaker, '');
+      expect(segs.first.text, '王熙凤：都散了吧。');
+    });
+
+    test('空内容返回空列表（流式开始时不该凭空多一张卡片）', () {
+      expect(splitSpokenBlock(''), isEmpty);
+      expect(splitSpokenBlock('   \n  '), isEmpty);
+    });
+
+    test('单段内容不会被拆坏', () {
+      const raw = '姬动：走。';
+      final segs = splitSpokenBlock(raw, onStage: names);
+      expect(segs.length, 1);
+      expect(segs.first.speaker, '姬动');
+      expect(segs.first.text, '走。');
+    });
+  });
+
   group('旁白要显示的名字', () {
     test('群聊不把内部编码印出来', () {
       const raw = '1:姬动,1:烈焰,1:黑暗天机';

@@ -117,6 +117,49 @@ class GameplayJudge {
     );
   }
 
+  /// 违规后该扣哪些状态量。
+  ///
+  /// 以前这段写死在页面里（`violations +1`、`sanity -25 / -8`），那是「规则怪谈」
+  /// 的词表。可剧本杀和海龟汤也开着 `judged`，它们没有这两个键——
+  /// 结算结果落进一个不显示的键里，判官判了，玩家一点感觉都没有，
+  /// 结局更不会因此触发。
+  ///
+  /// 现在的规则：有专用词表就按专用词表扣；没有就扣这一档玩法的主计分量。
+  ///
+  /// 「主计分量」优先取**不按人记**的那一项：按人记的值（好感/信任）存在
+  /// `memberStats` 里，往 `stats` 里写一个同名键是看不见的，
+  /// 又会掉进同一个坑——扣了，但玩家不知道。
+  static Map<String, int> penaltyFor(
+    GameplayMode mode, {
+    required bool fatal,
+  }) {
+    final keys = <String>{for (final d in mode.stats) d.key};
+    final deltas = <String, int>{};
+    if (keys.contains('violations')) deltas['violations'] = 1;
+    if (keys.contains('sanity')) deltas['sanity'] = fatal ? -25 : -8;
+    if (deltas.isNotEmpty) return deltas;
+
+    GameplayStatDef? target;
+    // 先找不按人记的计分项，再退到不按人记的任意项
+    for (final d in mode.stats) {
+      if (d.isScore && !d.perMember) {
+        target = d;
+        break;
+      }
+    }
+    if (target == null) {
+      for (final d in mode.stats) {
+        if (!d.perMember) {
+          target = d;
+          break;
+        }
+      }
+    }
+    if (target == null && mode.stats.isNotEmpty) target = mode.stats.first;
+    if (target != null) deltas[target.key] = fatal ? -15 : -5;
+    return deltas;
+  }
+
   /// 违规判定的提示词（公开出来便于测试与排查）。
   static String buildViolationPrompt({
     required GameplaySetup setup,

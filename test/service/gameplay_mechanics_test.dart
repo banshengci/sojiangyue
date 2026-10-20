@@ -237,6 +237,59 @@ void main() {
       expect(prompt, contains('手法：用冰锥'));
       expect(prompt, contains('{"correct": true'));
     });
+
+    group('违规扣什么（按玩法自己的状态量）', () {
+      GameplayMode modeOf(String id) =>
+          kBuiltinGameplayModes.firstWhere((m) => m.id == id);
+
+      test('规则怪谈：扣神志、记违规次数', () {
+        final d = GameplayJudge.penaltyFor(modeOf('horror-rule'), fatal: false);
+        expect(d['sanity'], -8);
+        expect(d['violations'], 1);
+        expect(
+          GameplayJudge.penaltyFor(modeOf('horror-rule'), fatal: true)['sanity'],
+          -25,
+        );
+      });
+
+      test('剧本杀没有 sanity/violations，扣的是它自己的主计分量', () {
+        // 以前这里写死 violations +1 / sanity -25，剧本杀压根没这两个键，
+        // 结算落进看不见的地方——判官判了，玩家没感觉，结局也不动。
+        final d = GameplayJudge.penaltyFor(
+          modeOf('murder-mystery'),
+          fatal: false,
+        );
+        expect(d.containsKey('sanity'), isFalse);
+        expect(d.containsKey('violations'), isFalse);
+        expect(d.keys.single, 'clue'); // isScore 的那一项
+        expect(d['clue'], -5);
+      });
+
+      test('海龟汤扣「接近真相」', () {
+        final d = GameplayJudge.penaltyFor(
+          modeOf('haigui-soup'),
+          fatal: true,
+        );
+        expect(d.keys.single, 'closeness');
+        expect(d['closeness'], -15);
+      });
+
+      test('扣的都是玩法里真有的状态量', () {
+        final all = <GameplayMode>[
+          ...kBuiltinGameplayModes,
+          for (final pack in kOfficialGameplayPacks)
+            ...pack.gameplayModesJson.map(GameplayMode.fromJson),
+        ];
+        for (final mode in all) {
+          final d = GameplayJudge.penaltyFor(mode, fatal: true);
+          final keys = mode.stats.map((s) => s.key).toSet();
+          expect(d, isNotEmpty, reason: '「${mode.name}」违规后什么都没扣');
+          for (final k in d.keys) {
+            expect(keys, contains(k), reason: '「${mode.name}」扣了不存在的状态 $k');
+          }
+        }
+      });
+    });
   });
 
   group('门槛事件', () {
@@ -419,6 +472,293 @@ void main() {
       expect(merged.note, '违反规则 2');
       expect(merged.displayText, '灯灭了。');
       expect(base.deltas['sanity'], -5, reason: '不能改到原对象');
+    });
+  });
+
+  group('玩法自带的技能', () {
+    /// 一个带「每回合技能」的元叙事变体。
+    Map<String, dynamic> metaWithSkill() => {
+          'id': 'meta-fiction-skill',
+          'name': '元叙事（带技能）',
+          'directive': '本场采用元叙事。',
+          'summary': '角色察觉自己在书里',
+          'stats': [
+            {'key': 'awareness', 'name': '觉醒度', 'max': 100, 'isScore': true},
+          ],
+          'scriptTools': [
+            {
+              'id': 'scan',
+              'displayName': '觉醒度扫描',
+              'description': '判断这一回合角色有没有意识到叙事装置',
+              'behavior': 'aiPrompt',
+              'prompt': '读这段对话，判断角色有没有意识到自己在书里：{{text}}',
+            },
+          ],
+          'enhancers': [
+            {
+              'id': 'wall',
+              'title': '第四面墙',
+              'rule': '可以让角色察觉到读者与翻页。',
+            },
+          ],
+          'rules': [
+            {
+              'id': 'echo',
+              'title': '提到作者',
+              'event': 'after_turn',
+              'actions': [
+                {
+                  'type': 'add_instruction',
+                  'instruction': '角色开始怀疑自己的处境。',
+                },
+              ],
+            },
+          ],
+          'turnTool': 'scan',
+        };
+
+    test('JSON 往返不丢技能声明', () {
+      final mode = GameplayMode.fromJson(metaWithSkill());
+      expect(mode.scriptTools, hasLength(1));
+      expect(mode.enhancers, hasLength(1));
+      expect(mode.rules, hasLength(1));
+      expect(mode.turnTool, 'scan');
+      expect(mode.hasSkills, isTrue);
+
+      final back = GameplayMode.fromJson(mode.toJson());
+      expect(back.scriptTools, hasLength(1));
+      expect(back.enhancers, hasLength(1));
+      expect(back.rules, hasLength(1));
+      expect(back.turnTool, 'scan');
+    });
+
+    test('没声明技能时 hasSkills 为假，且不生成插件清单', () {
+      // 手搭一个最小玩法：没有 stats、没有 scriptTools、没开 statJudge
+      final plain = GameplayMode(
+        id: 'bare',
+        name: '素玩法',
+        icon: gameplayIconByName(null),
+        summary: '',
+        directive: '就是聊天。',
+      );
+      expect(plain.hasSkills, isFalse);
+      expect(GameplayRuntime.turnToolIdFor(plain), isNull);
+      expect(GameplayRuntime.buildPluginManifest(plain), isNull);
+    });
+
+    test('声明了就编译成插件清单：id 带前缀，工具/增强/规则都带过来', () {
+      final mode = GameplayMode.fromJson(metaWithSkill());
+      final manifest = GameplayRuntime.buildPluginManifest(mode);
+      expect(manifest, isNotNull);
+      expect(manifest!.id, 'gameplay.${mode.id}');
+      expect(manifest.tools, hasLength(1));
+      expect(manifest.enhancers, hasLength(1));
+      expect(manifest.rules, hasLength(1));
+      // 声明式工具要调 AI，权限必须自己带上
+      expect(
+        manifest.permissions.map((p) => p.value),
+        contains('ai.query'),
+      );
+    });
+
+    test('技能返回的 JSON 能变成状态变化量', () {
+      final t = GameplayRuntime.parseSkillOutput(
+        '好的，判定如下：{"awareness": 15, "note": "他提到了作者"}',
+      );
+      expect(t.deltas['awareness'], 15);
+      expect(t.note, '他提到了作者');
+    });
+
+    test('技能返回不是 JSON 时安静返回空结果，不炸这一回合', () {
+      expect(GameplayRuntime.parseSkillOutput('我觉得挺好的').hasChanges, isFalse);
+      expect(GameplayRuntime.parseSkillOutput('{}').hasChanges, isFalse);
+    });
+
+    test('技能报 0 也能压掉模型自报的数值（否决）', () {
+      final base = const GameplayTurn(displayText: 'x', deltas: {'awareness': 15});
+      final skill = GameplayRuntime.parseSkillOutput('{"awareness": 0}');
+      expect(skill.deltas['awareness'], 0, reason: '0 不能被丢掉，否则否决无效');
+      final out = GameplayRuntime.overrideWith(base, skill);
+      expect(out.deltas['awareness'], 0);
+    });
+
+    test('名字与 key 混写时也能对上（模型写 sanity、技能写「神志」）', () {
+      final mode =
+          kBuiltinGameplayModes.firstWhere((m) => m.id == 'horror-rule');
+      final base = const GameplayTurn(displayText: 'x', deltas: {'sanity': -8});
+      final skill = GameplayRuntime.parseSkillOutput('{"神志": -10}');
+      final out = GameplayRuntime.overrideWith(base, skill, mode: mode);
+      expect(out.deltas.length, 1, reason: '不能变成两项各算一遍');
+      expect(out.deltas['sanity'], -10);
+    });
+
+    test('按人记的键也能归一化', () {
+      final mode =
+          kBuiltinGameplayModes.firstWhere((m) => m.id == 'dating-sim');
+      final base = const GameplayTurn(
+        displayText: 'x',
+        deltas: {'affection|姬动': 5},
+      );
+      final skill = GameplayRuntime.parseSkillOutput('{"好感|姬动": 8}');
+      final out = GameplayRuntime.overrideWith(base, skill, mode: mode);
+      expect(out.deltas['affection|姬动'], 8);
+      expect(out.deltas.length, 1);
+    });
+
+    test('规则里有 set_storage 才申请写权限', () {
+      final withStorage = GameplayMode.fromJson({
+        ...metaWithSkill(),
+        'id': 'storage-mode',
+        'rules': [
+          {
+            'id': 'save',
+            'title': '记一笔',
+            'event': 'after_turn',
+            'actions': [
+              {'type': 'set_storage', 'key': 'last', 'value': '第{{turn}}轮'},
+            ],
+          },
+        ],
+      });
+      final manifest = GameplayRuntime.buildPluginManifest(withStorage)!;
+      expect(
+        manifest.permissions.map((p) => p.value),
+        contains('storage.write'),
+      );
+
+      // 没有 set_storage 的玩法不该白拿写权限
+      final plain = GameplayRuntime.buildPluginManifest(
+        GameplayMode.fromJson(metaWithSkill()),
+      )!;
+      expect(
+        plain.permissions.map((p) => p.value),
+        isNot(contains('storage.write')),
+      );
+    });
+
+    test('技能的结论覆盖模型自报的同名项，不翻倍', () {
+      final base = const GameplayTurn(
+        displayText: '……',
+        deltas: {'awareness': 15, 'clue': 1},
+        note: '模型自报',
+      );
+      final skill = GameplayRuntime.parseSkillOutput('{"awareness": 20}');
+      final out = GameplayRuntime.overrideWith(base, skill);
+      expect(out.deltas['awareness'], 20, reason: '技能说了算');
+      expect(out.deltas['clue'], 1, reason: '技能没提的项保留');
+      expect(out.displayText, '……');
+    });
+
+    test('技能没有结论时保持原样', () {
+      final base = const GameplayTurn(displayText: 'x', deltas: {'clue': 1});
+      final out =
+          GameplayRuntime.overrideWith(base, GameplayRuntime.parseSkillOutput(''));
+      expect(out.deltas['clue'], 1);
+    });
+
+    test('内置玩法全部用手写技能，不再走通用判定', () {
+      for (final m in kBuiltinGameplayModes) {
+        expect(m.turnTool, isNotNull, reason: '「${m.name}」没有手写技能');
+        expect(m.statJudge, isFalse, reason: '「${m.name}」有手写技能就不该再开通用判定');
+        expect(
+          m.scriptTools.map((t) => t['id']),
+          contains(m.turnTool),
+          reason: '「${m.name}」的 turnTool 没有对应工具',
+        );
+        expect(
+          GameplayRuntime.turnToolIdFor(m),
+          m.turnTool,
+          reason: '「${m.name}」跑的不是自己的技能',
+        );
+      }
+    });
+
+    test('官方包玩法也各有手写技能', () {
+      final packs = <GameplayMode>[
+        for (final pack in kOfficialGameplayPacks)
+          ...pack.gameplayModesJson.map(GameplayMode.fromJson),
+      ];
+      expect(packs, isNotEmpty);
+      for (final m in packs) {
+        expect(m.turnTool, isNotNull, reason: '「${m.name}」没有手写技能');
+        expect(
+          m.scriptTools.map((t) => t['id']),
+          contains(m.turnTool),
+          reason: '「${m.name}」的 turnTool 没有对应工具',
+        );
+      }
+    });
+
+    test('每个玩法用的技能 id 都不重复（各判各的）', () {
+      final all = <GameplayMode>[
+        ...kBuiltinGameplayModes,
+        for (final pack in kOfficialGameplayPacks)
+          ...pack.gameplayModesJson.map(GameplayMode.fromJson),
+      ];
+      final ids = all.map((m) => m.turnTool).whereType<String>().toList();
+      expect(ids.toSet().length, ids.length, reason: '有玩法共用了同一个技能 id');
+    });
+
+    test('手写技能能看到玩家发言与暗牌', () {
+      // 海龟汤只回「是/否」，剧本杀要对照真相，规则怪谈要对照规则真相
+      for (final id in ['murder-mystery', 'haigui-soup', 'horror-rule']) {
+        final m = kBuiltinGameplayModes.firstWhere((x) => x.id == id);
+        final prompt = m.scriptTools.single['prompt'] as String;
+        expect(prompt, contains('{{playerInput}}'), reason: '「${m.name}」看不到玩家发言');
+        expect(prompt, contains('{{secret}}'), reason: '「${m.name}」看不到暗牌');
+      }
+    });
+
+    test('规则怪谈的技能不碰违规次数（那是判官的事）', () {
+      final m = kBuiltinGameplayModes.firstWhere((x) => x.id == 'horror-rule');
+      final prompt = m.scriptTools.single['prompt'] as String;
+      expect(prompt, contains('不要输出 violations'));
+      expect(prompt, contains('神志'));
+      // 判官结算的 violations 不能被技能覆盖掉
+      final base = const GameplayTurn(
+        displayText: 'x',
+        deltas: {'violations': 1, 'sanity': -8},
+      );
+      final skill = GameplayRuntime.parseSkillOutput('{"神志": -10}');
+      final out = GameplayRuntime.overrideWith(base, skill, mode: m);
+      expect(out.deltas['violations'], 1, reason: '违规次数必须保留');
+      expect(out.deltas['sanity'], -10, reason: '神志以技能为准');
+    });
+
+    test('通用判定仍然是后备：新玩法不写技能也能跑', () {
+      // 手写技能是给已有玩法打磨的；将来新增的玩法只要打开 statJudge
+      // 就能拿到一个按自己 stats 生成的判定，不必先写提示词。
+      final mode = GameplayMode.fromJson({
+        'id': 'future-mode',
+        'name': '将来的玩法',
+        'directive': '先跑起来。',
+        'statJudge': true,
+        'stats': [
+          {'key': 'mood', 'name': '心情', 'max': 100, 'isScore': true},
+        ],
+      });
+      expect(mode.turnTool, isNull);
+      expect(
+        GameplayRuntime.turnToolIdFor(mode),
+        GameplayRuntime.statJudgeToolId,
+      );
+      final manifest = GameplayRuntime.buildPluginManifest(mode)!;
+      expect(
+        manifest.tools.map((t) => t.id),
+        contains(GameplayRuntime.statJudgeToolId),
+      );
+    });
+
+    test('通用判定技能按玩法自己的状态量生成，按人记的会要求带人名', () {
+      final dating =
+          kBuiltinGameplayModes.firstWhere((m) => m.id == 'dating-sim');
+      final spec = GameplayRuntime.buildStatJudgeSpec(dating);
+      final prompt = spec['prompt'] as String;
+      expect(prompt, contains('好感'));
+      expect(prompt, contains('信任'));
+      expect(prompt, contains('好感|姓名'), reason: '按人记的状态要带人名');
+      expect(prompt, contains('{{text}}'));
+      expect(prompt, contains('{{members}}'));
     });
   });
 }
