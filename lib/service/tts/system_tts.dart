@@ -97,10 +97,15 @@ class SystemTts extends BaseTts {
         return;
       }
       _prevVoiceText = _currentVoiceText;
-      _currentVoiceText = await epubPlayerKey.currentState!.ttsPrepare();
+      // 阅读页可能正在销毁（用户退出、换章重建），这里原来用 `!` 断言。
+      // 这个回调是平台通道打进来的，异常不会有人接，日志里只剩一条
+      // 无从下手的 SEVERE。取不到就安静跳过，下一句还会再进来。
+      final player = epubPlayerKey.currentState;
+      if (player == null) return;
+      _currentVoiceText = await player.ttsPrepare();
 
       if (_currentVoiceText?.isNotEmpty ?? false) {
-        flutterTts.speak(_currentVoiceText!);
+        unawaited(flutterTts.speak(_currentVoiceText!));
       }
     });
 

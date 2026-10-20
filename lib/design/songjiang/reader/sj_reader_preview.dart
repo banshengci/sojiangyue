@@ -444,8 +444,7 @@ class _SjReaderPhoneDemoState extends State<SjReaderPhoneDemo> {
                           alignment: Alignment.centerRight,
                           child: SjReaderFloatActions(
                             palette: palette,
-                            onTypography: () =>
-                                _setState(SjReaderDemoState.typography),
+                            onAiChat: () {},
                             onListen: () {},
                           ),
                         ),

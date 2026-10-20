@@ -362,22 +362,26 @@ class _ProgressIconPainter extends CustomPainter {
 // 浮动动作
 // ---------------------------------------------------------------------------
 
-/// 右下角「A↑ / 听」两个深色圆形按钮。
+/// 右下角「AI / 听」两个深色圆形按钮。
 ///
 /// 微信读书在工具栏展开时把它们浮在底栏上方；关闭工具栏时一同隐藏。
+///
+/// 原来左边那个是「A↑」，和底栏最右的「A」重复——同一个功能两个入口，
+/// 还会让人以为字号能从这里单独调。换成 AI 助手：正文旁边随时能问一句，
+/// 这才是读书时真正想要的那个入口。
 class SjReaderFloatActions extends StatelessWidget {
   const SjReaderFloatActions({
     super.key,
     required this.palette,
-    this.onTypography,
+    this.onAiChat,
     this.onListen,
   });
 
   /// 当前阅读调色板。
   final SjReaderPalette palette;
 
-  /// A↑：调字号。
-  final VoidCallback? onTypography;
+  /// ✦：唤起 AI 助手。为 null 时不显示（AI 功能关闭）。
+  final VoidCallback? onAiChat;
 
   /// 听：听书。
   final VoidCallback? onListen;
@@ -392,13 +396,15 @@ class SjReaderFloatActions extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        _FloatButton(
-          background: bg,
-          onTap: onTypography,
-          semanticLabel: '字体大小',
-          child: _FontSizeGlyph(color: fg),
-        ),
-        const SizedBox(width: 12),
+        if (onAiChat != null) ...[
+          _FloatButton(
+            background: bg,
+            onTap: onAiChat,
+            semanticLabel: 'AI 助手',
+            child: Icon(Icons.auto_awesome_rounded, size: 18, color: fg),
+          ),
+          const SizedBox(width: 12),
+        ],
         _FloatButton(
           background: bg,
           onTap: onListen,
@@ -449,40 +455,3 @@ class _FloatButton extends StatelessWidget {
   }
 }
 
-/// 「A」右上角带一个小上箭头的字形。
-class _FontSizeGlyph extends StatelessWidget {
-  const _FontSizeGlyph({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 22,
-      height: 22,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          Positioned(
-            left: 0,
-            bottom: 1,
-            child: Text(
-              'A',
-              style: TextStyle(
-                fontSize: 17,
-                height: 1,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ),
-          Positioned(
-            right: -1,
-            top: -2,
-            child: Icon(Icons.arrow_upward_rounded, size: 10, color: color),
-          ),
-        ],
-      ),
-    );
-  }
-}

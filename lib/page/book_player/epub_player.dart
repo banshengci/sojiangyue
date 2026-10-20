@@ -455,24 +455,45 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
 
   void ttsStop() => webViewController.evaluateJavascript(source: "ttsStop()");
 
-  Future<String> ttsNext() async => (await webViewController
-          .callAsyncJavaScript(functionBody: "return await ttsNext()"))
-      ?.value;
+  // TTS 取文本的几个入口都兜成空串。
+  //
+  // `evaluateJavascript` / `callAsyncJavaScript` 返回的是 Object?，JS 侧
+  // 没准备好时就是 null；直接塞进 `Future<String>` 会在运行时抛
+  // 「type 'Null' is not a subtype of String」，而这些调用都发生在
+  // flutter_tts 的平台回调里，异常没人接，表现为朗读突然停住、
+  // 日志里只有一条无从下手的错误。
+  //
+  // 空串在 speak() 里会被安全跳过，下一句还会再进来。
 
-  Future<String> ttsPrev() async => (await webViewController
-          .callAsyncJavaScript(functionBody: "return await ttsPrev()"))
-      ?.value;
+  Future<String> ttsNext() async =>
+      (await webViewController.callAsyncJavaScript(
+                  functionBody: "return await ttsNext()"))
+              ?.value ??
+          '';
 
-  Future<String> ttsPrevSection() async => (await webViewController
-          .callAsyncJavaScript(functionBody: "return await ttsPrevSection()"))
-      ?.value;
+  Future<String> ttsPrev() async =>
+      (await webViewController.callAsyncJavaScript(
+                  functionBody: "return await ttsPrev()"))
+              ?.value ??
+          '';
 
-  Future<String> ttsNextSection() async => (await webViewController
-          .callAsyncJavaScript(functionBody: "return await ttsNextSection()"))
-      ?.value;
+  Future<String> ttsPrevSection() async =>
+      (await webViewController.callAsyncJavaScript(
+                  functionBody: "return await ttsPrevSection()"))
+              ?.value ??
+          '';
 
-  Future<String> ttsPrepare() async =>
-      (await webViewController.evaluateJavascript(source: "ttsPrepare()"));
+  Future<String> ttsNextSection() async =>
+      (await webViewController.callAsyncJavaScript(
+                  functionBody: "return await ttsNextSection()"))
+              ?.value ??
+          '';
+
+  Future<String> ttsPrepare() async {
+    final value =
+        await webViewController.evaluateJavascript(source: "ttsPrepare()");
+    return value?.toString() ?? '';
+  }
 
   TtsSentence? _parseTtsSentence(dynamic value) {
     if (value is Map<dynamic, dynamic>) {
@@ -1250,11 +1271,20 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
     final iconColor = Color(int.parse('0x$textColor'));
 
     Widget getWidget(ReadingInfoEnum readingInfoEnum, TextStyle textStyle) {
+      // 电量徽标按字号等比缩放：以前是拿 battery_0_bar 当底、把数字盖在图标
+      // 中间，可那个字形右侧有电极帽、内腔并不居中，数字总是偏左偏上，
+      // 字号一调就出界。现在自己画外壳，数字放在内腔正中。
+      final baseFontSize = textStyle.fontSize ?? 10;
+      final batteryBodyHeight = baseFontSize * 1.15;
+      final batteryBodyWidth = batteryBodyHeight * 1.9;
+      final batteryCapWidth = (batteryBodyHeight * 0.13).clamp(1.2, 2.6);
+      final batteryCapHeight = batteryBodyHeight * 0.42;
       final batteryTextStyle = TextStyle(
         color: iconColor,
-        fontSize: (textStyle.fontSize ?? 10) - 1,
+        fontSize: batteryBodyHeight * 0.62,
+        height: 1,
+        fontWeight: FontWeight.w500,
       );
-      final batteryIconSize = (textStyle.fontSize ?? 10) * 2.7;
 
       final chapterTitleWidget = Text(
         (chapterCurrentPage == 1 ? widget.book.title : chapterTitle),
@@ -1286,25 +1316,45 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
       final batteryWidget = FutureBuilder(
           future: Battery().batteryLevel,
           builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                        0, (textStyle.fontSize ?? 10) * 0.08, 2, 0),
-                    child: Text('${snapshot.data}', style: batteryTextStyle),
+            if (!snapshot.hasData) return const SizedBox();
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: batteryBodyWidth,
+                  height: batteryBodyHeight,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: iconColor, width: 1),
+                    borderRadius:
+                        BorderRadius.circular(batteryBodyHeight * 0.28),
                   ),
-                  Icon(
-                    Icons.battery_0_bar,
-                    size: batteryIconSize,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: batteryBodyHeight * 0.06,
+                    ),
+                    // FittedBox 兜底：三位数（100）或用户把字号调到很大时
+                    // 宁可缩一点，也不要溢出到电池壳外面
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('${snapshot.data}', style: batteryTextStyle),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: batteryCapWidth,
+                  height: batteryCapHeight,
+                  margin: const EdgeInsets.only(left: 0.8),
+                  decoration: BoxDecoration(
                     color: iconColor,
+                    borderRadius: BorderRadius.horizontal(
+                      right: Radius.circular(batteryCapWidth),
+                    ),
                   ),
-                ],
-              );
-            } else {
-              return const SizedBox();
-            }
+                ),
+              ],
+            );
           });
 
       Widget batteryAndTimeWidget() => Row(

@@ -390,8 +390,6 @@ class ReadingPageState extends ConsumerState<ReadingPage>
 
   void appearanceHandler() => _openTool(SjReaderTool.appearance);
 
-  void typographyHandler() => _openTool(SjReaderTool.typography);
-
   /// 复制本章内容（沿用原顶栏的「分享」位）。
   Future<void> _copyChapter() async {
     try {
@@ -942,7 +940,9 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                             alignment: Alignment.centerRight,
                             child: SjReaderFloatActions(
                               palette: palette,
-                              onTypography: typographyHandler,
+                              onAiChat: EnvVar.enableAIFeature
+                                  ? _openAiChat
+                                  : null,
                               onListen: ttsHandler,
                             ),
                           ),

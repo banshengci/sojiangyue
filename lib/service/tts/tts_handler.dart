@@ -2,6 +2,7 @@
 import 'package:songjiang_reader/page/reading_page.dart';
 import 'package:songjiang_reader/service/tts/base_tts.dart';
 import 'package:songjiang_reader/service/tts/tts_factory.dart';
+import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
@@ -79,6 +80,14 @@ class TtsHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> play() async {
+    // 阅读页正在销毁、或 EpubPlayer 还没挂上时 currentState 会是 null。
+    // 这里原来用的是 `!` 硬断言，点「听」直接崩——stop() 那边用的却是 `?.`。
+    final state = epubPlayerKey.currentState;
+    if (state == null) {
+      SjLog.warning('TTS: 阅读内容尚未就绪，忽略播放');
+      return;
+    }
+
     final session = await AudioSession.instance;
     if (await session.setActive(true)) {
       playbackState.add(playbackState.value.copyWith(
@@ -89,14 +98,13 @@ class TtsHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
 
     final item = MediaItem(
-      id: epubPlayerKey.currentState!.chapterTitle,
-      title: epubPlayerKey.currentState!.chapterTitle,
-      album: epubPlayerKey.currentState!.book.title,
-      artist: epubPlayerKey.currentState!.book.author,
+      id: state.chapterTitle,
+      title: state.chapterTitle,
+      album: state.book.title,
+      artist: state.book.author,
       // Use -1 to tell system not to render a progress bar.
       duration: const Duration(milliseconds: -1),
-      artUri: Uri.tryParse(
-          'file://${epubPlayerKey.currentState!.book.coverFullPath}'),
+      artUri: Uri.tryParse('file://${state.book.coverFullPath}'),
     );
 
     // Ensure system receives queue + active index for control center metadata.
