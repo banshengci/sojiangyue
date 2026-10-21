@@ -199,7 +199,9 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               controller: widget.controller,
-              padding: const EdgeInsets.all(12),
+              // 底部留出浮动导航的高度（70 + 上下留白），否则最后一行卡片
+              // 会被那颗药丸压住一半
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
               children: [
                 _buildModesSection(context),
                 if (_packs.isEmpty)
@@ -288,20 +290,29 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
           ],
         ),
         const Padding(
-          padding: EdgeInsets.only(left: 34, top: 4, bottom: 10),
+          padding: EdgeInsets.only(top: 4, bottom: 10),
           child: Text('选一个玩法，挑一位人物，立刻开一局',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
         ),
-        Padding(
-          padding: const EdgeInsets.only(left: 34),
-          child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (final mode in _catalog.all)
-                _modeCard(context, mode),
-            ],
-          ),
+        // 卡片宽度跟着可用宽度算，不写死。
+        //
+        // 原来固定 172、左边还留了 34 缩进：360dp 的机器上可用宽度只剩 302，
+        // 172×2+10 = 354 放不下，于是每张卡都独占一行，看着像列表。
+        LayoutBuilder(
+          builder: (context, box) {
+            const gap = 10.0;
+            // 每张卡至少 150 宽，最多排 4 列
+            final cols = (box.maxWidth / 160).floor().clamp(2, 4);
+            final cardWidth = (box.maxWidth - gap * (cols - 1)) / cols;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                for (final mode in _catalog.all)
+                  _modeCard(context, mode, cardWidth),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 16),
       ],
@@ -310,7 +321,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
 
   /// 卡片上那行技能摘要。
   ///
-  /// 只列名字，不展开细节——卡片宽 172，塞不下更多。
+  /// 只列名字，不展开细节——卡片宽度随列数变化，塞不下更多。
   String _skillSummary(GameplayMode mode) {
     final names = <String>[
       for (final t in mode.scriptTools)
@@ -327,7 +338,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
     return '技能：${names.take(2).join('、')} 等 ${names.length} 个';
   }
 
-  Widget _modeCard(BuildContext context, GameplayMode mode) {
+  Widget _modeCard(BuildContext context, GameplayMode mode, double width) {
     final primary = Theme.of(context).primaryColor;
     final fromPack = _catalog.isFromPack(mode.id);
     final tags = <String>[
@@ -340,9 +351,10 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
       onTap: () => _startMode(mode),
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        width: 172,
-        height: 162,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+        width: width,
+        // 定高是为了让同一行的卡片底边对齐。内容约 112，留 20 余量给字体缩放
+        height: 132,
+        padding: const EdgeInsets.fromLTRB(11, 11, 11, 9),
         decoration: BoxDecoration(
           color: primary.withValues(alpha: 0.035),
           borderRadius: BorderRadius.circular(14),
@@ -354,15 +366,15 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
             Row(
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
                     color: primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(mode.icon, size: 17, color: primary),
+                  child: Icon(mode.icon, size: 16, color: primary),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Text(
                     mode.name,
@@ -377,7 +389,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
                 if (fromPack)
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                     decoration: BoxDecoration(
                       color: primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
@@ -389,7 +401,7 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 7),
             // 摘要固定两行：长短不一会把卡片撑成参差不齐的样子
             Expanded(
               child: Text(
@@ -398,14 +410,14 @@ class _GameplayCenterPageState extends ConsumerState<GameplayCenterPage> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 11,
-                  height: 1.45,
+                  height: 1.4,
                   color: Colors.grey.shade600,
                 ),
               ),
             ),
             if (tags.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 2),
+                padding: const EdgeInsets.only(bottom: 1),
                 child: Text(
                   tags.join(' · '),
                   maxLines: 1,
