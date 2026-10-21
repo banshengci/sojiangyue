@@ -9,8 +9,10 @@
 // 名字归一与关系去重放在 models 层（DAO 读写也要用），这里只做导出与组合。
 
 import 'package:songjiang_reader/models/character_card.dart';
+import 'package:songjiang_reader/models/character_dedupe.dart';
 import 'package:songjiang_reader/models/character_relation_merge.dart';
 
+export 'package:songjiang_reader/models/character_dedupe.dart';
 export 'package:songjiang_reader/models/character_relation_merge.dart';
 
 /// 按指定人物与重要度收口。
@@ -41,30 +43,35 @@ List<CharacterCard> scopeCharacters(
   }).toList();
 }
 
-/// 合并人物：旧的不动，本次抽到的覆盖同名旧条目。
+/// 合并人物：旧的不动，本次抽到的覆盖同一人的旧条目。
 ///
 /// 用于「只抽这几位」的场景——不能整图替换，否则其他人物会被删掉。
+///
+/// 「同一人」按别名判定，不只看正名：上一版只比 `name` 全等，
+/// 于是「凌小东」和「小东」被当成两个人各存一张，
+/// 母亲更是分成了「郑怡云 / 妈妈 / 小云 / 凌母」四张。
 List<CharacterCard> mergeCharacters(
   List<CharacterCard> existing,
   List<CharacterCard> incoming,
-) {
-  final incomingNames = incoming
-      .map((c) => canonicalPersonName(c.name))
-      .toSet();
-  return [
-    ...existing.where(
-      (c) => !incomingNames.contains(canonicalPersonName(c.name)),
-    ),
-    ...incoming,
-  ];
-}
+) =>
+    mergeSamePerson([...existing, ...incoming], laterWins: true);
 
 /// 合并关系：同一方向的关系本次覆盖旧的，其余保留。
 ///
 /// 旧实现只丢弃"涉及被重抽人物"的旧关系、然后整批追加本次结果，
 /// 于是同一对关系在每次蒸馏后多出一份——这是关系表越用越乱的根源。
+///
+/// 传入 [characters] 时先按别名把两端改写成正名：
+/// 否则「妈妈→」和「郑怡云→」会被当成两条不同关系，合并等于没做。
 List<CharacterRelation> mergeRelations(
   List<CharacterRelation> existing,
-  List<CharacterRelation> incoming,
-) =>
-    dedupeRelations([...existing, ...incoming]);
+  List<CharacterRelation> incoming, {
+  List<CharacterCard>? characters,
+}) {
+  var all = <CharacterRelation>[...existing, ...incoming];
+  if (characters != null && characters.isNotEmpty) {
+    final index = aliasToName(characters);
+    all = [for (final r in all) remapRelation(r, index)];
+  }
+  return dedupeRelations(all);
+}

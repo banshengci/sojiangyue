@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/design/songjiang/sj_tokens.dart';
 import 'package:songjiang_reader/models/character_card.dart';
+import 'package:songjiang_reader/models/character_dedupe.dart';
+import 'package:songjiang_reader/models/character_relation_merge.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 
@@ -101,6 +103,89 @@ class _CharacterCleanupPageState extends State<CharacterCleanupPage> {
     await _reload();
   }
 
+  /// 把同一个人物的多张卡合并。
+  ///
+  /// 蒸馏对「这人叫什么」是逐段独立判断的，同一个人常被拆成
+  /// 「凌小东 / 小东 / 我 / 主角」好几张，关系也跟着分成几条。
+  /// 重跑一次蒸馏能修，但要再花一遍 token；这里直接按别名互指关系就地合并。
+  Future<void> _mergeDuplicates() async {
+    final cards = await characterDao.getCharacters(widget.bookId);
+    if (cards.length < 2) {
+      SjToast.show('人物太少，没有可合并的');
+      return;
+    }
+    final merged = mergeSamePerson(cards);
+    if (merged.length == cards.length) {
+      SjToast.show('没有发现重复人物');
+      return;
+    }
+
+    final before = {for (final c in cards) c.name};
+    final after = {for (final c in merged) c.name};
+    final absorbed = before.difference(after);
+    final lines = <String>[
+      for (final m in merged)
+        if ((m.aliases ?? const <String>[]).any(absorbed.contains))
+          '${m.name}  ←  '
+              '${(m.aliases ?? const <String>[]).where(absorbed.contains).join('、')}',
+    ];
+
+    if (!mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('合并重复人物？'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${cards.length} 张卡会合并成 ${merged.length} 张，'
+                '指向它们的关系统一改写到正名下。'),
+            const SizedBox(height: 10),
+            for (final line in lines.take(8))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(line, style: const TextStyle(fontSize: 12)),
+              ),
+            if (lines.length > 8)
+              Text('…共 ${lines.length} 组', style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(CharactersPageText.chatCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('合并'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final relations = await characterDao.getRelations(widget.bookId);
+    final world = await characterDao.getWorldSettings(widget.bookId);
+    final timeline = await characterDao.getTimeline(widget.bookId);
+    final index = aliasToName(merged);
+
+    await characterDao.replaceBookGraph(
+      bookId: widget.bookId,
+      characters: merged,
+      // 两端先改写成正名，再去重：否则「妈妈→」和「郑怡云→」会被当成两条
+      relations: dedupeRelations([
+        for (final r in relations) remapRelation(r, index),
+      ]),
+      settings: world,
+      events: timeline,
+    );
+    if (!mounted) return;
+    SjToast.show('已合并 ${cards.length - merged.length} 个重复人物');
+    _selected.clear();
+    await _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = SjColors.of(context);
@@ -114,6 +199,11 @@ class _CharacterCleanupPageState extends State<CharacterCleanupPage> {
             ? CharactersPageText.cleanupTitle
             : '${widget.bookTitle} · ${CharactersPageText.cleanupTitle}'),
         actions: [
+          IconButton(
+            tooltip: '合并重复人物',
+            icon: const Icon(Icons.merge_type),
+            onPressed: _cards.isEmpty ? null : _mergeDuplicates,
+          ),
           TextButton(
             onPressed: _cards.isEmpty
                 ? null

@@ -32,6 +32,7 @@ class DistillProgress {
     this.skippedChunks = 0,
     this.charactersFound = 0,
     this.message = '',
+    this.concurrency = 0,
   });
 
   final DistillPhase phase;
@@ -42,6 +43,12 @@ class DistillProgress {
   final int skippedChunks;
   final int charactersFound;
   final String message;
+
+  /// 本次抽取的并发路数（0 = 未知）。
+  ///
+  /// 原来只在「开始抽取」那句 message 里出现过一次，随后就被
+  /// 「已抽取 N 个人物」顶掉了——用户根本看不到现在是几路在跑。
+  final int concurrency;
 }
 
 /// 把长章节切成 ≤ chapterCharBudget 的切片，保留 overlap 避免截断人物台词。
@@ -341,6 +348,7 @@ class CharacterDistillService {
         skippedChunks: skipped,
         charactersFound: allCharacters.length,
         message: '已抽取 ${allCharacters.length} 个人物',
+        concurrency: concurrency,
       );
     }
 
@@ -483,20 +491,32 @@ class CharacterDistillService {
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .toSet();
-    final kept = scopeCharacters(
-      all,
-      focus: focus,
-      minImportance: minImportance,
+    // 收口之后先做实体消歧：同一人的几种叫法合成一张。
+    //
+    // 不合并的话「凌小东 / 小东 / 我 / 主角」会各存一张卡，
+    // 母亲更会分成「郑怡云 / 妈妈 / 小云 / 凌母」四张，关系表也跟着分裂。
+    final kept = mergeSamePerson(
+      scopeCharacters(
+        all,
+        focus: focus,
+        minImportance: minImportance,
+      ),
     );
+    // 别名 → 正名：关系里写的可能是「妈妈」，而卡片正名已是「郑怡云」
+    final aliasIndex = aliasToName(kept);
 
     var keptRelations = relations;
     if (focus.isNotEmpty || minImportance > 0) {
-      final names = kept.map((c) => c.name).toSet();
+      bool keptName(String raw) =>
+          aliasIndex.containsKey(canonicalPersonName(raw));
       keptRelations = relations
-          .where((r) =>
-              names.contains(r.sourceName) && names.contains(r.targetName))
+          .where((r) => keptName(r.sourceName) && keptName(r.targetName))
           .toList();
     }
+    // 两端统一改写成正名再入库，否则「妈妈→」和「郑怡云→」会是两条
+    keptRelations = [
+      for (final r in keptRelations) remapRelation(r, aliasIndex),
+    ];
 
     if (focus.isEmpty && minImportance <= 0) {
       // 全量：整图替换（原有行为）。
@@ -520,10 +540,18 @@ class CharacterDistillService {
     final existingWorld = await dao.getWorldSettings(bookId);
     final existingTimeline = await dao.getTimeline(bookId);
 
+    // 先把两边合起来，再把关系按合并后的别名表改写：
+    // 旧库里可能还留着「妈妈」「小云」这些碎片，不一起归一化就白合并了。
+    final mergedCharacters = mergeCharacters(existingCharacters, kept);
+
     await dao.replaceBookGraph(
       bookId: bookId,
-      characters: mergeCharacters(existingCharacters, kept),
-      relations: mergeRelations(existingRelations, keptRelations),
+      characters: mergedCharacters,
+      relations: mergeRelations(
+        existingRelations,
+        keptRelations,
+        characters: mergedCharacters,
+      ),
       // 世界观与时间线不是「人物」：收口模式下一律保留原样，
       // 避免每跑一次就多出一批重复条目。
       settings: existingWorld.isEmpty ? world : existingWorld,
