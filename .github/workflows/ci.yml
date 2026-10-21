@@ -308,6 +308,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
+      - name: Disable Swift Package Manager (macOS only)
+        # Flutter 3.44 默认把插件改成 Swift Package 集成。但
+        # flutter_inappwebview_macos 的 Package.swift 把 macOS 定死在 10.14，
+        # 它的 WebAuthenticationSession.presentationAnchor(for:) 却标了
+        # @available(macOS 10.15, *)。Xcode 26 的 SDK 下这会被判为不满足
+        # 协议一致性：
+        #   protocol 'ASWebAuthenticationPresentationContextProviding'
+        #   requires 'presentationAnchor(for:)' to be available in macOS 10.14
+        # SPM 的部署目标写死在包里，macos/Podfile 的 post_install 管不到；
+        # 退回 CocoaPods 才能把它抬到 10.15。
+        # 必须放在 flutter pub get 之前——SPM 集成是在那一步生成的。
+        run: flutter config --no-enable-swift-package-manager
+
       - name: Install dependencies
         run: flutter pub get
 
