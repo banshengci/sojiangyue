@@ -24,6 +24,7 @@ class DistillProgressView {
     this.failed = false,
     this.countText,
     this.skipped,
+    this.concurrency = 0,
   });
 
   final String message;
@@ -38,6 +39,9 @@ class DistillProgressView {
 
   /// 增量蒸馏跳过的片段数。
   final int? skipped;
+
+  /// 并发路数（0 或 1 时不显示）。
+  final int concurrency;
 }
 
 class DistillProgressDialog extends StatelessWidget {
@@ -84,6 +88,13 @@ class DistillProgressDialog extends StatelessWidget {
                     LinearProgressIndicator(value: v?.ratio),
                   const SizedBox(height: 12),
                   Text(message),
+                  if ((v?.concurrency ?? 0) > 1) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      '${v!.concurrency} 路并发 · 每跑完一批就落库，随时可停',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                   if (v?.countText != null) ...[
                     const SizedBox(height: 8),
                     Text(v!.countText!),

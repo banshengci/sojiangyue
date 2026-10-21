@@ -16,8 +16,10 @@ import 'package:songjiang_reader/service/long_task/task_manifest.dart';
 import 'package:songjiang_reader/utils/log/common.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/distill/distill_progress_dialog.dart';
+import 'package:songjiang_reader/widgets/distill/task_banner.dart';
 import 'package:songjiang_reader/service/enhancement_pack/enhancement_pack_service.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
+import 'package:songjiang_reader/page/long_task/long_task_center_page.dart';
 
 import 'card_library_page.dart';
 import 'character_avatar.dart';
@@ -47,11 +49,37 @@ class _CharacterListPageState extends State<CharacterListPage> {
   List<CharacterCard> _cards = [];
   bool _loading = true;
 
+  /// 有没有后台任务（在跑的，或者停了等着续跑的）。
+  ///
+  /// 任务中心原来只挂在「设置 → AI」里，从书架点到它要三层——
+  /// 而蒸馏正是从这一页发起的，任务入口理应在这儿。
+  bool _hasTasks = false;
+
   @override
   void initState() {
     super.initState();
     _reload();
+    _refreshTasks();
   }
+
+  Future<void> _refreshTasks() async {
+    var has = DistillBackground.runningTags.isNotEmpty;
+    if (!has) {
+      final list = await TaskManifestStore.instance.list();
+      has = list.any((t) => t.status != LongTaskStatus.done);
+    }
+    if (!mounted) return;
+    if (has != _hasTasks) setState(() => _hasTasks = has);
+  }
+
+  Future<void> _openTaskCenter() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LongTaskCenterPage()),
+    );
+    await _refreshTasks();
+  }
+
   Future<void> _reload() async {
     setState(() => _loading = true);
     final cards = await characterDao.getCharacters(widget.bookId);
@@ -327,6 +355,7 @@ class _CharacterListPageState extends State<CharacterListPage> {
               ? CharactersPageText.charactersCount(p.charactersFound)
               : null,
           skipped: p.skippedChunks,
+          concurrency: p.concurrency,
         );
       },
       onError: (e) => error.value = e,
@@ -346,6 +375,8 @@ class _CharacterListPageState extends State<CharacterListPage> {
       ),
     );
     if (mounted) await _reload();
+    // 用户可能是从任务中心回来续跑的，横幅得跟着出现
+    if (mounted) await _refreshTasks();
   }
 
   Future<void> _exportPack() async {
@@ -429,6 +460,8 @@ class _CharacterListPageState extends State<CharacterListPage> {
         );
       case 'crossover':
         page = const CrossoverPage();
+      case 'tasks':
+        page = const LongTaskCenterPage();
       case 'export':
         await _exportPack();
         return;
@@ -513,6 +546,7 @@ class _CharacterListPageState extends State<CharacterListPage> {
               _menuItem('knowledge', Icons.menu_book_outlined, '原著知识'),
               _menuItem('recap', Icons.history_edu_outlined, '剧情回顾'),
               _menuItem('crossover', Icons.swap_horiz, '穿越联动'),
+              _menuItem('tasks', Icons.downloading_outlined, '任务中心'),
               const PopupMenuDivider(),
               _menuItem('export', Icons.file_upload_outlined, '导出增强包'),
               _menuItem('import', Icons.file_download_outlined, '导入增强包'),
@@ -520,8 +554,12 @@ class _CharacterListPageState extends State<CharacterListPage> {
           ),
         ],
       ),
-      body: _loading
-          ? const AppLoadingHint()
+      body: Column(
+        children: [
+          if (_hasTasks) TaskBanner(onTap: _openTaskCenter),
+          Expanded(
+            child: _loading
+                ? const AppLoadingHint()
           : !hasData
               ? EmptyStateHint(
                   icon: Icons.group_outlined,
@@ -574,6 +612,9 @@ class _CharacterListPageState extends State<CharacterListPage> {
                     );
                   },
                 ),
+          ),
+        ],
+      ),
     );
   }
 }

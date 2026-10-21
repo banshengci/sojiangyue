@@ -16,8 +16,11 @@ import 'package:songjiang_reader/service/character/character_distill_repository.
 import 'package:songjiang_reader/service/character/distill_background.dart';
 import 'package:songjiang_reader/widgets/distill/distill_progress_dialog.dart';
 import 'package:songjiang_reader/service/character/knowledge_distill_service.dart';
+import 'package:songjiang_reader/service/long_task/task_manifest.dart';
 import 'package:songjiang_reader/utils/toast/common.dart';
 import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
+import 'package:songjiang_reader/widgets/distill/task_banner.dart';
+import 'package:songjiang_reader/page/long_task/long_task_center_page.dart';
 
 import 'characters_page_strings.dart';
 
@@ -42,10 +45,35 @@ class _KnowledgePageState extends State<KnowledgePage> {
   bool _loading = true;
   String _keyword = '';
 
+  /// 有没有后台任务（在跑的，或者停了等着续跑的）。
+  ///
+  /// 知识抽取也是长任务，跑起来之后用户往往就退出这一页了；
+  /// 任务中心原来只在「设置 → AI」里，回头找不着。
+  bool _hasTasks = false;
+
   @override
   void initState() {
     super.initState();
     _reload();
+    _refreshTasks();
+  }
+
+  Future<void> _refreshTasks() async {
+    var has = DistillBackground.runningTags.isNotEmpty;
+    if (!has) {
+      final list = await TaskManifestStore.instance.list();
+      has = list.any((t) => t.status != LongTaskStatus.done);
+    }
+    if (!mounted) return;
+    if (has != _hasTasks) setState(() => _hasTasks = has);
+  }
+
+  Future<void> _openTaskCenter() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LongTaskCenterPage()),
+    );
+    await _refreshTasks();
   }
 
   @override
@@ -128,6 +156,8 @@ class _KnowledgePageState extends State<KnowledgePage> {
       ),
     );
     await _reload();
+    // 任务可能还在后台跑（用户点了停止也只是停），横幅要跟着出现
+    await _refreshTasks();
   }
 
   @override
@@ -148,6 +178,11 @@ class _KnowledgePageState extends State<KnowledgePage> {
       ),
       body: Column(
         children: [
+          if (_hasTasks)
+            TaskBanner(
+              onTap: _openTaskCenter,
+              text: '有后台任务 · 知识抽取可以停下，回头在这儿接着跑',
+            ),
           if (_items.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
