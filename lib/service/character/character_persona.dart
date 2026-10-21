@@ -9,6 +9,7 @@
 
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
+import 'package:songjiang_reader/service/character/relation_playbook.dart';
 
 /// 把关系五元组翻译成人话（供 prompt 使用，不展示给用户）。
 String _describeRelation(CharacterRelation r, String self) {
@@ -126,12 +127,25 @@ String buildCharacterSystemPrompt({
   buf.writeln();
 
   if (relations.isNotEmpty) {
-    buf.writeln('## 你与他人的关系');
-    // 只取前 8 条，避免 prompt 过长且稀释重点
-    for (final r in relations.take(8)) {
-      buf.writeln(_describeRelation(r, character.name));
+    // 单人玩法同样要「各怀心思」：场上只有他一个，但他对别人的态度
+    // 正是这个人的性格来源，不能因为对方没在场就退化成一张平铺列表。
+    final playbook = extraDirective == null
+        ? ''
+        : buildRelationPlaybook(
+            characters: [character],
+            relations: relations,
+            allowOffstageCounterpart: true,
+          );
+    if (playbook.isNotEmpty) {
+      buf.writeln(playbook);
+    } else {
+      buf.writeln('## 你与他人的关系');
+      // 只取前 8 条，避免 prompt 过长且稀释重点
+      for (final r in relations.take(8)) {
+        buf.writeln(_describeRelation(r, character.name));
+      }
+      buf.writeln();
     }
-    buf.writeln();
   }
 
   if (world.isNotEmpty) {
@@ -238,11 +252,23 @@ String buildGroupSystemPrompt({
   }
 
   if (relations.isNotEmpty) {
-    buf.writeln('### 他们之间');
-    for (final r in relations.take(12)) {
-      buf.writeln(_describeRelation(r, '\u0000')); // 群聊里不做主视角区分
+    // 玩法里把关系翻成「各怀心思」：只说「信任 30」模型不知道该怎么演，
+    // 于是所有人都客客气气、谁也不算计谁。普通聊天仍用平铺列表，短一点。
+    final playbook = extraDirective == null
+        ? ''
+        : buildRelationPlaybook(
+            characters: characters,
+            relations: relations,
+          );
+    if (playbook.isNotEmpty) {
+      buf.writeln(playbook);
+    } else {
+      buf.writeln('### 他们之间');
+      for (final r in relations.take(12)) {
+        buf.writeln(_describeRelation(r, '\u0000')); // 群聊里不做主视角区分
+      }
+      buf.writeln();
     }
-    buf.writeln();
   }
 
   // 锁定事实：群聊里更需要，否则几个角色会互相把设定说岔

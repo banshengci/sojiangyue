@@ -17,6 +17,7 @@ import 'package:songjiang_reader/dao/character_chat_dao.dart';
 import 'package:songjiang_reader/dao/character_dao.dart';
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/character_chat.dart';
+import 'package:songjiang_reader/models/character_relation_merge.dart';
 import 'package:songjiang_reader/models/gameplay_mode.dart';
 import 'package:songjiang_reader/service/ai/current_ai_pipeline.dart';
 import 'package:songjiang_reader/service/character/character_persona.dart';
@@ -299,9 +300,29 @@ class CharacterChatService {
         : refs.isNotEmpty
             ? refs.first.bookId
             : session.bookId;
-    final relations = main == null
+
+    // 关系范围：单人对话要「他与所有人」，多人玩法要「在场者两两之间」。
+    //
+    // 原先一律取 main 的关系，于是群聊里另外几个人的关系根本没进提示词——
+    // 角色只知道自己和主角怎么相处，对同场的其他人一无所知，
+    // 演出来就是几个人各说各话，谁也不试探谁。
+    var relations = main == null
         ? <CharacterRelation>[]
         : await _cardDao.getRelationsForCharacter(mainBookId, main.name);
+    if (session.mode == CharacterChatMode.group && onStage.length > 1) {
+      final all = await _cardDao.getRelations(mainBookId);
+      final stageNames = <String>{
+        for (final c in onStage) canonicalPersonName(c.name),
+      };
+      final pairwise = <CharacterRelation>[
+        for (final r in all)
+          if (stageNames.contains(canonicalPersonName(r.sourceName)) &&
+              stageNames.contains(canonicalPersonName(r.targetName)))
+            r,
+      ];
+      // 场上的人彼此没蒸馏出关系时，退回主角那份，别把关系块整块丢掉
+      if (pairwise.isNotEmpty) relations = pairwise;
+    }
     final world = await _cardDao.getWorldSettings(mainBookId);
 
     return _ChatContext(

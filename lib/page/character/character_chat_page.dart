@@ -28,6 +28,7 @@ import 'package:songjiang_reader/widgets/common/empty_state_hint.dart';
 
 import 'characters_page_strings.dart';
 import 'character_avatar.dart';
+import 'character_relation_sheet.dart';
 import 'package:songjiang_reader/plugin/plugin_npc_runner.dart';
 import 'package:songjiang_reader/plugin/plugin_registry.dart';
 import 'package:songjiang_reader/service/character/chat_autoplay.dart';
@@ -2216,8 +2217,20 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
   }
 
   /// 玩法状态条：玩法名 · 进度幕 · 各状态量 · 揭晓入口。
-  Widget _buildGameplayBar(SjColors c) {
-    final mode = _gameplayMode!;
+  /// 打开「关系」面板：在场这几位彼此什么态度。
+  void _showRelations() {
+    final session = _session;
+    if (session == null) return;
+    showCharacterRelationSheet(
+      context,
+      bookId: session.bookId,
+      members: onStageNames(session.characterName),
+      mode: _gameplayMode,
+      state: _gameplay,
+    );
+  }
+
+  Widget _buildGameplayBar(SjColors c) {    final mode = _gameplayMode!;
     final state = _gameplay!;
     // 按成员的状态（好感/信任）需要知道有谁在场
     final members = onStageNames(
@@ -2289,6 +2302,23 @@ class _CharacterChatPageState extends State<CharacterChatPage> {
                   '${def.name} ${state.stats[def.key] ?? def.initial}',
                   style: SjText.meta(def.isScore ? c.clay : c.inkSoft),
                 ),
+            ],
+            // 关系面板：谁对谁什么态度。
+            // 提示词里那份「各怀心思」只给模型看，玩家只能从台词里猜；
+            // 摆一个入口在这儿，猜得到才叫有戏。
+            if (members.length > 1) ...[
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: _showRelations,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.diversity_3, size: 12, color: c.pine),
+                    const SizedBox(width: 3),
+                    Text('关系', style: SjText.meta(c.pine)),
+                  ],
+                ),
+              ),
             ],
             if ((state.secret?.isNotEmpty ?? false) && !state.revealed) ...[
               const SizedBox(width: 12),
