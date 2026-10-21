@@ -8,6 +8,8 @@
 // 注意：必须用 package: 导入，不能写相对路径——
 // 相对路径会让同一个类出现两份，和 models 里的 package: 引用对不上类型。
 
+import 'dart:io';
+
 import 'package:songjiang_reader/models/character_card.dart';
 import 'package:songjiang_reader/models/character_dedupe.dart';
 import 'package:songjiang_reader/models/character_relation_merge.dart';
@@ -52,9 +54,9 @@ void main() {
   ];
 
   final merged = mergeSamePerson(cards);
-  print('合并前 ${cards.length} 张 → 合并后 ${merged.length} 张');
+  stdout.writeln('合并前 ${cards.length} 张 → 合并后 ${merged.length} 张');
   for (final c in merged) {
-    print('  ${c.name}  (重要度 ${c.importance})  别名: ${(c.aliases ?? []).join('、')}');
+    stdout.writeln('  ${c.name}  (重要度 ${c.importance})  别名: ${(c.aliases ?? []).join('、')}');
   }
 
   final index = aliasToName(merged);
@@ -68,8 +70,8 @@ void main() {
   final deduped = dedupeRelations([
     for (final r in relations) remapRelation(r, index),
   ]);
-  print('\n关系 ${relations.length} 条 → ${deduped.length} 条');
+  stdout.writeln('\n关系 ${relations.length} 条 → ${deduped.length} 条');
   for (final r in deduped) {
-    print('  ${r.sourceName} → ${r.targetName}  trust=${r.trust}');
+    stdout.writeln('  ${r.sourceName} → ${r.targetName}  trust=${r.trust}');
   }
 }

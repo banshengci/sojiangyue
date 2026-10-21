@@ -68,7 +68,7 @@ void main() {
         powerGap: -30, conflict: '她怕他把医院拖下水'),
   ];
 
-  print(buildRelationPlaybook(characters: cast, relations: relations));
+  stdout.writeln(buildRelationPlaybook(characters: cast, relations: relations));
 
   // 关键性质自检（flutter test 在本机跑不起来，这里做同等验证）
   final out = buildRelationPlaybook(characters: cast, relations: relations);
@@ -81,11 +81,11 @@ void main() {
   final momBlock = out.substring(momAt, foeAt);
 
   void check(String what, bool ok) {
-    print('${ok ? 'PASS' : 'FAIL'}  $what');
+    stdout.writeln('${ok ? 'PASS' : 'FAIL'}  $what');
     if (!ok) exitCode = 1;
   }
 
-  print('\n--- 自检 ---');
+  stdout.writeln('\n--- 自检 ---');
   check('儿子用自己的心里话', sonBlock.contains('隐约觉得她在骗自己'));
   check('儿子的段里没有母亲的心里话', !sonBlock.contains('宁可被恨也要瞒到底'));
   check('母亲用自己的心里话', momBlock.contains('宁可被恨也要瞒到底'));
