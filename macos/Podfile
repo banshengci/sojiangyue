@@ -36,6 +36,15 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # 项目级也设一遍。
+  #
+  # 只在 target 上设过一次（见下），但 CI 上编译参数仍是
+  # `-target arm64-apple-macos10.14`——说明 pod 的有效部署目标被
+  # 项目级设置或 xcconfig 兜回去了。两边都写死更稳。
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.15'
+  end
+
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
 
@@ -53,11 +62,11 @@ post_install do |installer|
     # 把该 pod 的部署目标提到 10.15 后，方法成为无条件可用，一致性成立。
     # 只抬到 10.15（与本项目 Podfile 的 platform 一致），不动更高版本，
     # 避免抬高最低支持系统。
+    #
+    # 这里不再判断原值大小，直接赋值：判断式的写法在 CI 上没生效过，
+    # 而无条件赋值不会有「原值读不到 / 类型不是数字」这类漏网情况。
     target.build_configurations.each do |config|
-      current = config.build_settings['MACOSX_DEPLOYMENT_TARGET']
-      if current.nil? || current.to_f < 10.15
-        config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.15'
-      end
+      config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.15'
     end
   end
 end
