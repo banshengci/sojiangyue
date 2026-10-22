@@ -177,7 +177,11 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - uses: dessant/lock-threads@v5
+      # v5 在 2026-10 起会直接失败（<1s）：
+      #   "github-token" length must be less than or equal to 100 characters long
+      # GitHub 签发的 token 变长后，v5 自带的输入校验（maxLength: 100）拒收，
+      # 三个 job 里只有这一个红。v6 去掉了这个限制，输入名一个没变，可直接升。
+      - uses: dessant/lock-threads@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           issue-inactive-days: 30  # Lock issues 30 days after they're closed
