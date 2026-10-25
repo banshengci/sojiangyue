@@ -18,9 +18,13 @@ abstract class BaseDao {
 
   void clearDatabaseOverride() => _override = null;
 
-  Future<Database> get _database async => _override ?? DBHelper().database;
-
-  Future<Database> get database async => _database;
+  /// DAO 的数据库来源。默认取主库 [DBHelper]。
+  ///
+  /// 子类可覆盖此 getter 以指向另一个库（见 `LocalCacheDao` 指向本地缓存库）；
+  /// 基类内部一律通过 `this.database` 取库，因此覆盖对全部读写方法都生效。
+  ///
+  /// 测试注入的 [_override] 优先级最高；子类覆盖本 getter 时自行决定是否回落到它。
+  Future<Database> get database async => _override ?? DBHelper().database;
 
   Future<List<T>> queryList<T>(
     String table, {
@@ -35,7 +39,7 @@ abstract class BaseDao {
     int? limit,
     int? offset,
   }) async {
-    final database = await _database;
+    final database = await this.database;
     final rows = await database.query(
       table,
       columns: columns,
@@ -89,7 +93,7 @@ abstract class BaseDao {
     List<Object?>? arguments,
     required RowMapper<T> mapper,
   }) async {
-    final database = await _database;
+    final database = await this.database;
     final rows = await database.rawQuery(sql, arguments);
     return rows.map(mapper).toList(growable: false);
   }
@@ -109,7 +113,7 @@ abstract class BaseDao {
 
   Future<int> insert(String table, Map<String, Object?> values,
       {ConflictAlgorithm? conflictAlgorithm}) async {
-    final database = await _database;
+    final database = await this.database;
     return database.insert(
       table,
       values,
@@ -124,7 +128,7 @@ abstract class BaseDao {
     List<Object?>? whereArgs,
     ConflictAlgorithm? conflictAlgorithm,
   }) async {
-    final database = await _database;
+    final database = await this.database;
     return database.update(
       table,
       values,
@@ -139,7 +143,7 @@ abstract class BaseDao {
     String? where,
     List<Object?>? whereArgs,
   }) async {
-    final database = await _database;
+    final database = await this.database;
     return database.delete(
       table,
       where: where,
@@ -150,7 +154,7 @@ abstract class BaseDao {
   Future<R> transaction<R>(
     Future<R> Function(Transaction txn) action,
   ) async {
-    final database = await _database;
+    final database = await this.database;
     return database.transaction(action);
   }
 }

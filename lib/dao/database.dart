@@ -7,6 +7,7 @@ import 'package:songjiang_reader/config/reading_style_prefs.dart';
 import 'package:songjiang_reader/config/sync_prefs.dart';
 import 'package:songjiang_reader/dao/character_chat_schema.dart';
 import 'package:songjiang_reader/dao/character_extras_schema.dart';
+import 'package:songjiang_reader/dao/character_profile_schema.dart';
 import 'package:songjiang_reader/dao/gameplay_schema.dart';
 import 'package:songjiang_reader/dao/scene_card_schema.dart';
 import 'package:songjiang_reader/dao/character_schema.dart';
@@ -791,6 +792,10 @@ Future<void> ensureSchemaIntegrity(Database db) async {
     await applyGameplaySchema(db);
     // 基础表兜底：case6 / case8 建的两张表原先不在自愈范围内（见常量处的说明）
     await _ensureBaseTables(db);
+    // 角色养成档案 + 贡献账本。
+    // 与上面所有自建表一致：走幂等自检而不是顶 currentDbVersion，
+    // 避免牵动 DatabaseSyncManager 的版本比较（v15 的远端文件会被判「更旧」而拒收）。
+    await applyCharacterProfileSchema(db);
 
     // tb_books 历史上分几次加的列
     await _ensureColumn(db, 'tb_books', 'rating', 'REAL');
